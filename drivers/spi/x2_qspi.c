@@ -100,7 +100,7 @@ static int x2_qspi_ofdata_to_platdata(struct udevice *bus)
 
     /* FIXME: Use 20MHz as a suitable default for FPGA board*/
     plat->freq      = fdtdec_get_int(blob, node, "spi-max-frequency", 20000000);
-    plat->xfer_mode = fdtdec_get_int(blob, node, "xfer_mode", 0);
+    plat->xfer_mode = fdtdec_get_int(blob, node, "xfer-mode", 0);
 
     return 0;   
 }

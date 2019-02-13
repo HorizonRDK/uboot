@@ -322,7 +322,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	if (msg.actual_length != totalxferlen)
 		return -EIO;
 #else
-
+	#if 0
 	/* U-Boot does not support parallel SPI data lanes */
 	if ((op->cmd.buswidth != 1) ||
 	    (op->addr.nbytes && op->addr.buswidth != 1) ||
@@ -331,7 +331,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 		printf("Dual/Quad raw SPI transfers not supported\n");
 		return -ENOTSUPP;
 	}
-
+	#endif
 	if (op->data.nbytes) {
 		if (op->data.dir == SPI_MEM_DATA_IN)
 			rx_buf = op->data.buf.in;
@@ -365,7 +365,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	if (!tx_buf && !rx_buf)
 		flag |= SPI_XFER_END;
 
-	ret = spi_xfer(slave, op_len * 8, op_buf, NULL, flag);
+	ret = spi_xfer(slave, op_len * 8, op_buf, NULL, flag|SPI_XFER_CMD);
 	if (ret)
 		return ret;
 
