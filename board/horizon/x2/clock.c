@@ -15,7 +15,19 @@ void dram_pll_init(ulong pll_val)
 
 	switch (pll_val) {
 		case MHZ(3200):
-			value = FBDIV_BITS(200) | REFDIV_BITS(2) | POSTDIV1_BITS(3);
+			/* Set DDR PLL to 1600 */
+			value = FBDIV_BITS(200) | REFDIV_BITS(3) |
+				POSTDIV1_BITS(1) | POSTDIV2_BITS(1);
+			writel(value, X2_DDRPLL_FREQ_CTRL);
+
+			writel(0x1, X2_DDRSYS_CLK_DIV_SEL);
+
+			break;
+
+		case MHZ(2133):
+			/* Set DDR PLL to 2133 */
+			value = FBDIV_BITS(87) | REFDIV_BITS(1) |
+				POSTDIV1_BITS(2) | POSTDIV2_BITS(1);
 			writel(value, X2_DDRPLL_FREQ_CTRL);
 
 			writel(0x1, X2_DDRSYS_CLK_DIV_SEL);
@@ -42,6 +54,8 @@ void dram_pll_init(ulong pll_val)
 	value = readl(X2_PLLCLK_SEL);
 	value |= DDRCLK_SEL_BIT;
 	writel(value, X2_PLLCLK_SEL);
+
+	writel(0x1, X2_DDRSYS_CLKEN_SET);
 
 	return;
 }

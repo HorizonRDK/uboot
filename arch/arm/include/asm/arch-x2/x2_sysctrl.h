@@ -7,8 +7,12 @@
 #define X2_DDRPLL_PD_CTRL			(SYSCTRL_BASE + 0x034)
 #define X2_DDRPLL_STATUS			(SYSCTRL_BASE + 0x038)
 
+#define X2_DDRSYS_CLKEN_SET			(SYSCTRL_BASE + 0x134)
+
 #define X2_DDRSYS_CLK_DIV_SEL		(SYSCTRL_BASE + 0x230)
 #define X2_DDRSYS_CLK_STA			(SYSCTRL_BASE + 0x238)
+
+#define X2_PERISYS_CLK_DIV_SEL		(SYSCTRL_BASE + 0x250)
 
 #define X2_PLLCLK_SEL				(SYSCTRL_BASE + 0x300)
 
@@ -29,6 +33,10 @@
 
 /* DDRPLL_STATUS */
 #define LOCK_BIT		(1 << 0)
+
+/* SYSCTRL PERISYS_CLK_DIV_SEL */
+#define UART_MCLK_DIV_SEL(x)		(((x) & 0xF) << 4)
+#define GET_UART_MCLK_DIV(x)		((((x) >> 4) & 0xF) + 1)
 
 /* SYSCTRL PLL_CLK_SEL */
 #define ARMPLL_SEL_BIT		(1 << 0)

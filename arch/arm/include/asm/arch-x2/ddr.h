@@ -5,6 +5,9 @@
 #include <asm/types.h>
 #include <asm/arch/x2_reg.h>
 
+#include "../../../cpu/armv8/x2/x2_info.h"
+#include "../../../cpu/armv8/x2/x2_mmc_spl.h"
+
 /* ddr controller registers */
 #define DDRC_MSTR             (DDRC_BASE_ADDR + 0x00)
 #define DDRC_STAT             (DDRC_BASE_ADDR + 0x04)

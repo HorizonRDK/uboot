@@ -31,7 +31,7 @@ static int emmc_device_state(void)
 	return EMMC_GET_STATE(cmd.resp_data[0]);
 }
 
-unsigned int emmc_read_blocks(int lba, uint64_t buf, unsigned int size)
+unsigned int emmc_read_blks(int lba, uint64_t buf, unsigned int size)
 {
 	emmc_cmd_t cmd;
 	int ret;
@@ -185,7 +185,7 @@ static int emmc_enumerate(int clk, int bus_width)
 	return ret;
 }
 
-void hobot_emmc_init(dw_mmc_params_t * params)
+void emmc_init(dw_mmc_params_t * params)
 {
 	emmc_ops_t *ops_ptr = config_dw_mmc_ops(params);
 

@@ -6,7 +6,17 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/x2_pmu.h>
 #include <asm/arch/x2_sysctrl.h>
+#include <asm/arch/x2_share.h>
+#include <asm/arch/x2_dev.h>
 
+
+#define IMEM_LEN 32768 /* byte */
+#define DMEM_LEN 16384 /* byte */
+
+#define IMEM_OFFSET_ADDR 	(0x00050000 * 4)
+#define DMEM_OFFSET_ADDR 	(0x00054000 * 4)
+
+extern struct x2_info_hdr g_binfo;
 
 static void lpddr4_cfg_umctl2(struct dram_cfg_param *ddrc_cfg, int num)
 {
@@ -27,6 +37,32 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 		reg32_write(ddrp_cfg->reg, ddrp_cfg->val);
 		ddrp_cfg++;
 	}
+}
+
+static void lpddr4_load_fw(unsigned long dest,
+	unsigned long src, unsigned int fw_size, unsigned int fw_max_size)
+{
+	unsigned long fw_dest = dest;
+	unsigned long fw_src = src;
+	unsigned int tmp32;
+	unsigned int i;
+
+	for (i = 0; i < fw_size; ) {
+		tmp32 = readl(fw_src);
+		writel(tmp32 & 0x0000ffff, fw_dest);
+		fw_dest += 4;
+		writel((tmp32 >> 16) & 0x0000ffff, fw_dest);
+		fw_dest += 4;
+		fw_src += 4;
+		i += 4;
+	}
+
+	for (i = fw_size; i < fw_max_size; i += 2 ) {
+		writel(0x0, fw_dest);
+		fw_dest += 4;
+	}
+
+	return;
 }
 
 static void lpddr4_exec_fw(void)
@@ -77,6 +113,8 @@ static unsigned int lpddr4_read_msg(void)
 	return (((cdd_chb_u32 & 0x7F) << 16) | ((cdd_cha_u32 >> 8) & 0x7F));
 }
 
+extern unsigned int g_ddr_rate;
+
 void ddr_init(struct dram_timing_info *dram_timing)
 {
 	unsigned int value, temp;
@@ -84,8 +122,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	unsigned int rd2wr_val;
 	unsigned int txdqsdly_coarse, txdqsdly_fine, trained_txdqsdly;
 	unsigned int tctrl_delay, t_wrdata_delay;
+	unsigned int fw_src_laddr = 0;
+	unsigned int fw_src_len;
 
-	dram_pll_init(MHZ(750));
+	dram_pll_init(MHZ(g_ddr_rate));
 
 	reg32_write(X2_PMU_DDRSYS_CTRL, 0x1);
 	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0xfffffffe);
@@ -95,7 +135,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_DBG1, 0x1);
 	reg32_write(DDRC_PWRCTL, 0x1);
 
-	while (!(reg32_read(DDRC_STAT) & 0x7));
+	while ((reg32_read(DDRC_STAT) & 0x7));
 
 	/*step2 Configure uMCTL2's registers */
 	debug("DDRINFO: ddrc config start\n");
@@ -109,16 +149,19 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_SWCTL, 0x0);
 
 	/* DFIMISC.dfi_init_compelete_en to 0 */
-    value = reg32_read(DDRC_DFIMISC) & ~(1 << 0);
-    reg32_write(DDRC_DFIMISC, value);
+	value = reg32_read(DDRC_DFIMISC) & ~(1 << 0);
+	reg32_write(DDRC_DFIMISC, value);
 
 	/* DFIMISC.dfi_frequency */
-    value = reg32_read(DDRC_DFIMISC) | (1 << 12);
-    reg32_write(DDRC_DFIMISC, value);
+	value = reg32_read(DDRC_DFIMISC) | (1 << 12);
+	reg32_write(DDRC_DFIMISC, value);
 
 	reg32_write(DDRC_SWCTL, 0x1);
 
 	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
+
+	/* It means that we can receive firmwares. */
+	writel(DDRT_DW_RDY_BIT, X2_SHARE_DDRT_CTRL);
 
 	lpddr4_cfg_phy(dram_timing);
 
@@ -126,12 +169,33 @@ void ddr_init(struct dram_timing_info *dram_timing)
 		reg32_write(DDRP_MASTER0_MEMRESETL, 0x2);
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
 
-		/* TODO Load firmware */
+		if (g_dev_ops.pre_read) {
+			fw_src_laddr = g_dev_ops.pre_read(&g_binfo, i, 0x0);
+		}
+
+		/* Load 32KB firmware */
+		fw_src_len = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, IMEM_LEN);
+
+		lpddr4_load_fw(DDRP_BASE_ADDR + IMEM_OFFSET_ADDR,
+			X2_SRAM_LOAD_ADDR, fw_src_len, IMEM_LEN);
+
+		if (g_dev_ops.post_read) {
+			g_dev_ops.post_read(0x0);
+		}
 
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
 
-		/* TODO Load firmware */
+		if (g_dev_ops.pre_read) {
+			fw_src_laddr = g_dev_ops.pre_read(&g_binfo, i, 0x8000);
+		}
+
+		lpddr4_load_fw(DDRP_BASE_ADDR + DMEM_OFFSET_ADDR,
+			X2_SRAM_LOAD_ADDR, fw_src_len, DMEM_LEN);
+
+		if (g_dev_ops.post_read) {
+			g_dev_ops.post_read(0x0);
+		}
 
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
 
@@ -149,7 +213,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_SWCTL, 0x0);
 
 	value = reg32_read(DDRC_DFIMISC) | 0x20;
-    reg32_write(DDRC_DFIMISC, value);
+	reg32_write(DDRC_DFIMISC, value);
 
 	reg32_write(DDRC_SWCTL, 0x1);
 
@@ -159,10 +223,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	reg32_write(DDRC_SWCTL, 0x0);
 
-    value = reg32_read(DDRC_DFIMISC) & ~0x20;
-    reg32_write(DDRC_DFIMISC, value);
+	value = reg32_read(DDRC_DFIMISC) & ~0x20;
+	reg32_write(DDRC_DFIMISC, value);
 
-    reg32_write(DDRC_DBG1, 0x1);
+	reg32_write(DDRC_DBG1, 0x1);
 
 	cdd_cha = cdd_ch & 0xFFFF;
 	cdd_chb = (cdd_ch >> 16) & 0xFFFF;
@@ -183,22 +247,22 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	if (((temp & 0x8000) >> 15) == 1) {
 		t_wrdata_delay = (tctrl_delay << 1) + 6 + 8 + trained_txdqsdly + 0x1;
-    } else {
-    	t_wrdata_delay = (tctrl_delay << 1) + 6 + 8 + trained_txdqsdly;
-    }
+	} else {
+		t_wrdata_delay = (tctrl_delay << 1) + 6 + 8 + trained_txdqsdly;
+	}
 
 	temp = reg32_read(DDRC_DFITMG1);
-    value = ((t_wrdata_delay + 1) >>1 ) << 16;
+	value = ((t_wrdata_delay + 1) >>1 ) << 16;
 	value |= (temp & 0xFFE0FFFF);
-    reg32_write(DDRC_DFITMG1, value);
+	reg32_write(DDRC_DFITMG1, value);
 
 	reg32_write(DDRC_DBG1, 0x0);
 
-    value = reg32_read(DDRC_DFIMISC) | 0x1;
-    reg32_write(DDRC_DFIMISC, value);
+	value = reg32_read(DDRC_DFIMISC) | 0x1;
+	reg32_write(DDRC_DFIMISC, value);
 
 	value = reg32_read(DDRC_PWRCTL) & ~0x20;
-    reg32_write(DDRC_PWRCTL, value);
+	reg32_write(DDRC_PWRCTL, value);
 
 	reg32_write(DDRC_SWCTL, 0x1);
 
@@ -207,7 +271,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	while (!(reg32_read(DDRC_STAT) & 0x7));
 
 	value = reg32_read(DDRC_RFSHCTL3) & ~0x1;
-    reg32_write(DDRC_RFSHCTL3, value);
+	reg32_write(DDRC_RFSHCTL3, value);
 
 	reg32_write(DDRC_PWRCTL, 0x0);
 

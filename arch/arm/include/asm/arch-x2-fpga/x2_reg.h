@@ -10,6 +10,9 @@
 
 #define SYSCTRL_BASE		(0xA1000000)
 
+#define SDIO0_BASE			(0xA5010000)
+#define SDIO1_BASE			(0xA5011000)
+
 #define PMU_SYSCNT_BASE		(0xA6001000)
 
 #endif /* __ASM_ARCH_X2_REG_H__ */

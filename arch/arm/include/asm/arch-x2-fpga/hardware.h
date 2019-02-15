@@ -5,7 +5,9 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
-#ifndef _ASM_ARCH_HARDWARE_H
-#define _ASM_ARCH_HARDWARE_H
+#ifndef __ASM_ARCH_HARDWARE_H__
+#define __ASM_ARCH_HARDWARE_H__
 
-#endif /* _ASM_ARCH_HARDWARE_H */
+#define X2_OSC_CLK			(20000000)
+
+#endif /* __ASM_ARCH_HARDWARE_H__ */

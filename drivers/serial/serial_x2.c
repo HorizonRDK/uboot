@@ -12,6 +12,11 @@
 #include <asm/arch/hardware.h>
 #include "serial_x2.h"
 
+#ifdef CONFIG_TARGET_X2
+#include <asm/arch/x2_sysctrl.h>
+#include <asm/arch/x2_pinmux.h>
+#endif /* CONFIG_TARGET_X2 */
+
 DECLARE_GLOBAL_DATA_PTR;
 
 /* Set up the baud rate in gd struct */
@@ -91,7 +96,13 @@ static struct x2_uart_regs *base_regs __attribute__ ((section(".data")));
 
 static void x2_serial_init_baud(int baudrate)
 {
-	int clock = CONFIG_DEBUG_UART_CLOCK;
+#ifdef CONFIG_TARGET_X2_FPGA
+	unsigned int clock = X2_OSC_CLK;
+#else
+	unsigned int reg = readl(X2_PERISYS_CLK_DIV_SEL);
+	unsigned int mdiv = GET_UART_MCLK_DIV(reg);
+	unsigned int clock = X2_PLL_PERF_CLK / mdiv;
+#endif /* CONFIG_TARGET_X2_FPGA */
 
 	base_regs = (struct x2_uart_regs *)CONFIG_DEBUG_UART_BASE;
 
@@ -101,9 +112,15 @@ static void x2_serial_init_baud(int baudrate)
 int x2_serial_init(void)
 {
 	struct x2_uart_regs *regs = (struct x2_uart_regs *)CONFIG_DEBUG_UART_BASE;
+#ifdef CONFIG_TARGET_X2_FPGA
+	unsigned int rate = UART_BAUDRATE_115200;
+#else
+	unsigned int br_sel = x2_pin_get_uart_br();
+	unsigned int rate = (br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600);
+#endif /* CONFIG_TARGET_X2_FPGA */
 
 	x2_uart_init(regs);
-	x2_serial_init_baud(CONFIG_BAUDRATE);
+	x2_serial_init_baud(rate);
 
 	return 0;
 }

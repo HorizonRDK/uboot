@@ -19,9 +19,11 @@ struct x2_info_hdr {
 	unsigned int boot_laddr;		/* Load address */
 
 	unsigned int ddt1_addr[4];		/* DDR 1D Training Firmware */
+	unsigned int ddt1_size;
 	unsigned int ddt1_csum;
 
 	unsigned int ddt2_addr[4];		/* DDR 2D Training Firmware */
+	unsigned int ddt2_size;
 	unsigned int ddt2_csum;
 
 	unsigned int ddrp_addr[4];		/* DDR Parameter for wakeup */
@@ -34,7 +36,7 @@ struct x2_info_hdr {
 	unsigned int qspi_cfg;
 	unsigned int emmc_cfg;
 
-	unsigned int reserved[86];
+	unsigned int reserved[84];
 };
 #endif /* __X2_INFO_H__ */
 
