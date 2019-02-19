@@ -160,11 +160,12 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
 
+	lpddr4_cfg_phy(dram_timing);
+
+#ifndef CONFIG_SUPPORT_PALLADIUM
 	if (g_dev_ops.proc_start) {
 		g_dev_ops.proc_start();
 	}
-
-	lpddr4_cfg_phy(dram_timing);
 
 	for (int i = 0; i < 2; i++) {
 		reg32_write(DDRP_MASTER0_MEMRESETL, 0x2);
@@ -202,6 +203,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 		lpddr4_exec_fw();
 	}
+#endif /* CONFIG_SUPPORT_PALADIUM */
 
 	cdd_ch = lpddr4_read_msg();
 
@@ -283,8 +285,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_PCTRL_4, 0x1);
 	reg32_write(DDRC_PCTRL_5, 0x1);
 
+#ifndef CONFIG_SUPPORT_PALLADIUM
 	if (g_dev_ops.proc_end) {
 		g_dev_ops.proc_end();
 	}
+#endif /* CONFIG_SUPPORT_PALLADIUM */
 }
 

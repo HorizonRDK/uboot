@@ -66,6 +66,18 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	{ DDRC_DBICTL, 0x00000007 },
 	{ DDRC_DFIPHYMSTR, 0x00000001 },
 
+#ifdef CONFIG_SUPPORT_PALLADIUM
+	{ DDRC_ADDRMAP1, 0x00181818 },
+	{ DDRC_ADDRMAP2, 0x00000000 },
+	{ DDRC_ADDRMAP3, 0x00000000 },
+	{ DDRC_ADDRMAP4, 0x00001f1f },
+	{ DDRC_ADDRMAP5, 0x040f0404 },
+	{ DDRC_ADDRMAP6, 0x00000f0f },
+	{ DDRC_ADDRMAP8, 0x00003f3f },
+	{ DDRC_ADDRMAP9, 0x04040404 },
+	{ DDRC_ADDRMAP10, 0x04040404 },
+	{ DDRC_ADDRMAP11, 0x00000004 },
+#else
 	/* bank interleave */
 	{ DDRC_ADDRMAP1, 0x00080808 },
 	{ DDRC_ADDRMAP2, 0x00000000 },
@@ -77,6 +89,7 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	{ DDRC_ADDRMAP9, 0x07070707 },
 	{ DDRC_ADDRMAP10, 0x07070707 },
 	{ DDRC_ADDRMAP11, 0x00000007 },
+#endif /* CONFIG_SUPPORT_PALLADIUM */
 	{ DDRC_ODTCFG, 0x03160c78},
 
 	/* performance setting */

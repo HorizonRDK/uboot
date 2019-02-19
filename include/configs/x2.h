@@ -33,6 +33,9 @@
 #define CONFIG_X2_LPDDR4_3200	(3200)
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
 
+/* The option for palladium */
+/* #define CONFIG_SUPPORT_PALLADIUM */
+
 #else
 
 #ifdef CONFIG_X2_BIFSD
