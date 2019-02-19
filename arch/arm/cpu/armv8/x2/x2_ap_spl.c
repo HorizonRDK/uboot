@@ -4,6 +4,23 @@
 #include <asm/arch/x2_dev.h>
 #include <asm/arch/x2_share.h>
 
+static void ap_start(void)
+{
+	/* It means that we can receive firmwares. */
+	writel(DDRT_DW_RDY_BIT, X2_SHARE_DDRT_CTRL);
+
+	return;
+}
+
+static void ap_stop(void)
+{
+	writel(DDRT_MEM_RDY_BIT, X2_SHARE_DDRT_CTRL);
+
+	while ((readl(DDRT_MEM_RDY_BIT) & DDRT_MEM_RDY_BIT));
+
+	return;
+}
+
 static unsigned int ap_read_blk(int lba, uint64_t buf, size_t size)
 {
 	unsigned int temp;
@@ -22,9 +39,11 @@ static int ap_post_read(unsigned int flag)
 
 void spl_ap_init(void)
 {
+	g_dev_ops.proc_start = ap_start;
 	g_dev_ops.pre_read = NULL;
 	g_dev_ops.read = ap_read_blk;
 	g_dev_ops.post_read = ap_post_read;
+	g_dev_ops.proc_end = ap_stop;
 
 	return;
 }

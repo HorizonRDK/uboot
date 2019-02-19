@@ -160,8 +160,9 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
 
-	/* It means that we can receive firmwares. */
-	writel(DDRT_DW_RDY_BIT, X2_SHARE_DDRT_CTRL);
+	if (g_dev_ops.proc_start) {
+		g_dev_ops.proc_start();
+	}
 
 	lpddr4_cfg_phy(dram_timing);
 
@@ -281,5 +282,9 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_PCTRL_3, 0x1);
 	reg32_write(DDRC_PCTRL_4, 0x1);
 	reg32_write(DDRC_PCTRL_5, 0x1);
+
+	if (g_dev_ops.proc_end) {
+		g_dev_ops.proc_end();
+	}
 }
 
