@@ -10,6 +10,8 @@
 
 #define SYSCTRL_BASE		(0xA1000000)
 
+#define TIMER0_BASE			(0xA1002000)
+
 #define SDIO0_BASE			(0xA5010000)
 #define SDIO1_BASE			(0xA5011000)
 

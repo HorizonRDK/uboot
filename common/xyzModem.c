@@ -56,12 +56,34 @@ static struct
 #define xyzModem_MAX_RETRIES_WITH_CRC    10
 #define xyzModem_CAN_COUNT                3	/* Wait for 3 CAN before quitting */
 
+#ifdef CONFIG_TARGET_X2_FPGA
+#include <asm/arch/x2_timer.h>
+#endif /* CONFIG_TARGET_X2_FPGA */
 
 typedef int cyg_int32;
 static int
 CYGACC_COMM_IF_GETC_TIMEOUT (char chan, char *c)
 {
+#ifdef CONFIG_TARGET_X2_FPGA
+	unsigned int val;
 
+	x2_timer_init(xyzModem_CHAR_TIMEOUT * 1000 * 10);
+	x2_timer_enalbe();
+
+	while ((tstc()) <= 0) {
+		val = x2_timer_get_val32();
+		if (val == 0) {
+			x2_timer_disable();
+			return 0;
+		}
+	}
+
+	x2_timer_disable();
+
+	*c = getc();
+
+	return 1;
+#else
   ulong now = get_timer(0);
   while (!tstc ())
     {
@@ -74,6 +96,7 @@ CYGACC_COMM_IF_GETC_TIMEOUT (char chan, char *c)
       return 1;
     }
   return 0;
+#endif /* CONFIG_TARGET_X2_FPGA */
 }
 
 static void
