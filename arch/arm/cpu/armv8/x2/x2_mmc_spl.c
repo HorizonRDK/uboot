@@ -1,6 +1,10 @@
+
 #include <asm/io.h>
+
 #include "x2_mmc_spl.h"
 #include "dw_mmc_spl.h"
+
+#ifdef CONFIG_X2_MMC_BOOT
 
 static const emmc_ops_t *ops;
 static emmc_csd_t emmc_csd;
@@ -196,3 +200,5 @@ void emmc_init(dw_mmc_params_t * params)
 
 	printf("eMMC : 0x%x\n", emmc_cid_value >> 24);
 }
+
+#endif /* CONFIG_X2_MMC_BOOT */

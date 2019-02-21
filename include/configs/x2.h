@@ -10,7 +10,7 @@
 #endif /* #if 0 */
 
 #ifndef COUNTER_FREQUENCY
-#define COUNTER_FREQUENCY	20000000	/* System counter is 20MHz. */
+#define COUNTER_FREQUENCY	24000000	/* System counter is 20MHz. */
 #endif /* COUNTER_FREQUENCY */
 
 #define CONFIG_ARMV8_SWITCH_TO_EL1
@@ -20,7 +20,7 @@
 #ifdef CONFIG_SPL_BUILD
 
 #define CONFIG_SPL_TEXT_BASE   0x80000000
-#define CONFIG_SPL_MAX_SIZE    0x5000
+#define CONFIG_SPL_MAX_SIZE    0x6800
 
 #define CONFIG_SPL_BSS_START_ADDR  (CONFIG_SPL_TEXT_BASE + CONFIG_SPL_MAX_SIZE)
 #define CONFIG_SPL_BSS_MAX_SIZE        0x800
@@ -32,6 +32,9 @@
 
 #define CONFIG_X2_LPDDR4_3200	(3200)
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
+
+/* #define CONFIG_X2_AP_BOOT */
+#define CONFIG_X2_YMODEM_BOOT
 
 /* The option for palladium */
 /* #define CONFIG_SUPPORT_PALLADIUM */

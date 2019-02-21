@@ -3,6 +3,8 @@
 
 #include <common.h>
 
+#ifdef CONFIG_X2_MMC_BOOT
+
 #define EMMC_DESC_BASE			0x1000000
 #define EMMC_DESC_SIZE			4096	// 0x1000
 #define EMMC_SDIO0_MCLK			50000000
@@ -24,5 +26,7 @@ typedef struct dw_mmc_params {
 
 void emmc_init(dw_mmc_params_t * params);
 unsigned int emmc_read_blks(int lba, uint64_t buf, unsigned int size);
+
+#endif /* CONFIG_X2_MMC_SPL */
 
 #endif /* __X2_MMC_SPL_H__ */

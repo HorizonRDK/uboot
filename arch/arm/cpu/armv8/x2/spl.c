@@ -17,6 +17,7 @@
 #include "x2_info.h"
 #include "x2_mmc_spl.h"
 #include "x2_ap_spl.h"
+#include "x2_ymodem_spl.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -38,9 +39,9 @@ void spl_dram_init(void)
 #endif /* CONFIG_TARGET_X2 */
 }
 
+#if 0
 static void spl_emmc_init(void)
 {
-#if 0
 	dw_mmc_params_t params;
 
 	memset(&params, 0, sizeof(dw_mmc_params_t));
@@ -51,18 +52,36 @@ static void spl_emmc_init(void)
 	params.flags = 0;
 
 	emmc_init(&params);
-#endif /* #if 0 */
 
 	return;
 }
+#endif /* #if 0 */
 
 void board_init_f(ulong dummy)
 {
 	preloader_console_init();
 
-	spl_emmc_init();
-
+#if defined(CONFIG_X2_AP_BOOT) && defined(CONFIG_TARGET_X2)
 	spl_ap_init();
+#elif defined(CONFIG_X2_YMODEM_BOOT)
+	spl_x2_ymodem_init();
+
+#ifdef CONFIG_TARGET_X2_FPGA
+	printf("\nLoad ddr imem 1d ...\n");
+	g_dev_ops.read(0, 0x80007000, 0);
+
+	printf("\nLoad ddr dmem 1d ...\n");
+	g_dev_ops.read(1, 0x80007000, 0);
+
+	printf("\nLoad ddr imem 2d ...\n");
+	g_dev_ops.read(2, 0x80007000, 0);
+
+	printf("\nLoad ddr dmem 2d ...\n");
+	g_dev_ops.read(3, 0x80007000, 0);
+#endif /* CONFIG_TARGET_X2_FPGA */
+#elif defined(CONFIG_X2_MMC_BOOT)
+	spl_emmc_init();
+#endif
 
 	spl_dram_init();
 
@@ -78,23 +97,25 @@ void spl_board_init(void)
 
 unsigned int spl_boot_device(void)
 {
+#if defined(CONFIG_X2_AP_BOOT)
+
 	return BOOT_DEVICE_RAM;
+#elif defined(CONFIG_X2_YMODEM_BOOT)
+
+	return BOOT_DEVICE_UART;
+#endif
 }
 
 #ifdef CONFIG_SPL_OS_BOOT
 
 static void switch_to_el1(void)
 {
-#if 0
-	writel(0x00000a0a, 0xA1006074);
-	writel(0xbeadbeef, 0x10000000);
-#endif /* #if 0 */
-
 	armv8_switch_to_el1((u64)SPL_LOAD_DTB_ADDR, 0, 0, 0,
 		SPL_LOAD_OS_ADDR,
 		ES_TO_AARCH64);
 }
 
+#ifdef CONFIG_X2_AP_BOOT
 void spl_perform_fixups(struct spl_image_info *spl_image)
 {
 	spl_image->name = "Linux";
@@ -105,5 +126,7 @@ void spl_perform_fixups(struct spl_image_info *spl_image)
 
 	return;
 }
+#endif /* CONFIG_X2_AP_BOOT */
 
 #endif /* CONFIG_SPL_OS_BOOT */
+

@@ -145,7 +145,11 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0x0);
 
 	reg32_write(DDRC_DBG1, 0x0);
+#ifdef CONFIG_SUPPORT_PALLADIUM
+	reg32_write(DDRC_PWRCTL, 0x0);
+#else
 	reg32_write(DDRC_PWRCTL, 0x120);
+#endif /* CONFIG_SUPPORT_PALLADIUM */
 	reg32_write(DDRC_SWCTL, 0x0);
 
 	/* DFIMISC.dfi_init_compelete_en to 0 */
@@ -175,6 +179,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 			fw_src_laddr = g_dev_ops.pre_read(&g_binfo, i, 0x0);
 		}
 
+		printf("\nLoad fw imem %dD ...\n", i + 1);
 		/* Load 32KB firmware */
 		fw_src_len = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, IMEM_LEN);
 
@@ -191,6 +196,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 		if (g_dev_ops.pre_read) {
 			fw_src_laddr = g_dev_ops.pre_read(&g_binfo, i, 0x8000);
 		}
+
+		printf("\nLoad fw dmem %dD ...\n", i + 1);
+		/* Load 16KB firmware */
+		fw_src_len = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, DMEM_LEN);
 
 		lpddr4_load_fw(DDRP_BASE_ADDR + DMEM_OFFSET_ADDR,
 			X2_SRAM_LOAD_ADDR, fw_src_len, DMEM_LEN);

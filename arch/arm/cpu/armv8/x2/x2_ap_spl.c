@@ -2,6 +2,8 @@
 #include <asm/io.h>
 
 #include <asm/arch/x2_dev.h>
+
+#if defined(CONFIG_X2_AP_BOOT) && defined(CONFIG_TARGET_X2)
 #include <asm/arch/x2_share.h>
 
 static void ap_start(void)
@@ -47,3 +49,5 @@ void spl_ap_init(void)
 
 	return;
 }
+#endif /* CONFIG_X2_AP_BOOT && CONFIG_TARGET_X2 */
+

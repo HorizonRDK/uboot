@@ -2,6 +2,7 @@
 #include "x2_mmc_spl.h"
 #include "dw_mmc_spl.h"
 
+#ifdef CONFIG_X2_MMC_BOOT
 /* don't support eMMC to sdram */
 //#define HOBOT_DW_MMC_DMA_MODE
 
@@ -456,3 +457,4 @@ emmc_ops_t *config_dw_mmc_ops(dw_mmc_params_t * params)
 	memcpy(&dw_params, params, sizeof(dw_mmc_params_t));
 	return &dw_mmc_ops;
 }
+#endif /* CONFIG_X2_MMC_BOOT */
