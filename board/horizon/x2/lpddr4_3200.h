@@ -21,7 +21,12 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	{ DDRC_CRCPARCTL0, 0x00000000 },
 	{ DDRC_CRCPARCTL1, 0x00000000 },
 
+#ifdef CONFIG_SUPPORT_PALLADIUM
+	{ DDRC_INIT0, 0x00020002 },
+#else
 	{ DDRC_INIT0, 0xc0030002 },
+#endif /* CONFIG_SUPPORT_PALLADIUM */
+
 	{ DDRC_INIT1, 0x00020005 },
 	{ DDRC_INIT2, 0x0000bc05 },
 	{ DDRC_INIT3, 0x0054002d },
