@@ -25,7 +25,7 @@ unsigned int g_bootsrc __attribute__ ((section(".data"), aligned(8)));
 struct x2_info_hdr g_binfo __attribute__ ((section(".data"), aligned(8)));
 struct x2_dev_ops g_dev_ops;
 
-#ifdef CONFIG_TARGET_X2
+#if IS_ENABLED(CONFIG_TARGET_X2)
 #include <asm/arch/ddr.h>
 
 extern struct dram_timing_info dram_timing;
@@ -33,7 +33,7 @@ extern struct dram_timing_info dram_timing;
 
 void spl_dram_init(void)
 {
-#ifdef CONFIG_TARGET_X2
+#if IS_ENABLED(CONFIG_TARGET_X2)
 	/* ddr init */
 	ddr_init(&dram_timing);
 #endif /* CONFIG_TARGET_X2 */
@@ -91,6 +91,12 @@ void board_init_f(ulong dummy)
 #ifdef CONFIG_SPL_BOARD_INIT
 void spl_board_init(void)
 {
+#if IS_ENABLED(CONFIG_TARGET_X2)
+	cnn_pll_init();
+
+	vio_pll_init();
+#endif /* CONFIG_TARGET_X2 */
+
 	return;
 }
 #endif /* CONFIG_SPL_BOARD_INIT */
