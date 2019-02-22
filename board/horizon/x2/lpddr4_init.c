@@ -212,7 +212,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 		lpddr4_exec_fw();
 	}
-#endif /* CONFIG_SUPPORT_PALADIUM */
+#endif /* CONFIG_SUPPORT_PALLADIUM */
 
 	cdd_ch = lpddr4_read_msg();
 
@@ -238,6 +238,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	value = reg32_read(DDRC_DFIMISC) & ~0x20;
 	reg32_write(DDRC_DFIMISC, value);
 
+#ifndef CONFIG_SUPPORT_PALLADIUM
 	reg32_write(DDRC_DBG1, 0x1);
 
 	cdd_cha = cdd_ch & 0xFFFF;
@@ -269,6 +270,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_DFITMG1, value);
 
 	reg32_write(DDRC_DBG1, 0x0);
+#endif /* CONFIG_SUPPORT_PALLADIUM */
 
 	value = reg32_read(DDRC_DFIMISC) | 0x1;
 	reg32_write(DDRC_DFIMISC, value);
