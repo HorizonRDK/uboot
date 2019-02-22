@@ -18,7 +18,7 @@
 #define DDRC_MRCTRL2          (DDRC_BASE_ADDR + 0x1c)
 #define DDRC_DERATEEN         (DDRC_BASE_ADDR + 0x20)
 #define DDRC_DERATEINT        (DDRC_BASE_ADDR + 0x24)
-#define DDRC_DERATECTL        (DDRC_BASE_ADDR + 0x28)
+#define DDRC_DERATECTL        (DDRC_BASE_ADDR + 0x2c)
 #define DDRC_PWRCTL           (DDRC_BASE_ADDR + 0x30)
 #define DDRC_PWRTMG           (DDRC_BASE_ADDR + 0x34)
 #define DDRC_HWLPCTL          (DDRC_BASE_ADDR + 0x38)
