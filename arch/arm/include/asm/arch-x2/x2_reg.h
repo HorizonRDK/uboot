@@ -22,6 +22,6 @@
 #define PMU_SYSCNT_BASE		(0xA6001000)
 #define GPIO_BASE			(0xA6003000)
 
-#define X2_SRAM_LOAD_ADDR	(0x80007000)
+#define X2_SRAM_LOAD_ADDR	(0x80007800)
 
 #endif /* __ASM_ARCH_X2_REG_H__ */
