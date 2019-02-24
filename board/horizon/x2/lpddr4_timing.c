@@ -16,6 +16,12 @@ unsigned int g_ddr_rate = 3200;
 unsigned int g_ddr_rate = 2133;
 #endif /* CONFIG_X2_LPDDR4_2133 */
 
+#ifdef CONFIG_X2_LPDDR4_2666
+#include "lpddr4_2666.h"
+
+unsigned int g_ddr_rate = 2666;
+#endif /* CONFIG_X2_LPDDR4_2666 */
+
 /* lpddr4 timing config params on EVK board */
 struct dram_timing_info dram_timing = {
 	.ddrc_cfg = lpddr4_ddrc_cfg,

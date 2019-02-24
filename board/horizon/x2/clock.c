@@ -27,6 +27,15 @@ void dram_pll_init(ulong pll_val)
 
 			break;
 
+		case MHZ(2666):
+			/* Set DDR PLL to 1333 */
+			value = FBDIV_BITS(111) | REFDIV_BITS(1) |
+				POSTDIV1_BITS(2) | POSTDIV2_BITS(1);
+			writel(value, X2_DDRPLL_FREQ_CTRL);
+
+			writel(0x1, X2_DDRSYS_CLK_DIV_SEL);
+			break;
+
 		case MHZ(2133):
 			/* Set DDR PLL to 1066 */
 			value = FBDIV_BITS(87) | REFDIV_BITS(1) |
