@@ -18,7 +18,7 @@ static void ap_stop(void)
 {
 	writel(DDRT_MEM_RDY_BIT, X2_SHARE_DDRT_CTRL);
 
-	while ((readl(DDRT_MEM_RDY_BIT) & DDRT_MEM_RDY_BIT));
+	while ((readl(X2_SHARE_DDRT_CTRL) & DDRT_MEM_RDY_BIT));
 
 	return;
 }
