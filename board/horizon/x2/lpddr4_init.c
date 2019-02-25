@@ -77,7 +77,7 @@ static void lpddr4_exec_fw(void)
 	do {
 		while ((reg32_read(DDRP_APBONLY0_UCTSHADOWREGS) & 0x1));
 
-		value = reg32_read(DDRP_APBONLY0_UCTWRITEONLYSHADOW) & 0x7;
+		value = reg32_read(DDRP_APBONLY0_UCTWRITEONLYSHADOW);
 
 		reg32_write(DDRP_APBONLY0_DCTWRITEPROT, 0x0);
 
