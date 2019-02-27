@@ -15,6 +15,7 @@
 #include <exports.h>
 #include <xyzModem.h>
 
+#define loads_header_len  16
 DECLARE_GLOBAL_DATA_PTR;
 
 #if defined(CONFIG_CMD_LOADB)
@@ -32,6 +33,7 @@ static int write_record(char *buf);
 static int do_echo = 1;
 #endif
 
+static ulong loads_serial(ulong offset, int mode);
 /* -------------------------------------------------------------------- */
 
 #if defined(CONFIG_CMD_LOADS)
@@ -471,6 +473,9 @@ static int do_load_serial_bin(cmd_tbl_t *cmdtp, int flag, int argc,
 			load_baudrate);
 
 		addr = load_serial_ymodem(offset, xyzModem_xmodem);
+
+	}else if (strcmp(argv[0],"loads")==0) {
+		addr = loads_serial(offset, xyzModem_xmodem);
 
 	} else {
 
@@ -1004,6 +1009,82 @@ static ulong load_serial_ymodem(ulong offset, int mode)
 	return offset;
 }
 
+static ulong loads_serial(ulong offset, int mode)
+{
+	int size;
+	int err;
+	int res;
+	connection_info_t info;
+	char ymodemBuf[1024];
+	ulong store_addr = ~0;
+	ulong addr = 0;
+
+    unsigned long h_addr =offset;
+	uint32_t    d_length;
+	uint8_t  package[loads_header_len] = {0};
+	uint32_t *p_pack = package;
+	uint32_t  first_packet =0;
+	size = 0;
+	info.mode = mode;
+	res = xyzModem_stream_open(&info, &err);
+	if (!res) {
+
+		while ((res =
+			xyzModem_stream_read(ymodemBuf, 1024, &err)) > 0) {
+			store_addr = addr + offset;
+			size += res;
+			addr += res;
+#ifdef CONFIG_MTD_NOR_FLASH
+			if (addr2info(store_addr)) {
+				int rc;
+
+				rc = flash_write((char *) ymodemBuf,
+						  store_addr, res);
+				if (rc != 0) {
+					flash_perror (rc);
+					return (~0);
+				}
+			} else
+#endif
+			{
+				memcpy((char *)(store_addr), ymodemBuf,
+					res);
+				if (first_packet == 0) {
+					first_packet =1;
+				}
+			}
+
+		}
+	} else {
+		printf("%s\n", xyzModem_error(err));
+	}
+
+	xyzModem_stream_close(&err);
+	xyzModem_stream_terminate(false, &getcxmodem);
+
+
+	flush_cache(offset, ALIGN(size, ARCH_DMA_MINALIGN));
+
+	printf("## Total Size      = 0x%08x = %d Bytes\n", size, size);
+	env_set_hex("filesize", size);
+    if (first_packet == 0) {
+
+		printf("load_data_failed\n");
+        return 0;
+    }
+
+    memcpy(&package[0],(uint8_t *)h_addr,sizeof(package));
+    d_length =  *(p_pack + 2);
+
+    if (d_length == (size-loads_header_len)){
+        printf("load_data_succeeded\n");
+    } else {
+        printf("load_data_failed\n");
+    }
+	return offset;
+}
+
+
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -1066,6 +1147,14 @@ U_BOOT_CMD(
 U_BOOT_CMD(
 	loadx, 3, 0,	do_load_serial_bin,
 	"load binary file over serial line (xmodem mode)",
+	"[ off ] [ baud ]\n"
+	"    - load binary file over serial line"
+	" with offset 'off' and baudrate 'baud'"
+);
+
+U_BOOT_CMD(
+	loads, 3, 0,	do_load_serial_bin,
+	"load binary file over serial line (ymodem mode)",
 	"[ off ] [ baud ]\n"
 	"    - load binary file over serial line"
 	" with offset 'off' and baudrate 'baud'"

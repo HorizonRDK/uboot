@@ -66,6 +66,7 @@ endif
 
 ifeq ($(CONFIG_SPL_BUILD)$(CONFIG_TPL_BUILD),)
 
+#obj-y += w1/
 obj-y += adc/
 obj-y += ata/
 obj-$(CONFIG_DM_DEMO) += demo/
@@ -106,6 +107,6 @@ obj-y += soc/
 obj-y += thermal/
 obj-y += axi/
 obj-$(CONFIG_X2_BIFSD) += bifsd/
-
+obj-y += w1/
 obj-$(CONFIG_MACH_PIC32) += ddr/microchip/
 endif
