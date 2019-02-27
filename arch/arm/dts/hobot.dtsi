@@ -1,6 +1,6 @@
 
 / {
-	compatible = "hobot,x2-fpga";
+	compatible = "hobot,x2";
 	#address-cells = <2>;
 	#size-cells = <2>;
 
