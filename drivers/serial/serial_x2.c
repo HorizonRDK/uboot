@@ -186,35 +186,20 @@ struct x2_uart_priv {
 int x2_serial_setbrg(struct udevice *dev, int baudrate)
 {
 	struct x2_uart_priv *priv = dev_get_priv(dev);
-	unsigned long clock;
+	unsigned int clock;
+	unsigned int rate = baudrate;
 
 #if defined(CONFIG_CLK) || defined(CONFIG_SPL_CLK)
-	int ret;
-	struct clk clk;
+	unsigned int br_sel = x2_pin_get_uart_br();
+	unsigned int value = readl(X2_PERISYS_CLK_DIV_SEL);
+	unsigned int mdiv = GET_UART_MCLK_DIV(value);
 
-	ret = clk_get_by_index(dev, 0, &clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to get clock\n");
-		return ret;
-	}
-
-	clock = clk_get_rate(&clk);
-	if (IS_ERR_VALUE(clock)) {
-		dev_err(dev, "failed to get rate\n");
-		return clock;
-	}
-	debug("%s: CLK %ld\n", __func__, clock);
-
-	ret = clk_enable(&clk);
-	if (ret && ret != -ENOSYS) {
-		dev_err(dev, "failed to enable clock\n");
-		return ret;
-	}
+	rate = br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600;
+	clock = X2_PLL_PERF_CLK / mdiv;
 #else
-	//clock = get_uart_clk(0);
 	clock = CONFIG_DEBUG_UART_CLOCK;
 #endif
-	x2_uart_setbrg(priv->regs, clock, baudrate);
+	x2_uart_setbrg(priv->regs, clock, rate);
 
 	return 0;
 }
