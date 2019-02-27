@@ -102,7 +102,7 @@ static int x2_qspi_ofdata_to_platdata(struct udevice *bus)
     plat->freq      = fdtdec_get_int(blob, node, "spi-max-frequency", 20000000);
     plat->xfer_mode = fdtdec_get_int(blob, node, "xfer-mode", 0);
 
-    return 0;   
+    return 0;
 }
 static int x2_qspi_probe(struct udevice *bus)
 {
@@ -126,22 +126,22 @@ static int x2_qspi_set_speed(struct udevice *bus, uint speed)
     struct x2_qspi_priv *priv     = dev_get_priv(bus);
     struct x2_qspi_regs *regs     = priv->regs;
 
-    max_br = plat->freq/2;
-    min_br = plat->freq/1048576;
+    max_br = plat->freq / 2;
+    min_br = plat->freq / 1048576;
     if (speed > max_br) {
         speed = max_br;
-        printf("Warning:speed[%d] > max_br[%d],speed will be set to max_br\n",speed, max_br);
+        printf("Warning:speed[%d] > max_br[%d],speed will be set to max_br\n", speed, max_br);
     }
     if (speed < min_br) {
         speed = min_br;
-        printf("Warning:speed[%d] < min_br[%d],speed will be set to min_br\n",speed, min_br);
+        printf("Warning:speed[%d] < min_br[%d],speed will be set to min_br\n", speed, min_br);
     }
 
-    for (i=15; i>=0; i--) {
-        for (j=15; j>=0; j--) {
-            br_div = (i+1) * (2<<j);
-            if ((plat->freq/br_div)>=speed) {
-                confr = (i|(j<<4))&0xFF;
+    for (i = 15; i >= 0; i--) {
+        for (j = 15; j >= 0; j--) {
+            br_div = (i + 1) * (2 << j);
+            if ((plat->freq / br_div) >= speed) {
+                confr = (i | (j << 4)) & 0xFF;
                 writel(confr, &regs->sclk_con);
                 return 0;
             }
@@ -153,7 +153,7 @@ static int x2_qspi_set_speed(struct udevice *bus, uint speed)
 
 static int x2_qspi_set_mode(struct udevice *bus, uint mode)
 {
-    unsigned int confr=0;
+    unsigned int confr = 0;
     struct x2_qspi_priv *priv     = dev_get_priv(bus);
     struct x2_qspi_regs *regs     = priv->regs;
 
@@ -174,7 +174,7 @@ static int x2_qspi_set_mode(struct udevice *bus, uint mode)
 /* currend driver only support BYTE/DUAL/QUAD for both RX and TX */
 static int x2_qspi_set_wire(struct x2_qspi_regs *regs, uint mode)
 {
-    unsigned int confr=0;
+    unsigned int confr = 0;
 
     switch(mode & 0x3F00) {
     case SPI_TX_BYTE | SPI_RX_SLOW:
@@ -314,7 +314,7 @@ int x2_qspi_write(struct x2_qspi_priv *priv, const void *pbuf, uint32_t len)
     int32_t err;
     uint32_t tmp_txlen;
     struct x2_qspi_regs *regs = priv->regs;
-    
+
     qspi_disable_tx(&regs->spi_ctl1);
     qspi_reset_fifo(&regs->spi_ctl3);
 
@@ -513,7 +513,7 @@ SPI_ERROR:
 }
 
 int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
-        void *din, unsigned long flags)
+                 void *din, unsigned long flags)
 {
     int ret = 0;
     unsigned int len, cs;
@@ -525,11 +525,11 @@ int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
     if (bitlen == 0) {
         return 0;
     }
-    len = bitlen/8;
+    len = bitlen / 8;
     cs  = slave_plat->cs;
 
-    if (flags&SPI_XFER_BEGIN)
-        writel(1<<cs, &regs->cs); /* Assert CS before transfer */
+    if (flags & SPI_XFER_BEGIN)
+        writel(1 << cs, &regs->cs); /* Assert CS before transfer */
 
     if (dout) {
         ret = x2_qspi_write(priv, dout, len);
@@ -538,11 +538,11 @@ int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
         ret = x2_qspi_read(priv, din, len);
     }
 
-    if (flags&SPI_XFER_END) {
+    if (flags & SPI_XFER_END) {
         writel(0, &regs->cs); /* Deassert CS after transfer */
     }
 
-    if (flags&SPI_XFER_CMD) {
+    if (flags & SPI_XFER_CMD) {
         switch (((u8 *)dout)[0]) {
         case CMD_READ_QUAD_OUTPUT_FAST:
         case CMD_QUAD_PAGE_PROGRAM:
