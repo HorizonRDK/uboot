@@ -70,6 +70,10 @@
 
 #define CONFIG_SYS_INIT_SP_ADDR     (CONFIG_SYS_TEXT_BASE + SZ_8M)
 
+/* For memtest */
+#define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM_1
+#define CONFIG_SYS_MEMTEST_END      (CONFIG_SYS_MEMTEST_START + 0x60000000)
+
 /* Miscellaneous configurable options */
 #define CONFIG_SYS_LOAD_ADDR		(CONFIG_SYS_SDRAM_BASE + 0x10000000)
 
