@@ -52,7 +52,21 @@ _bss_start_ofs:
 _bss_end_ofs:
 	.quad	__bss_end - _start
 
+.globl	smc_hack
+
 reset:
+#ifdef CONFIG_SPL_BUILD
+.globl	smc_hack
+
+	mov 	x21, x0
+	mov	x22, x1
+	mov	x0, #0x12
+	ldr	x1, =smc_hack
+	smc	#0
+	mov 	x0, x21
+	mov	x1, x22
+#endif /* CONFIG_SPL_BUILD */
+
 	/* Allow the board to save important registers */
 	b	save_boot_params
 .globl	save_boot_params_ret
