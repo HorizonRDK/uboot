@@ -1,4 +1,4 @@
-
+#include "hobot-clk.dtsi"
 / {
 	compatible = "hobot,x2";
 	#address-cells = <2>;

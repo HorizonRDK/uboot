@@ -98,6 +98,7 @@ source "drivers/clk/owl/Kconfig"
 source "drivers/clk/renesas/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/hobot/Kconfig"
 
 config ICS8N3QV01
 	bool "Enable ICS8N3QV01 VCXO driver"

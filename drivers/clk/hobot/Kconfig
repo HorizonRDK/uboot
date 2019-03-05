@@ -1,0 +1,7 @@
+config CLK_X2
+    bool "Enable clock driver for X2"
+	depends on ARCH_X2 && CLK
+	default y
+	help
+		This clock driver adds support for clock related settings for
+		X2 platform.
