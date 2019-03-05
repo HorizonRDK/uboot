@@ -9,6 +9,9 @@
 #include <asm/arch/x2_share.h>
 #include <asm/arch/x2_dev.h>
 
+#if 0
+#define LPDDR4_DEBUG	1
+#endif /* #if 0 */
 
 #define IMEM_LEN 32768 /* byte */
 #define DMEM_LEN 16384 /* byte */
@@ -65,6 +68,60 @@ static void lpddr4_load_fw(unsigned long dest,
 	return;
 }
 
+#ifdef LPDDR4_DEBUG
+static inline unsigned int lpddr4_get_mail(int dbg_en)
+{
+	unsigned int value;
+	unsigned int temp;
+
+	while ((reg32_read(DDRP_APBONLY0_UCTSHADOWREGS) & 0x1));
+
+	value = reg32_read(DDRP_APBONLY0_UCTWRITEONLYSHADOW);
+	printf("wonlysha = 0x%x\n", value);
+
+	if (dbg_en > 0) {
+		temp = reg32_read(DDRP_APBONLY0_UCTDATWRITEONLYSHADOW);
+		value |= temp << 16;
+		printf("dwonlysha = 0x%x, ret = 0x%x\n", temp, value);
+	}
+
+	reg32_write(DDRP_APBONLY0_DCTWRITEPROT, 0x0);
+
+	while (!(reg32_read(DDRP_APBONLY0_UCTSHADOWREGS) & 0x1));
+
+	reg32_write(DDRP_APBONLY0_DCTWRITEPROT, 0x1);
+
+	return value;
+}
+
+static void lpddr4_exec_fw(void)
+{
+	unsigned int major_msg;
+	unsigned int str_index;
+	unsigned int loop_max;
+
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
+	reg32_write(DDRP_APBONLY0_MICRORESET, 0x9);
+	reg32_write(DDRP_APBONLY0_MICRORESET, 0x1);
+	reg32_write(DDRP_APBONLY0_MICRORESET, 0x0);
+
+	while ((major_msg = lpddr4_get_mail(0)) != 0x7) {
+		if (major_msg == 0x8) {
+			str_index = lpddr4_get_mail(1);
+			loop_max = str_index & 0xffff;
+
+			for (int i = 0; i < loop_max; i++) {
+				printf("arg: %d\n", i + 1);
+				lpddr4_get_mail(1);
+			}
+		}
+	}
+
+	reg32_write(DDRP_APBONLY0_MICRORESET, 0x1);
+
+	return;
+}
+#else
 static void lpddr4_exec_fw(void)
 {
 	unsigned int value;
@@ -88,6 +145,7 @@ static void lpddr4_exec_fw(void)
 
 	reg32_write(DDRP_APBONLY0_MICRORESET, 0x1);
 }
+#endif /* LPDDR4_DEBUG */
 
 static void lpddr4_cfg_pie(struct dram_cfg_param *pie_cfg, int num)
 {
@@ -124,6 +182,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	unsigned int tctrl_delay, t_wrdata_delay;
 	unsigned int fw_src_laddr = 0;
 	unsigned int fw_src_len;
+	unsigned int rd_byte;
 
 	dram_pll_init(MHZ(g_ddr_rate));
 
@@ -176,15 +235,17 @@ void ddr_init(struct dram_timing_info *dram_timing)
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
 
 		if (g_dev_ops.pre_read) {
-			fw_src_laddr = g_dev_ops.pre_read(&g_binfo, i, 0x0);
+			g_dev_ops.pre_read(&g_binfo, i, 0x0, &fw_src_laddr, &fw_src_len);
+		} else {
+			fw_src_len = IMEM_LEN;
 		}
 
 		printf("\nLoad fw imem %dD ...\n", i + 1);
 		/* Load 32KB firmware */
-		fw_src_len = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, IMEM_LEN);
+		rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, fw_src_len);
 
 		lpddr4_load_fw(DDRP_BASE_ADDR + IMEM_OFFSET_ADDR,
-			X2_SRAM_LOAD_ADDR, fw_src_len, IMEM_LEN);
+			X2_SRAM_LOAD_ADDR, rd_byte, IMEM_LEN);
 
 		if (g_dev_ops.post_read) {
 			g_dev_ops.post_read(0x0);
@@ -194,15 +255,17 @@ void ddr_init(struct dram_timing_info *dram_timing)
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
 
 		if (g_dev_ops.pre_read) {
-			fw_src_laddr = g_dev_ops.pre_read(&g_binfo, i, 0x8000);
+			g_dev_ops.pre_read(&g_binfo, i, 0x8000, &fw_src_laddr, &fw_src_len);
+		} else {
+			fw_src_len = DMEM_LEN;
 		}
 
 		printf("\nLoad fw dmem %dD ...\n", i + 1);
 		/* Load 16KB firmware */
-		fw_src_len = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, DMEM_LEN);
+		rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, fw_src_len);
 
 		lpddr4_load_fw(DDRP_BASE_ADDR + DMEM_OFFSET_ADDR,
-			X2_SRAM_LOAD_ADDR, fw_src_len, DMEM_LEN);
+			X2_SRAM_LOAD_ADDR, rd_byte, DMEM_LEN);
 
 		if (g_dev_ops.post_read) {
 			g_dev_ops.post_read(0x0);
@@ -298,7 +361,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 #ifndef CONFIG_SUPPORT_PALLADIUM
 	if (g_dev_ops.proc_end) {
-		g_dev_ops.proc_end();
+		g_dev_ops.proc_end(&g_binfo);
 	}
 #endif /* CONFIG_SUPPORT_PALLADIUM */
 }

@@ -6,13 +6,14 @@
 
 struct x2_dev_ops {
 	void (*proc_start)(void);
-	unsigned int (*pre_read)(struct x2_info_hdr *pinfo,
-		int tr_num, unsigned int offset);
+	void (*pre_read)(struct x2_info_hdr *pinfo,
+		int tr_num, int tr_type,
+		unsigned int *pload_addr, unsigned int *pload_size);
 
 	unsigned int (*read)(int lba, uint64_t buf, size_t size);
 
 	int (*post_read)(unsigned int flag);
-	void (*proc_end)(void);
+	void (*proc_end)(struct x2_info_hdr *pinfo);
 };
 
 extern struct x2_dev_ops g_dev_ops;

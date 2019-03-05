@@ -14,7 +14,7 @@ static void ap_start(void)
 	return;
 }
 
-static void ap_stop(void)
+static void ap_stop(struct x2_info_hdr *pinfo)
 {
 	writel(DDRT_MEM_RDY_BIT, X2_SHARE_DDRT_CTRL);
 

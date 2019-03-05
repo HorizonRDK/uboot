@@ -26,6 +26,7 @@ struct x2_info_hdr g_binfo __attribute__ ((section(".data"), aligned(8)));
 struct x2_dev_ops g_dev_ops;
 
 #if IS_ENABLED(CONFIG_TARGET_X2)
+#include <asm/arch/clock.h>
 #include <asm/arch/ddr.h>
 
 extern struct dram_timing_info dram_timing;
@@ -39,24 +40,6 @@ void spl_dram_init(void)
 #endif /* CONFIG_TARGET_X2 */
 }
 
-#if 0
-static void spl_emmc_init(void)
-{
-	dw_mmc_params_t params;
-
-	memset(&params, 0, sizeof(dw_mmc_params_t));
-	params.reg_base = SDIO0_BASE;
-	params.bus_width = EMMC_BUS_WIDTH_8;
-	params.clk_rate = EMMC_SDIO0_MCLK;
-	params.sclk = EMMC_SDIO0_SCLK;
-	params.flags = 0;
-
-	emmc_init(&params);
-
-	return;
-}
-#endif /* #if 0 */
-
 void board_init_f(ulong dummy)
 {
 	preloader_console_init();
@@ -65,20 +48,6 @@ void board_init_f(ulong dummy)
 	spl_ap_init();
 #elif defined(CONFIG_X2_YMODEM_BOOT)
 	spl_x2_ymodem_init();
-
-#ifdef CONFIG_TARGET_X2_FPGA
-	printf("\nLoad ddr imem 1d ...\n");
-	g_dev_ops.read(0, 0x80007000, 0);
-
-	printf("\nLoad ddr dmem 1d ...\n");
-	g_dev_ops.read(1, 0x80007000, 0);
-
-	printf("\nLoad ddr imem 2d ...\n");
-	g_dev_ops.read(2, 0x80007000, 0);
-
-	printf("\nLoad ddr dmem 2d ...\n");
-	g_dev_ops.read(3, 0x80007000, 0);
-#endif /* CONFIG_TARGET_X2_FPGA */
 #elif defined(CONFIG_X2_MMC_BOOT)
 	spl_emmc_init();
 #endif
@@ -103,7 +72,7 @@ void spl_board_init(void)
 
 unsigned int spl_boot_device(void)
 {
-#if defined(CONFIG_X2_AP_BOOT)
+#if defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_MMC_BOOT)
 
 	return BOOT_DEVICE_RAM;
 #elif defined(CONFIG_X2_YMODEM_BOOT)

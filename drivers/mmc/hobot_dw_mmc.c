@@ -50,11 +50,15 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 	int ret;
 
+#if 0
 	ret = clk_set_rate(&priv->clk, freq);
 	if (ret < 0) {
 		debug("%s: err=%d\n", __func__, ret);
 		return ret;
 	}
+#endif /* #if 0 */
+
+	freq = 12000000;
 #else
 	freq = 50000000;
 #endif
@@ -122,10 +126,14 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		return ret;
 #else
 #ifndef CONFIG_TARGET_X2_FPGA
+
+#if 0
 	ret = clk_get_by_index(dev, 0, &priv->clk);
 	if (ret < 0) {
 		return ret;
 	}
+#endif /* #if 0 */
+
 #endif
 #endif
 	host->fifoth_val = MSIZE(0x2) |
