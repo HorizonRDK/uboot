@@ -6,7 +6,7 @@
 #include "clk-common.h"
 
 struct div_platdata {
-	uint div_reg;
+	phys_addr_t div_reg;
 	uint bits;
 	uint field;
 };
@@ -30,7 +30,7 @@ static ulong div_clk_get_rate(struct clk *clk)
 	val = readl(plat->div_reg);
 	div = (val & (plat->field << plat->bits)) >> plat->bits;
 
-	clk_rate = clk_rate / div;
+	clk_rate = clk_rate / (div + 1);
 	/*CLK_DEBUG("div clk rate:%ld, div:0x%x.\n", clk_rate, div);*/
 
 	return clk_rate;
@@ -67,8 +67,8 @@ ulong div_clk_set_rate(struct clk *clk, ulong rate)
 	val &= ~(plat->field << plat->bits);
 	val |= ((div & plat->field) << plat->bits);
 	writel(val, plat->div_reg);
-	CLK_DEBUG("div set clk rate:%ld, val:0x%x, addr:0x%x.\n",
-			rate, val, plat->div_reg);
+	/*CLK_DEBUG("div set clk rate:%ld, val:0x%x, addr:0x%llx.\n",
+			rate, val, plat->div_reg);*/
 
 	return 0;
 }
@@ -81,7 +81,7 @@ static struct clk_ops div_clk_ops = {
 static int div_clk_probe(struct udevice *dev)
 {
 	uint val;
-	uint reg_base;
+	phys_addr_t reg_base;
 	ofnode node;
 	struct div_platdata *plat = dev_get_platdata(dev);
 

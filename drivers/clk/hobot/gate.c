@@ -6,11 +6,11 @@
 #include "clk-common.h"
 
 struct gate_platdata {
-	uint state_reg;
+	phys_addr_t state_reg;
+	phys_addr_t enable_reg;
+	phys_addr_t disable_reg;
 	uint state_bits;
-	uint enable_reg;
 	uint enable_bits;
-	uint disable_reg;
 	uint disable_bits;
 };
 
@@ -73,7 +73,7 @@ static struct clk_ops gate_clk_ops = {
 static int gate_clk_probe(struct udevice *dev)
 {
 	uint reg[3];
-	uint reg_base;
+	phys_addr_t reg_base;
 	ofnode node;
 	struct gate_platdata *plat = dev_get_platdata(dev);
 
@@ -101,8 +101,8 @@ static int gate_clk_probe(struct udevice *dev)
 	plat->enable_bits = reg[1];
 	plat->disable_bits = reg[2];
 
-	/*CLK_DEBUG("divider %s probe done, state:0x%x, enable:0x%x, disable:0x%x\n",
-			dev->name, plat->state_reg, plat->enable_reg, plat->disable_reg);*/
+	CLK_DEBUG("gate %s probe done, state:0x%llx, enable:0x%llx, disable:0x%llx\n",
+			dev->name, plat->state_reg, plat->enable_reg, plat->disable_reg);
 	return 0;
 }
 

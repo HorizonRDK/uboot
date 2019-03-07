@@ -5,7 +5,7 @@
 
 #include "clk-common.h"
 struct mux_platdata {
-	uint mux_reg;
+	phys_addr_t mux_reg;
 	uint bits;
 	uint field;
 };
@@ -69,7 +69,7 @@ static struct clk_ops mux_clk_ops = {
 static int mux_clk_probe(struct udevice *dev)
 {
 	uint tmp;
-	uint reg_base;
+	phys_addr_t reg_base;
 	ofnode node;
 	struct mux_platdata *plat = dev_get_platdata(dev);
 

@@ -41,9 +41,9 @@
 #define PLL_FRAC_POSTDIV2_MAX 7
 
 struct fracpll_platdata {
-	uint freq_reg;
-	uint pd_reg;
-	uint frac_reg;
+	phys_addr_t freq_reg;
+	phys_addr_t pd_reg;
+	phys_addr_t frac_reg;
 };
 
 static ulong fracpll_clk_get_rate(struct clk *clk)
@@ -83,7 +83,7 @@ static struct clk_ops fracpll_clk_ops = {
 static int fracpll_clk_probe(struct udevice *dev)
 {
 	uint reg[3];
-	uint reg_base;
+	phys_addr_t reg_base;
 	ofnode node;
 	struct fracpll_platdata *plat = dev_get_platdata(dev);
 

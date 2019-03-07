@@ -33,8 +33,8 @@
 #define PLL_LAINT_POSTDIV2_MAX 7
 
 struct laintpll_platdata {
-	uint freq_reg;
-	uint pd_reg;
+	phys_addr_t freq_reg;
+	phys_addr_t pd_reg;
 };
 
 static ulong laintpll_clk_get_rate(struct clk *clk)
@@ -72,7 +72,7 @@ const struct clk_ops laintpll_clk_ops = {
 static int laintpll_clk_probe(struct udevice *dev)
 {
 	uint reg[2];
-	uint reg_base;
+	phys_addr_t reg_base;
 	ofnode node;
 	struct laintpll_platdata *plat = dev_get_platdata(dev);
 
