@@ -10,6 +10,8 @@ void cnn_pll_init(void);
 
 void vio_pll_init(void);
 
+void switch_peri_pll(void);
+
 #endif /* CONFIG_SPL_BUILD */
 
 #endif /* __ASM_ARCH_X2_CLOCK_H__ */

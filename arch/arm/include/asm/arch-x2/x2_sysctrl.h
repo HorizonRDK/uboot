@@ -1,6 +1,7 @@
 #ifndef __X2_SYSCTRL_H__
 #define __X2_SYSCTRL_H__
 
+#include <asm/arch/hardware.h>
 #include <asm/arch/x2_reg.h>
 
 #define X2_CNNPLL_FREQ_CTRL			(SYSCTRL_BASE + 0x020)
@@ -14,6 +15,10 @@
 #define X2_VIOPLL_FREQ_CTRL			(SYSCTRL_BASE + 0x040)
 #define X2_VIOPLL_PD_CTRL			(SYSCTRL_BASE + 0x044)
 #define X2_VIOPLL_STATUS			(SYSCTRL_BASE + 0x048)
+
+#define X2_PERIPLL_FREQ_CTRL		(SYSCTRL_BASE + 0x050)
+#define X2_PERIPLL_PD_CTRL			(SYSCTRL_BASE + 0x054)
+#define X2_PERIPLL_STATUS			(SYSCTRL_BASE + 0x058)
 
 #define X2_CNNSYS_CLKEN_SET			(SYSCTRL_BASE + 0x124)
 #define X2_DDRSYS_CLKEN_SET			(SYSCTRL_BASE + 0x134)
@@ -33,6 +38,11 @@
 #define REFDIV_BITS(x)		((x & 0x3F) << 12)
 #define POSTDIV1_BITS(x)	((x & 0x7) << 20)
 #define POSTDIV2_BITS(x)	((x & 0x7) << 24)
+
+#define GET_FBDIV(x)		((x) & 0xFFF)
+#define GET_REFDIV(x)		(((x) >> 12) & 0x3F)
+#define GET_POSTDIV1(x)		(((x) >> 20) & 0x7)
+#define GET_POSTDIV2(x)		(((x) >> 24) & 0x7)
 
 /* DDRPLL_PD_CTRL */
 #define PD_BIT				(1 << 0)
@@ -56,5 +66,17 @@
 #define VIOCLK_SEL_BIT		(1 << 16)
 #define PERICLK_SEL_BIT		(1 << 20)
 
+static inline unsigned int x2_get_peripll_clk(void)
+{
+	unsigned int val = readl(X2_PERIPLL_FREQ_CTRL);
+	unsigned int fbdiv, refdiv, postdiv1, postdiv2;
+
+	fbdiv = GET_FBDIV(val);
+	refdiv = GET_REFDIV(val);
+	postdiv1 = GET_POSTDIV1(val);
+	postdiv2 = GET_POSTDIV2(val);
+
+	return ((X2_OSC_CLK / refdiv) *fbdiv / postdiv1 / postdiv2);
+}
 
 #endif /* __X2_SYSCTRL_H__ */

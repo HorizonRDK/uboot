@@ -42,6 +42,8 @@ void spl_dram_init(void)
 
 void board_init_f(ulong dummy)
 {
+	switch_peri_pll();
+
 	preloader_console_init();
 
 #if defined(CONFIG_X2_AP_BOOT) && defined(CONFIG_TARGET_X2)

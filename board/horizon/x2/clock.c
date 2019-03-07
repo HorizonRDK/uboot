@@ -24,7 +24,6 @@ void dram_pll_init(ulong pll_val)
 			writel(value, X2_DDRPLL_FREQ_CTRL);
 
 			writel(0x1, X2_DDRSYS_CLK_DIV_SEL);
-
 			break;
 
 		case MHZ(2666):
@@ -128,5 +127,40 @@ void vio_pll_init(void)
 	writel(0x1f, X2_VIOSYS_CLKEN_SET);
 }
 
+/* Update Peri PLL from 1536MHz to 1500MHz */
+void switch_peri_pll(void)
+{
+	unsigned int value;
+	unsigned int try_num = 5;
+
+	value =readl(X2_PLLCLK_SEL) & (~PERICLK_SEL_BIT);
+	writel(value, X2_PLLCLK_SEL);
+
+	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
+		X2_PERIPLL_PD_CTRL);
+
+	value = FBDIV_BITS(250) | REFDIV_BITS(4) |
+		POSTDIV1_BITS(1) | POSTDIV2_BITS(1);
+	writel(value, X2_PERIPLL_FREQ_CTRL);
+
+	value = readl(X2_PERIPLL_PD_CTRL);
+	value &= ~(PD_BIT | FOUTPOST_DIV_BIT);
+	writel(value, X2_PERIPLL_PD_CTRL);
+
+	while (!(value = readl(X2_PERIPLL_STATUS) & LOCK_BIT)) {
+		if (try_num <= 0) {
+			break;
+		}
+
+		udelay(100);
+		try_num--;
+	}
+
+	value = readl(X2_PLLCLK_SEL);
+	value |= PERICLK_SEL_BIT;
+	writel(value, X2_PLLCLK_SEL);
+
+	return;
+}
 #endif /* CONFIG_SPL_BUILD */
 
