@@ -19,6 +19,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define SDIO0_EMMC_1ST_DIV_CLOCK_HZ 300000000
+#define SDIO0_EMMC_2ND_DIV_CLOCK_HZ 150000000
+
 struct hobot_mmc_plat {
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 	struct dtd_hobot_x2_dw_mshc dtplat;
@@ -28,6 +31,8 @@ struct hobot_mmc_plat {
 };
 
 struct hobot_dwmmc_priv {
+	struct clk div1_clk;
+	struct clk div2_clk;
 	struct clk clk;
 	struct dwmci_host host;
 	int fifo_depth;
@@ -50,15 +55,8 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 	int ret;
 
-#if 0
-	ret = clk_set_rate(&priv->clk, freq);
-	if (ret < 0) {
-		debug("%s: err=%d\n", __func__, ret);
-		return ret;
-	}
-#endif /* #if 0 */
+	freq = clk_get_rate(&priv->clk);
 
-	freq = 12000000;
 #else
 	freq = 50000000;
 #endif
@@ -105,6 +103,7 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 	struct dwmci_host *host = &priv->host;
 	struct udevice *pwr_dev __maybe_unused;
+	unsigned long clock;
 	int ret;
 
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
@@ -127,12 +126,44 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 #else
 #ifndef CONFIG_TARGET_X2_FPGA
 
-#if 0
-	ret = clk_get_by_index(dev, 0, &priv->clk);
+	ret = clk_get_by_index(dev, 0, &priv->div1_clk);
 	if (ret < 0) {
+		debug("failed to get 1st div clk.\n");
 		return ret;
 	}
-#endif /* #if 0 */
+
+	ret = clk_set_rate(&priv->div1_clk, SDIO0_EMMC_1ST_DIV_CLOCK_HZ);
+	if(ret < 0){
+		debug("failed to set 1st div rate.\n");
+		return ret;
+	}
+
+	ret = clk_get_by_index(dev, 1, &priv->div2_clk);
+	if (ret < 0) {
+		debug("failed to get 2nd div clk.\n");
+		return ret;
+	}
+
+	ret = clk_set_rate(&priv->div2_clk, SDIO0_EMMC_2ND_DIV_CLOCK_HZ);
+	if(ret < 0){
+		debug("failed to set 2nd div rate.\n");
+		return ret;
+	}
+
+	ret = clk_get_by_index(dev, 2, &priv->clk);
+	if (ret < 0) {
+		debug("failed to get gate clk.\n");
+		return ret;
+	}
+
+	clock = clk_get_rate(&priv->clk);
+	if(IS_ERR_VALUE(clock)) {
+		debug("failed to get clk rate.\n");
+		return clock;
+	}
+
+	debug("emmc host clock set %ld.\n", clock);
+	clk_enable(&priv->clk);
 
 #endif
 #endif

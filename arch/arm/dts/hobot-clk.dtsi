@@ -815,6 +815,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <2 2 2>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		uart2_mclk: uart2_mclk {
@@ -825,6 +826,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <3 3 3>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		uart3_mclk: uart3_mclk {
@@ -835,6 +837,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <4 4 4>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		spi_div_mclk: spi_div_mclk {
@@ -845,6 +848,7 @@
 			offset = <0x250>;
 			bits = <8>;
 			field = <4>;
+			status = "disabled";
 		};
 
 		spi0_mclk: spi0_mclk {
@@ -855,6 +859,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <5 5 5>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		spi1_mclk: spi1_mclk {
@@ -865,6 +870,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <6 6 6>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		spi2_mclk: spi2_mclk {
@@ -875,6 +881,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <7 7 7>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		pwm_div_mclk: pwm_div_mclk {
@@ -929,6 +936,7 @@
 			offset = <0x250>;
 			bits = <16>;
 			field = <4>;
+			status = "disabled";
 		};
 
 		i2c0_mclk: i2c0_mclk {
@@ -939,6 +947,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <11 11 11>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		i2c1_mclk: i2c1_mclk {
@@ -949,6 +958,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <12 12 12>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		i2c2_mclk: i2c2_mclk {
@@ -959,6 +969,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <13 13 13>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		i2c3_mclk: i2c3_mclk {
@@ -969,6 +980,7 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <14 14 14>;
 			field = <0x1 0x1 0x1>;
+			status = "disabled";
 		};
 
 		sd0_div_clk: sd0_div_clk {
@@ -979,7 +991,6 @@
 			offset = <0x320>;
 			bits = <0>;
 			field = <4>;
-			status = "disabled";
 		};
 
 		sd0_div_cclk: sd0_div_cclk {
@@ -990,7 +1001,6 @@
 			offset = <0x320>;
 			bits = <4>;
 			field = <3>;
-			status = "disabled";
 		};
 
 		sd0_cclk: sd0_cclk {
@@ -1001,7 +1011,6 @@
 			offset = <0x150 0x154 0x158>;
 			bits = <15 15 15>;
 			field = <0x1 0x1 0x1>;
-			status = "disabled";
 		};
 
 		sd1_div_clk: sd1_div_clk {
