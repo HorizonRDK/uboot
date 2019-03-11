@@ -36,6 +36,8 @@ static void x2_uart_setbrg(struct x2_uart_regs *regs,
 	val = X2_BCR_MODE(0) | X2_BCR_DIV_INT(br_int) | X2_BCR_DIV_FRAC(br_frac);
 
 	writel(val, &regs->bcr_reg);
+
+	gd->baudrate = baud;
 }
 
 /* Initialize the UART, with...some settings. */
@@ -101,7 +103,9 @@ static void x2_serial_init_baud(int baudrate)
 #else
 	unsigned int reg = readl(X2_PERISYS_CLK_DIV_SEL);
 	unsigned int mdiv = GET_UART_MCLK_DIV(reg);
-	unsigned int clock = X2_PLL_PERF_CLK / mdiv;
+	unsigned int clock = x2_get_peripll_clk();
+
+	clock = clock / mdiv;
 #endif /* CONFIG_TARGET_X2_FPGA */
 
 	base_regs = (struct x2_uart_regs *)CONFIG_DEBUG_UART_BASE;
@@ -189,16 +193,25 @@ int x2_serial_setbrg(struct udevice *dev, int baudrate)
 	unsigned int clock;
 	unsigned int rate = baudrate;
 
-#if defined(CONFIG_CLK) || defined(CONFIG_SPL_CLK)
+#if defined(CONFIG_CLK)
 	unsigned int br_sel = x2_pin_get_uart_br();
-	unsigned int value = readl(X2_PERISYS_CLK_DIV_SEL);
-	unsigned int mdiv = GET_UART_MCLK_DIV(value);
+	struct clk mclk;
+	int ret;
 
 	rate = br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600;
-	clock = X2_PLL_PERF_CLK / mdiv;
+
+	ret = clk_get_by_index(dev, 0, &mclk);
+	if (ret < 0) {
+		dev_err(dev, "failed to get clock\n");
+		return ret;
+	}
+
+	clock = clk_get_rate(&mclk);
+
 #else
 	clock = CONFIG_DEBUG_UART_CLOCK;
-#endif
+#endif /* CONFIG_CLK */
+
 	x2_uart_setbrg(priv->regs, clock, rate);
 
 	return 0;

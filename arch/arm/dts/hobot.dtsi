@@ -8,6 +8,7 @@
 			u-boot,dm-pre-reloc;
 			compatible = "hobot,x2-uart";
 			status = "disabled";
+			clocks = <&uart_div_mclk>;
 			reg = <0x0 0xA5000000 0x0 0x1000>;
 		};
 
