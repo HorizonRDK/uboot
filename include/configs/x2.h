@@ -41,6 +41,9 @@
 /* The option for palladium */
 /* #define CONFIG_SUPPORT_PALLADIUM */
 
+/* The option for som board */
+/* #define CONFIG_X2_SOM_BOARD */
+
 #else
 
 #ifdef CONFIG_X2_BIFSD

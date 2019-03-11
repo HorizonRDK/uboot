@@ -1,4 +1,5 @@
 
+#include <asm/io.h>
 #include <asm/arch/x2_dev.h>
 #include <xyzModem.h>
 
@@ -43,13 +44,31 @@ static unsigned int x2_ymodem_read(int lba, uint64_t buf, size_t size)
 	return total_size;
 }
 
+void x2_ymodem_test(struct x2_info_hdr *pinfo)
+{
+#if 0
+	unsigned int pattern = 0xdeadbeaf;
+
+	for (int i = 0; i < 100; i++) {
+		printf("%d, 0x%x\n", i, readl(0x20000000));
+	}
+
+	for (int i = 0; i < 100; i++) {
+		writel(pattern, 0x20000000);
+		printf("%d, 0x%x\n", i, readl(0x20000000));
+	}
+#endif /* #if 0 */
+
+	return;
+}
+
 void spl_x2_ymodem_init(void)
 {
 	g_dev_ops.proc_start = NULL;
 	g_dev_ops.pre_read = NULL;
 	g_dev_ops.read = x2_ymodem_read;
 	g_dev_ops.post_read = NULL;
-	g_dev_ops.proc_end = NULL;
+	g_dev_ops.proc_end = x2_ymodem_test;
 
 	return;
 }
