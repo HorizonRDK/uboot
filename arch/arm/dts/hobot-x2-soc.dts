@@ -70,12 +70,14 @@
 };
 
 &gmac {
-	status = "okay";
-	#address-cells = <0x1>;
+        status = "okay";
+        #address-cells = <0x1>;
         #size-cells = <0x0>;
-	phy0: ethernet-phy@3 {
-		compatible = "marvell,88E1111","ethernet-phy-ieee802.3-c22";
-		reg = <3>;
+        phyaddr = <0>;
+
+	phy0: ethernet-phy@0 {
+		compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
+		reg = <0>;
 	};
 };
 &bifsd {

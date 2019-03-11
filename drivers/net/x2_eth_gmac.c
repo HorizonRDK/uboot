@@ -674,6 +674,9 @@ static int eqos_start(struct udevice *dev)
     ulong rate;
     u32 val, tx_fifo_sz, rx_fifo_sz, tqs, rqs, pbl;
     ulong last_rx_desc;
+    const void *blob = gd->fdt_blob;
+    int node = dev_of_offset(dev);
+    int phy_addr = 0;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -706,7 +709,9 @@ static int eqos_start(struct udevice *dev)
     val = (rate / 1000000) - 1;
     writel(val, &eqos->mac_regs->us_tic_counter);
 
-    eqos->phy = phy_connect(eqos->mii, 3, dev, 0);
+    phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
+
+    eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
     if (!eqos->phy) {
         pr_err("phy_connect() failed");
         goto err_stop_resets;
