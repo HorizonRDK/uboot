@@ -95,7 +95,7 @@ static int x2_qspi_set_wire(struct x2_qspi_priv *x2qspi, uint mode)
 {
 	unsigned int val = 0;
 
-	switch(mode & 0x3F00) {
+	switch (mode & 0x3F00) {
 	case SPI_TX_BYTE | SPI_RX_SLOW:
 		val = 0xFC;
 		break;
@@ -145,11 +145,11 @@ static int x2_qspi_tx_ae(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(100);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
-	}while((!(val&X2_QSPI_TX_AE))&&(trys<TRYS_TOTAL_NUM));
+	} while ((!(val&X2_QSPI_TX_AE)) && (trys<TRYS_TOTAL_NUM));
 	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
@@ -161,12 +161,12 @@ static int x2_qspi_rx_af(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(100);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
-	}while((!(val&X2_QSPI_RX_AF))&&(trys<TRYS_TOTAL_NUM));
-	if(trys >= TRYS_TOTAL_NUM)
+	} while ((!(val&X2_QSPI_RX_AF)) && (trys<TRYS_TOTAL_NUM));
+	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
 	return trys<TRYS_TOTAL_NUM ? 0 : -1;
@@ -176,12 +176,12 @@ static int x2_qspi_tb_done(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(100);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
-	}while((!(val&X2_QSPI_TBD))&&(trys<TRYS_TOTAL_NUM));
-	if(trys >= TRYS_TOTAL_NUM)
+	} while ((!(val&X2_QSPI_TBD)) && (trys<TRYS_TOTAL_NUM));
+	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 	x2_qspi_wr(x2qspi, X2_QSPI_ST1_REG, (val|X2_QSPI_TBD));
 
@@ -193,12 +193,12 @@ static int x2_qspi_rb_done(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(100);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
-	}while((!(val&X2_QSPI_RBD))&&(trys<TRYS_TOTAL_NUM));
-	if(trys >= TRYS_TOTAL_NUM)
+	} while ((!(val&X2_QSPI_RBD)) && (trys<TRYS_TOTAL_NUM));
+	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 	x2_qspi_wr(x2qspi, X2_QSPI_ST1_REG, (val|X2_QSPI_RBD));
 
@@ -210,13 +210,13 @@ static int x2_qspi_tx_full(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(100);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
 		trys ++;
-	}while((val&X2_QSPI_TX_FULL)&&(trys<TRYS_TOTAL_NUM));
+	} while ((val&X2_QSPI_TX_FULL) && (trys<TRYS_TOTAL_NUM));
 
-	if(trys >= TRYS_TOTAL_NUM)
+	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
 	return trys<TRYS_TOTAL_NUM ? 0 : -1;
@@ -226,13 +226,13 @@ static int x2_qspi_tx_empty(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
 		trys ++;
-	}while((!(val&X2_QSPI_TX_EP))&&(trys<TRYS_TOTAL_NUM));
+	} while ((!(val&X2_QSPI_TX_EP)) && (trys<TRYS_TOTAL_NUM));
 
-	if(trys >= TRYS_TOTAL_NUM)
+	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
 	return trys<TRYS_TOTAL_NUM ? 0 : -1;
@@ -242,13 +242,13 @@ static int x2_qspi_rx_empty(struct x2_qspi_priv *x2qspi)
 {
 	u32 val, trys=0;
 
-	do{
+	do {
 		udelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
 		trys ++;
-	}while((val&X2_QSPI_RX_EP)&&(trys<TRYS_TOTAL_NUM));
+	} while ((val&X2_QSPI_RX_EP) && (trys<TRYS_TOTAL_NUM));
 
-	if(trys >= TRYS_TOTAL_NUM)
+	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
 	return trys<TRYS_TOTAL_NUM ? 0 : -1;
@@ -307,7 +307,7 @@ static void x2_qspi_set_xfer(struct x2_qspi_priv *x2qspi, u32 op_flag)
 static int x2_qspi_rd_batch(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t len)
 {
 	u32 i, rx_len, offset = 0, tmp_len = len, ret = 0;
-	u32 *dbuf = (u32 *)pbuf;
+	u32 *dbuf = (u32 *) pbuf;
 
 	/* Enable batch mode */
 	x2_qspi_set_fw(x2qspi, X2_QSPI_FW32);
@@ -319,15 +319,15 @@ static int x2_qspi_rd_batch(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t le
 		/* enbale rx */
 		x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_EN);
 
-		for(i=0; i< rx_len; i+=8) {
-			if(x2_qspi_rx_af(x2qspi)) {
+		for (i=0; i< rx_len; i+=8) {
+			if (x2_qspi_rx_af(x2qspi)) {
 				ret = -1;
 				goto rb_err;
 			}
 			dbuf[offset++] = x2_qspi_rd(x2qspi, X2_QSPI_DAT_REG);
 			dbuf[offset++] = x2_qspi_rd(x2qspi, X2_QSPI_DAT_REG);
 		}
-		if(x2_qspi_rb_done(x2qspi)) {
+		if (x2_qspi_rb_done(x2qspi)) {
 			printf("%s_%d:rx failed! len=%d, received=%d, i=%d\n", __func__, __LINE__, len, offset, i);
 			ret = -1;
 			goto rb_err;
@@ -348,7 +348,7 @@ rb_err:
 static int x2_qspi_wr_batch(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t len)
 {
 	u32 i, tx_len, offset = 0, tmp_len = len, ret = 0;
-	u32 *dbuf = (u32 *)pbuf;
+	u32 *dbuf = (u32 *) pbuf;
 
 	x2_qspi_set_fw(x2qspi, X2_QSPI_FW32);
 	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_BAT_EN);
@@ -360,15 +360,15 @@ static int x2_qspi_wr_batch(struct x2_qspi_priv *x2qspi, const void *pbuf, uint3
 		/* enbale tx */
 		x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_TX_EN);
 
-		for(i=0; i<tx_len; i+=8){
-			if(x2_qspi_tx_ae(x2qspi)) {
+		for (i=0; i<tx_len; i+=8) {
+			if (x2_qspi_tx_ae(x2qspi)) {
 				ret = -1;
 				goto tb_err;
 			}
 			x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, dbuf[offset++]);
 			x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, dbuf[offset++]);
 		}
-		if(x2_qspi_tb_done(x2qspi)) {
+		if (x2_qspi_tb_done(x2qspi)) {
 			printf("%s_%d:tx failed! len=%d, received=%d, i=%d\n", __func__, __LINE__, len, offset, i);
 			ret = -1;
 			goto tb_err;
@@ -388,19 +388,19 @@ tb_err:
 static int x2_qspi_rd_byte(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t len)
 {
 	u32 i, ret = 0;
-	u8 *dbuf = (u8 *)pbuf;
+	u8 *dbuf = (u8 *) pbuf;
 
 	/* enbale rx */
 	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_EN);
 
-	for(i=0; i<len; i++)
+	for (i=0; i<len; i++)
 	{
-		if(x2_qspi_tx_empty(x2qspi)) {
+		if (x2_qspi_tx_empty(x2qspi)) {
 			ret = -1;
 			goto rd_err;
 		}
 		x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, 0x00);
-		if(x2_qspi_rx_empty(x2qspi)) {
+		if (x2_qspi_rx_empty(x2qspi)) {
 			ret = -1;
 			goto rd_err;
 		}
@@ -419,21 +419,21 @@ rd_err:
 static int x2_qspi_wr_byte(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t len)
 {
 	u32 i, ret = 0;
-	u8 *dbuf = (u8 *)pbuf;
+	u8 *dbuf = (u8 *) pbuf;
 
 	/* enbale tx */
 	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_TX_EN);
 
-	for(i=0; i<len; i++)
+	for (i=0; i<len; i++)
 	{
-		if(x2_qspi_tx_full(x2qspi)) {
+		if (x2_qspi_tx_full(x2qspi)) {
 			ret = -1;
 			goto wr_err;
 		}
 		x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, dbuf[i]);
 	}
 	/* Check tx complete */
-	if(x2_qspi_tx_empty(x2qspi))
+	if (x2_qspi_tx_empty(x2qspi))
 		ret = -1;
 
 wr_err:
@@ -454,7 +454,7 @@ static int x2_qspi_read(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t len)
 	if (residue > 0)
 		ret = x2_qspi_rd_batch(x2qspi, pbuf, residue);
 	if (remainder > 0)
-		ret = x2_qspi_rd_byte(x2qspi, (u8 *)pbuf + residue, remainder);
+		ret = x2_qspi_rd_byte(x2qspi, (u8 *) pbuf + residue, remainder);
 	if (ret < 0)
 		printf("x2_qspi_read failed!\n");
 
@@ -470,7 +470,7 @@ static int x2_qspi_write(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t
 	if (residue > 0)
 		ret = x2_qspi_wr_batch(x2qspi, pbuf, residue);
 	if (remainder > 0)
-		ret = x2_qspi_wr_byte(x2qspi, (u8 *)pbuf + residue, remainder);
+		ret = x2_qspi_wr_byte(x2qspi, (u8 *) pbuf + residue, remainder);
 	if (ret < 0)
 		printf("x2_qspi_write failed!\n");
 
@@ -478,7 +478,7 @@ static int x2_qspi_write(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t
 }
 
 int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
-				 void *din, unsigned long flags)
+		 void *din, unsigned long flags)
 {
 	int ret = 0;
 	unsigned int len, cs;
@@ -493,7 +493,7 @@ int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
 	cs	= slave_plat->cs;
 
 	if (flags & SPI_XFER_BEGIN)
-		x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 1<<cs); /* Assert CS before transfer */
+		x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 1<<cs);  /* Assert CS before transfer */
 
 	if (dout) {
 		ret = x2_qspi_write(x2qspi, dout, len);
@@ -503,11 +503,11 @@ int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
 	}
 
 	if (flags & SPI_XFER_END) {
-		x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 0); /* Deassert CS after transfer */
+		x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 0);  /* Deassert CS after transfer */
 	}
 
 	if (flags & SPI_XFER_CMD) {
-		switch (((u8 *)dout)[0]) {
+		switch (((u8 *) dout) [0]) {
 		case CMD_READ_QUAD_OUTPUT_FAST:
 		case CMD_QUAD_PAGE_PROGRAM:
 		case CMD_READ_DUAL_OUTPUT_FAST:
@@ -572,7 +572,7 @@ static int x2_qspi_ofdata_to_platdata(struct udevice *bus)
 	const void *blob = gd->fdt_blob;
 	int node = dev_of_offset(bus);
 
-	plat->regs_base = (u32 *)fdtdec_get_addr(blob, node, "reg");
+	plat->regs_base = (u32 *) fdtdec_get_addr(blob, node, "reg");
 	plat->freq		= fdtdec_get_int(blob, node, "spi-max-frequency", 500000000);
 
 	return 0;
