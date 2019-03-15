@@ -25,8 +25,13 @@ enum spi_nor_option_flags {
 	SNOR_F_USE_UPAGE	= BIT(3),
 };
 
+#ifdef CONFIG_SPI_FLASH_4BC
+#define SPI_FLASH_4B_ADDR_LEN		4
+#define SPI_FLASH_CMD_LEN		(1 + SPI_FLASH_4B_ADDR_LEN)
+#else
 #define SPI_FLASH_3B_ADDR_LEN		3
 #define SPI_FLASH_CMD_LEN		(1 + SPI_FLASH_3B_ADDR_LEN)
+#endif
 #define SPI_FLASH_16MB_BOUN		0x1000000
 
 /* CFI Manufacture ID's */
@@ -38,6 +43,9 @@ enum spi_nor_option_flags {
 #define SPI_FLASH_CFI_MFR_WINBOND	0xef
 #define SPI_FLASH_CFI_MFR_ATMEL		0x1f
 #define SPI_FLASH_CFI_MFR_GIGA      0xc8
+
+/* CFI Device ID's */
+#define SPI_FLASH_GIGA_GD25LQ256D   0x6019
 
 /* Erase commands */
 #define CMD_ERASE_4K			0x20
@@ -72,10 +80,19 @@ enum spi_nor_option_flags {
 #define CMD_EXTNADDR_RDEAR		0xC8
 #endif
 
+/* Enter/Exit 4-byte mode commands */
+#define CMD_ENTER_4B		0xb7
+#define CMD_EXIT_4B			0xe9
+
+/* Enable/Disable quad mode commands */
+#define CMD_ENABLE_QPI		0x38
+#define CMD_DISABLE_QPI		0xFF
+
 /* Common status */
 #define STATUS_WIP			BIT(0)
 #define STATUS_QEB_WINSPAN		BIT(1)
 #define STATUS_QEB_MXIC			BIT(6)
+#define STATUS_QEB_GD25LQ256D	BIT(1)
 #define STATUS_PEC			BIT(7)
 #define SR_BP0				BIT(2)  /* Block protect 0 */
 #define SR_BP1				BIT(3)  /* Block protect 1 */

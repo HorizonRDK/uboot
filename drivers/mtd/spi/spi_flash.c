@@ -23,9 +23,53 @@
 static void spi_flash_addr(u32 addr, u8 *cmd)
 {
 	/* cmd[0] is actual command */
+#ifdef CONFIG_SPI_FLASH_4BC
+	cmd[1] = addr >> 24;
+	cmd[2] = addr >> 16;
+	cmd[3] = addr >> 8;
+	cmd[4] = addr >> 0;
+#else
 	cmd[1] = addr >> 16;
 	cmd[2] = addr >> 8;
 	cmd[3] = addr >> 0;
+#endif
+}
+
+static int read_esr(struct spi_flash *flash, u8 *rs)
+{
+	int ret;
+	u8 cmd;
+
+	cmd = CMD_READ_STATUS;
+	ret = spi_flash_read_common(flash, &cmd, 1, &rs[0], 1);
+	if (ret < 0) {
+		debug("SF: fail to read status0 register\n");
+		return ret;
+	}
+
+	cmd = CMD_READ_STATUS1;
+	ret = spi_flash_read_common(flash, &cmd, 1, &rs[1], 1);
+	if (ret < 0) {
+		debug("SF: fail to read status1 register\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int write_esr(struct spi_flash *flash, u8 *ws)
+{
+	u8 cmd;
+	int ret;
+
+	cmd = CMD_WRITE_STATUS;
+	ret = spi_flash_write_common(flash, &cmd, 1, ws, 2);
+	if (ret < 0) {
+		debug("SF: fail to write status register\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int read_sr(struct spi_flash *flash, u8 *rs)
@@ -193,6 +237,23 @@ static int read_bar(struct spi_flash *flash, const struct spi_flash_info *info)
 
 bar_end:
 	flash->bank_curr = curr_bank;
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_SPI_FLASH_4BC
+static int spi_flash_enter_4b(struct spi_flash *flash)
+{
+	u8 cmd;
+	int ret;
+
+	cmd = CMD_ENTER_4B;
+	ret = spi_flash_write_common(flash, &cmd, 1, NULL, 0);
+	if (ret < 0) {
+		debug("SF: fail to Enter 4 byte mode\n");
+		return ret;
+	}
+
 	return 0;
 }
 #endif
@@ -482,7 +543,7 @@ int spi_flash_cmd_read_ops(struct spi_flash *flash, u32 offset,
 	struct spi_slave *spi = flash->spi;
 	u8 cmdsz;
 	u32 remain_len, read_len, read_addr;
-	int bank_sel = 0;
+	int bank_sel  __maybe_unused = 0;
 	int ret = 0;
 
 	/* Handle memory-mapped SPI */
@@ -516,8 +577,12 @@ int spi_flash_cmd_read_ops(struct spi_flash *flash, u32 offset,
 			return log_ret(ret);
 		bank_sel = flash->bank_curr;
 #endif
+#ifdef CONFIG_SPI_FLASH_4BC
+		remain_len = flash->size - offset;
+#else
 		remain_len = ((SPI_FLASH_16MB_BOUN << flash->shift) *
 				(bank_sel + 1)) - offset;
+#endif
 		if (len < remain_len)
 			read_len = len;
 		else
@@ -527,6 +592,7 @@ int spi_flash_cmd_read_ops(struct spi_flash *flash, u32 offset,
 			read_len = min(read_len, spi->max_read_size);
 
 		spi_flash_addr(read_addr, cmd);
+		debug("cmd = { 0x%02x 0x%02x%02x%02x%02x\n", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
 
 		ret = spi_flash_read_common(flash, cmd, cmdsz, data, read_len);
 		if (ret < 0) {
@@ -1033,6 +1099,32 @@ static int macronix_quad_enable(struct spi_flash *flash)
 
 	return ret;
 }
+
+/* enable quad mode by cmd 48h */
+static int giga_quad_enable(struct spi_flash *flash)
+{
+	u8 st[2];
+	int ret;
+
+	ret = read_esr(flash, st);
+	if (ret < 0)
+		return ret;
+	if (st[1] & STATUS_QEB_GD25LQ256D)
+		return 0;
+
+	st[1] |= STATUS_QEB_GD25LQ256D;
+	ret = write_esr(flash, st);
+	if (ret < 0)
+		return ret;
+
+	ret = read_esr(flash, st);
+	if (ret < 0)
+		return ret;
+	if (!(st[1] & STATUS_QEB_GD25LQ256D))
+		return -1;
+
+	return 0;
+}
 #endif
 
 #if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
@@ -1095,7 +1187,10 @@ static int set_quad_mode(struct spi_flash *flash,
 #if defined(CONFIG_SPI_FLASH_MACRONIX) || defined(CONFIG_SPI_FLASH_GIGADEVICE)
 	case SPI_FLASH_CFI_MFR_MACRONIX:
 	case SPI_FLASH_CFI_MFR_GIGA:
-		return macronix_quad_enable(flash);
+		if (SPI_FLASH_GIGA_GD25LQ256D == JEDEC_ID(info))
+			return giga_quad_enable(flash);
+		else
+			return macronix_quad_enable(flash);
 #endif
 #if defined(CONFIG_SPI_FLASH_SPANSION) || defined(CONFIG_SPI_FLASH_WINBOND)
 	case SPI_FLASH_CFI_MFR_SPANSION:
@@ -1306,6 +1401,12 @@ int spi_flash_scan(struct spi_flash *flash)
 		return ret;
 #endif
 
+#ifdef CONFIG_SPI_FLASH_4BC
+	ret = spi_flash_enter_4b(flash);
+	if (ret < 0)
+		return ret;
+#endif
+
 #if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
 	ret = spi_flash_decode_fdt(flash);
 	if (ret) {
@@ -1324,7 +1425,7 @@ int spi_flash_scan(struct spi_flash *flash)
 	puts("\n");
 #endif
 
-#ifndef CONFIG_SPI_FLASH_BAR
+#if (!defined CONFIG_SPI_FLASH_BAR) && (!defined CONFIG_SPI_FLASH_4BC)
 	if (((flash->dual_flash == SF_SINGLE_FLASH) &&
 	     (flash->size > SPI_FLASH_16MB_BOUN)) ||
 	     ((flash->dual_flash > SF_SINGLE_FLASH) &&

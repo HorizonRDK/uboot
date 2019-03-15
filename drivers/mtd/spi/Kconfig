@@ -49,6 +49,14 @@ config SF_DUAL_FLASH
 	  Enable this option to support two flash memories connected to a single
 	  controller. Currently Xilinx Zynq qspi supports this.
 
+config SPI_FLASH_4BC
+	bool "SPI flash Enter/Exit 4-Byte Adrress Mode Command support"
+	depends on SPI_FLASH
+	help
+	  Enable the SPI flash Enter/Exit 4-Byte Adrress Mode Command support.
+	  Enter/Exit 4-Byte Adrress Mode Command are used to access the flash
+	  which has size > 16MiB in 4-byte addressing.
+
 if SPI_FLASH
 
 config SPI_FLASH_ATMEL

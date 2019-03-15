@@ -1,4 +1,9 @@
-
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * QSPI driver
+ *
+ * Copyright (C) 2019, Horizon Robotics, <yang.lu@horizon.ai>
+ */
 #include <common.h>
 #include <malloc.h>
 #include <dm.h>
@@ -13,24 +18,6 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-/* QSPI register offsets */
-struct x2_qspi_regs {
-    u32 tx_rx_dat;          /* 0x00 Transmit data buffer and receive data buffer */
-    u32 sclk_con;           /* 0x04  Baud-rate control while working as master */
-    u32 spi_ctl1;           /* 0x08 SPI work mode configuration */
-    u32 spi_ctl2;           /* 0x0c SPI interrupt enabled */
-    u32 spi_ctl3;           /* 0x10 SPI software reset and DMA enable */
-    u32 cs;                 /* 0x14 Control the device select output */
-    u32 status1;            /* 0x18 spi status reg1 */
-    u32 status2;            /* 0x1c spi status reg2 */
-    u32 batch_cnt_rx;       /* 0x20 Data number for RX batch transfer */
-    u32 batch_cnt_tx;       /* 0x24 Data number for TX batch transfer */
-    u32 rx_fifo_trig_lvl;   /* 0x28 RX FIFO trigger level register */
-    u32 tx_fifo_trig_lvl;   /* 0x2C TX FIFO trigger level register */
-    u32 dual_quad_mode;     /* 0x30 Dual, Quad flash operation enable register */
-    u32 xip_cfg;            /* 0x34 XIP config register */
-};
-
 /**
  * struct x2_qspi_platdata - platform data for x2 QSPI
  *
@@ -40,545 +27,597 @@ struct x2_qspi_regs {
  * @xfer_mode: 0-Byte 1-batch 2-dma, Default work in byte mode
  */
 struct x2_qspi_platdata {
-    struct x2_qspi_regs *regs;
-    u32 freq;
-    u32 speed_hz;
-    unsigned int xfer_mode;
+	void __iomem *regs_base;
+	u32 freq;
+	u32 speed_hz;
 };
 
 struct x2_qspi_priv {
-    struct x2_qspi_regs *regs;
-    unsigned int spi_mode;
-    unsigned int xfer_mode;
+	void __iomem *regs_base;
 };
 
-static void x2_qspi_hw_init(struct x2_qspi_priv *priv)
-{
-    uint32_t reg_val;
-    struct x2_qspi_regs *regs = priv->regs;
-
-    /* set qspi work mode */
-    reg_val = readl(&regs->spi_ctl1);
-    reg_val = 0x4;
-    writel(reg_val, &regs->spi_ctl1);
-
-    writel(FIFO_DEPTH / 2, &regs->rx_fifo_trig_lvl);
-    writel(FIFO_DEPTH / 2, &regs->tx_fifo_trig_lvl);
-
-    /* Disable all interrupt */
-    writel(0x0, &regs->spi_ctl2);
-
-    /* unselect chip */
-    writel(0x0, &regs->cs);
-
-    /* Always set SPI to one line as init. */
-    reg_val = readl(&regs->dual_quad_mode);
-    reg_val |= 0xfc;
-    writel(reg_val, &regs->dual_quad_mode);
-
-    /* Disable hardware xip mode */
-    reg_val = readl(&regs->xip_cfg);
-    reg_val &= ~(1 << 1);
-    writel(reg_val, &regs->xip_cfg);
-
-    return;
-}
-
-static int x2_qspi_child_pre_probe(struct udevice *bus)
-{
-    printf("entry %s:%d\n", __func__, __LINE__);
-    return 0;
-}
-
-static int x2_qspi_ofdata_to_platdata(struct udevice *bus)
-{
-    struct x2_qspi_platdata *plat = bus->platdata;
-    const void *blob = gd->fdt_blob;
-    int node = dev_of_offset(bus);
-
-    plat->regs = (struct x2_qspi_regs *)fdtdec_get_addr(blob, node, "reg");
-
-    /* FIXME: Use 20MHz as a suitable default for FPGA board*/
-    plat->freq      = fdtdec_get_int(blob, node, "spi-max-frequency", 20000000);
-    plat->xfer_mode = fdtdec_get_int(blob, node, "xfer-mode", 0);
-
-    return 0;
-}
-static int x2_qspi_probe(struct udevice *bus)
-{
-    struct x2_qspi_platdata *plat = dev_get_platdata(bus);
-    struct x2_qspi_priv *priv     = dev_get_priv(bus);
-
-    priv->regs      = plat->regs;
-    priv->xfer_mode = plat->xfer_mode;
-
-    /* init the x2 qspi hw */
-    x2_qspi_hw_init(priv);
-
-    return 0;
-}
+#define x2_qspi_rd(dev, reg)	   readl((dev)->regs_base + (reg))
+#define x2_qspi_wr(dev, reg, val)  writel((val), (dev)->regs_base + (reg))
 
 static int x2_qspi_set_speed(struct udevice *bus, uint speed)
 {
-    int confr, i, j;
-    unsigned int max_br, min_br, br_div;
-    struct x2_qspi_platdata *plat = dev_get_platdata(bus);
-    struct x2_qspi_priv *priv     = dev_get_priv(bus);
-    struct x2_qspi_regs *regs     = priv->regs;
+	int confr, prescaler, divisor;
+	unsigned int max_br, min_br, br_div;
+	struct x2_qspi_platdata *plat = dev_get_platdata(bus);
+	struct x2_qspi_priv *x2qspi   = dev_get_priv(bus);
 
-    max_br = plat->freq / 2;
-    min_br = plat->freq / 1048576;
-    if (speed > max_br) {
-        speed = max_br;
-        printf("Warning:speed[%d] > max_br[%d],speed will be set to max_br\n", speed, max_br);
-    }
-    if (speed < min_br) {
-        speed = min_br;
-        printf("Warning:speed[%d] < min_br[%d],speed will be set to min_br\n", speed, min_br);
-    }
+	max_br = plat->freq / 2;
+	min_br = plat->freq / 1048576;
+	if (speed > max_br) {
+		speed = max_br;
+		printf("Warning:speed[%d] > max_br[%d],speed will be set to max_br\n", speed, max_br);
+	}
+	if (speed < min_br) {
+		speed = min_br;
+		printf("Warning:speed[%d] < min_br[%d],speed will be set to min_br\n", speed, min_br);
+	}
 
-    for (i = 15; i >= 0; i--) {
-        for (j = 15; j >= 0; j--) {
-            br_div = (i + 1) * (2 << j);
-            if ((plat->freq / br_div) >= speed) {
-                confr = (i | (j << 4)) & 0xFF;
-                writel(confr, &regs->sclk_con);
-                return 0;
-            }
-        }
-    }
+	for (prescaler = 15; prescaler >= 0; prescaler--) {
+		for (divisor = 15; divisor >= 0; divisor--) {
+			br_div = (prescaler + 1) * (2 << divisor);
+			if ((plat->freq / br_div) >= speed) {
+				confr = (prescaler | (divisor << 4)) & 0xFF;
+				x2_qspi_wr(x2qspi, X2_QSPI_BDR_REG, confr);
+				return 0;
+			}
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 static int x2_qspi_set_mode(struct udevice *bus, uint mode)
 {
-    unsigned int confr = 0;
-    struct x2_qspi_priv *priv     = dev_get_priv(bus);
-    struct x2_qspi_regs *regs     = priv->regs;
+	unsigned int val = 0;
+	struct x2_qspi_priv *x2qspi = dev_get_priv(bus);
 
-    confr = readl(&regs->spi_ctl1);
-    if (mode & SPI_CPHA)
-        confr |= X2_QSPI_CPHA;
-    if (mode & SPI_CPOL)
-        confr |= X2_QSPI_CPOL;
-    if (mode & SPI_LSB_FIRST)
-        confr |= X2_QSPI_LSB;
-    if (mode & SPI_SLAVE)
-        confr &= (~X2_QSPI_MST);
-    writel(confr, &regs->spi_ctl1);
+	val = x2_qspi_rd(x2qspi, X2_QSPI_CTL1_REG);
+	if (mode & SPI_CPHA)
+		val |= X2_QSPI_CPHA;
+	if (mode & SPI_CPOL)
+		val |= X2_QSPI_CPOL;
+	if (mode & SPI_LSB_FIRST)
+		val |= X2_QSPI_LSB;
+	if (mode & SPI_SLAVE)
+		val &= (~X2_QSPI_MST);
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL1_REG, val);
 
-    return 0;
+	return 0;
 }
 
 /* currend driver only support BYTE/DUAL/QUAD for both RX and TX */
-static int x2_qspi_set_wire(struct x2_qspi_regs *regs, uint mode)
+static int x2_qspi_set_wire(struct x2_qspi_priv *x2qspi, uint mode)
 {
-    unsigned int confr = 0;
+	unsigned int val = 0;
 
-    switch(mode & 0x3F00) {
-    case SPI_TX_BYTE | SPI_RX_SLOW:
-        confr = 0xFC;
-        break;
-    case SPI_TX_DUAL | SPI_RX_DUAL:
-        confr = DPI_ENABLE;
-        break;
-    case SPI_TX_QUAD | SPI_RX_QUAD:
-        confr = QPI_ENABLE;
-        break;
-    default:
-        confr = 0xFC;
-        break;
-    }
-    writel(confr, &regs->dual_quad_mode);
+	switch(mode & 0x3F00) {
+	case SPI_TX_BYTE | SPI_RX_SLOW:
+		val = 0xFC;
+		break;
+	case SPI_TX_DUAL | SPI_RX_DUAL:
+		val = X2_QSPI_DUAL;
+		break;
+	case SPI_TX_QUAD | SPI_RX_QUAD:
+		val = X2_QSPI_QUAD;
+		break;
+	default:
+		val = 0xFC;
+		break;
+	}
+	x2_qspi_wr(x2qspi, X2_QSPI_DQM_REG, val);
 
-    return 0;
+	return 0;
 }
 
 static int x2_qspi_claim_bus(struct udevice *dev)
 {
-    /* Now x2 qspi Controller is always on */
-    return 0;
+	/* Now x2 qspi Controller is always on */
+	return 0;
 }
 
 static int x2_qspi_release_bus(struct udevice *dev)
 {
-    /* Now x2 qspi Controller is always on */
-    return 0;
+	/* Now x2 qspi Controller is always on */
+	return 0;
 }
 
-int x2_qspi_poll_rx_empty(uint32_t *reg, uint32_t mask, uint32_t timeout)
+static void x2_qspi_reset_fifo(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t reg_val;
-    uint32_t ret = -1;
-    while (timeout--) {
-        reg_val = readl(reg);
-        if (!(reg_val & mask)) {
-            ret = 0;
-            break;
-        }
-    }
-    return ret;
+	u32 val;
+
+	val = x2_qspi_rd(x2qspi, X2_QSPI_CTL3_REG);
+	val |= X2_QSPI_RST_ALL;
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL3_REG, val);
+	mdelay(1);
+	val = (~X2_QSPI_RST_ALL);
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL3_REG, val);
+
+	return;
 }
 
-
-static int qspi_check_status(uint32_t *reg, uint32_t mask, uint32_t timeout)
+/* tx almost empty */
+static int x2_qspi_tx_ae(struct x2_qspi_priv *x2qspi)
 {
-    int ret = 0;
-    uint32_t val;
+	u32 val, trys=0;
 
-    do {
-        val = readl(reg);
-        timeout = timeout - 1;
-        if (timeout == 0) {
-            ret = -1;
-            break;
-        }
-    } while (!(val & mask));
+	do{
+		udelay(100);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
+		trys ++;
+	}while((!(val&X2_QSPI_TX_AE))&&(trys<TRYS_TOTAL_NUM));
+	if (trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
-    return ret;
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_enable_tx(uint32_t *reg)
+/* rx almost full */
+static int x2_qspi_rx_af(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t val;
-    val = readl(reg);
-    val |= TX_ENABLE;
-    writel(val, reg);
+	u32 val, trys=0;
+
+	do{
+		udelay(100);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
+		trys ++;
+	}while((!(val&X2_QSPI_RX_AF))&&(trys<TRYS_TOTAL_NUM));
+	if(trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_disable_tx(uint32_t *reg)
+static int x2_qspi_tb_done(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t val;
-    val = readl(reg);
-    val &= ~TX_ENABLE;
-    writel(val, reg);
+	u32 val, trys=0;
+
+	do{
+		udelay(100);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
+		trys ++;
+	}while((!(val&X2_QSPI_TBD))&&(trys<TRYS_TOTAL_NUM));
+	if(trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+	x2_qspi_wr(x2qspi, X2_QSPI_ST1_REG, (val|X2_QSPI_TBD));
+
+
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_enable_rx(uint32_t *reg)
+static int x2_qspi_rb_done(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t val;
-    val = readl(reg);
-    val |= RX_ENABLE;
-    writel(val, reg);
+	u32 val, trys=0;
+
+	do{
+		udelay(100);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
+		trys ++;
+	}while((!(val&X2_QSPI_RBD))&&(trys<TRYS_TOTAL_NUM));
+	if(trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+	x2_qspi_wr(x2qspi, X2_QSPI_ST1_REG, (val|X2_QSPI_RBD));
+
+
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_disable_rx(uint32_t *reg)
+static int x2_qspi_tx_full(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t val;
-    val = readl(reg);
-    val &= ~RX_ENABLE;
-    writel(val, reg);
+	u32 val, trys=0;
+
+	do{
+		udelay(100);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
+		trys ++;
+	}while((val&X2_QSPI_TX_FULL)&&(trys<TRYS_TOTAL_NUM));
+
+	if(trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_batch_mode_set(uint32_t *reg_addr, bool enable)
+static int x2_qspi_tx_empty(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t val;
-    val = readl(reg_addr);
-    if (enable)
-        val &= ~BATCH_DISABLE;
-    else
-        val |= BATCH_DISABLE;
-    writel(val, reg_addr);
+	u32 val, trys=0;
+
+	do{
+		udelay(10);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
+		trys ++;
+	}while((!(val&X2_QSPI_TX_EP))&&(trys<TRYS_TOTAL_NUM));
+
+	if(trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_batch_tx_rx_flag_clr(uint32_t *reg_addr, bool is_tx)
+static int x2_qspi_rx_empty(struct x2_qspi_priv *x2qspi)
 {
-    uint32_t val;
-    val = readl(reg_addr);
-    if (is_tx)
-        val |= BATCH_TXDONE;
-    else
-        val |= BATCH_RXDONE;
-    writel(val, reg_addr);
+	u32 val, trys=0;
+
+	do{
+		udelay(10);
+		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
+		trys ++;
+	}while((val&X2_QSPI_RX_EP)&&(trys<TRYS_TOTAL_NUM));
+
+	if(trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+
+	return trys<TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-void qspi_reset_fifo(uint32_t *reg)
+/* config fifo width */
+static void x2_qspi_set_fw(struct x2_qspi_priv *x2qspi, u32 fifo_width)
 {
-    uint32_t val;
+	u32 val;
 
-    val = readl(reg);
-    val |= FIFO_RESET;
-    writel(val, reg);
+	val = x2_qspi_rd(x2qspi, X2_QSPI_CTL1_REG);
+	val &= (~0x3);
+	val |= fifo_width;
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL1_REG, val);
 
-    val &= (~FIFO_RESET);
-    writel(val, reg);
+	return;
 }
 
-int x2_qspi_write(struct x2_qspi_priv *priv, const void *pbuf, uint32_t len)
+/*config xfer mode:enable/disable BATCH/RX/TX */
+static void x2_qspi_set_xfer(struct x2_qspi_priv *x2qspi, u32 op_flag)
 {
-    uint32_t tx_len;
-    uint32_t i;
-    const uint8_t *ptr = (const uint8_t *)pbuf;
-    uint32_t timeout = 0x1000;
-    int32_t err;
-    uint32_t tmp_txlen;
-    struct x2_qspi_regs *regs = priv->regs;
+	u32 ctl1_val = 0, ctl3_val = 0;
 
-    qspi_disable_tx(&regs->spi_ctl1);
-    qspi_reset_fifo(&regs->spi_ctl3);
+	ctl1_val = x2_qspi_rd(x2qspi, X2_QSPI_CTL1_REG);
+	ctl3_val = x2_qspi_rd(x2qspi, X2_QSPI_CTL3_REG);
 
-    if (priv->xfer_mode == X2_QSPI_XFER_BATCH) {
-        /* Enable batch mode */
-        qspi_batch_mode_set(&regs->spi_ctl3, 1);
+	switch (op_flag) {
+	case X2_QSPI_OP_RX_EN:
+		ctl1_val |= X2_QSPI_RX_EN;
+		break;
+	case X2_QSPI_OP_RX_DIS:
+		ctl1_val &= (~X2_QSPI_RX_EN);
+		break;
+	case X2_QSPI_OP_TX_EN:
+		ctl1_val |= X2_QSPI_TX_EN;
+		break;
+	case X2_QSPI_OP_TX_DIS:
+		ctl1_val &= (~X2_QSPI_TX_EN);
+		break;
+	case X2_QSPI_OP_BAT_EN:
+		ctl3_val &= (~X2_QSPI_BATCH_DIS);
+		break;
+	case X2_QSPI_OP_BAT_DIS:
+		ctl3_val |= X2_QSPI_BATCH_DIS;
+		break;
+	default:
+		printf("Op(0x%x) if error, please check it!\n", op_flag);
+		break;
+	}
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL1_REG, ctl1_val);
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL3_REG, ctl3_val);
 
-        while (len > 0) {
-            tx_len = MIN(len, BATCH_MAX_SIZE);
-
-            /* clear BATCH_TXDONE bit */
-            qspi_batch_tx_rx_flag_clr(&regs->status1, 1);
-
-            /* set batch cnt */
-            writel(tx_len, &regs->batch_cnt_tx);
-            tmp_txlen = MIN(tx_len, FIFO_DEPTH);
-            for (i = 0; i < tmp_txlen; i++)
-                writel(ptr[i], &regs->tx_rx_dat);
-
-            qspi_enable_tx(&regs->spi_ctl1);
-            err = qspi_check_status(&regs->status2, TXFIFO_EMPTY, timeout);
-            if (err) {
-                printf("%s:%d qspi send data timeout\n", __func__, __LINE__);
-                goto SPI_ERROR;
-            }
-
-            qspi_disable_tx(&regs->spi_ctl1);
-            len -= tmp_txlen;
-            ptr += tmp_txlen;
-        }
-        /* clear BATCH_TXDONE bit */
-        qspi_batch_tx_rx_flag_clr(&regs->status1, 1);
-
-        qspi_batch_mode_set(&regs->spi_ctl3, 0);
-    } else {
-        /* Disable batch mode */
-        qspi_batch_mode_set(&regs->spi_ctl3, 0);
-
-        while (len > 0) {
-            tx_len = len < FIFO_DEPTH ? len : FIFO_DEPTH;
-
-            for (i = 0; i < tx_len; i++) {
-                writel(ptr[i], &regs->tx_rx_dat);
-            }
-
-            qspi_enable_tx(&regs->spi_ctl1);
-            err = qspi_check_status(&regs->status2, TXFIFO_EMPTY, timeout);
-            if (err) {
-                printf("%s:%d qspi send data timeout\n", __func__, __LINE__);
-                goto SPI_ERROR;
-            }
-
-            qspi_disable_tx(&regs->spi_ctl1);
-            len -= tx_len;
-            ptr += tx_len;
-        }
-    }
-    return 0;
-
-SPI_ERROR:
-    qspi_disable_tx(&regs->spi_ctl1);
-    qspi_reset_fifo(&regs->spi_ctl3);
-    if (priv->xfer_mode == X2_QSPI_XFER_BATCH)
-        qspi_batch_mode_set(&regs->spi_ctl3, 0);
-    printf("error: qspi tx %x\n", err);
-    return err;
+	return;
 }
 
-static int x2_qspi_read(struct x2_qspi_priv *priv, uint8_t *pbuf, uint32_t len)
+static int x2_qspi_rd_batch(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t len)
 {
-    int32_t i = 0;
-    uint32_t rx_len = 0;
-    uint8_t *ptr = pbuf;
-    uint32_t level;
-    uint32_t rx_remain = len;
-    uint32_t timeout = 0x1000;
-    uint32_t tmp_rxlen;
-    int32_t err = 0;
-    struct x2_qspi_regs *regs = priv->regs;
+	u32 i, rx_len, offset = 0, tmp_len = len, ret = 0;
+	u32 *dbuf = (u32 *)pbuf;
 
-    level = readl(&regs->rx_fifo_trig_lvl);
-    qspi_reset_fifo(&regs->spi_ctl3);
+	/* Enable batch mode */
+	x2_qspi_set_fw(x2qspi, X2_QSPI_FW32);
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_BAT_EN);
 
-    if (priv->xfer_mode == X2_QSPI_XFER_BATCH) {
-        qspi_batch_mode_set(&regs->spi_ctl3, 1);
-        do {
-            rx_len = rx_remain < 0xFFFF ? rx_remain : 0xFFFF;
-            rx_remain -= rx_len;
+	while (tmp_len > 0) {
+		rx_len = MIN(tmp_len, BATCH_MAX_CNT);
+		x2_qspi_wr(x2qspi, X2_QSPI_RBC_REG, rx_len);
+		/* enbale rx */
+		x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_EN);
 
-            /* clear BATCH_RXDONE bit */
-            qspi_batch_tx_rx_flag_clr(&regs->status1, 0);
+		for(i=0; i< rx_len; i+=8) {
+			if(x2_qspi_rx_af(x2qspi)) {
+				ret = -1;
+				goto rb_err;
+			}
+			dbuf[offset++] = x2_qspi_rd(x2qspi, X2_QSPI_DAT_REG);
+			dbuf[offset++] = x2_qspi_rd(x2qspi, X2_QSPI_DAT_REG);
+		}
+		if(x2_qspi_rb_done(x2qspi)) {
+			printf("%s_%d:rx failed! len=%d, received=%d, i=%d\n", __func__, __LINE__, len, offset, i);
+			ret = -1;
+			goto rb_err;
+		}
+		x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_DIS);
+		tmp_len = tmp_len - rx_len;
+	}
 
-            writel(rx_len, &regs->batch_cnt_rx);
+rb_err:
+	/* Disable batch mode and rx link */
+	x2_qspi_set_fw(x2qspi, X2_QSPI_FW8);
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_BAT_DIS);
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_DIS);
 
-            qspi_enable_rx(&regs->spi_ctl1);
+	return ret;
+}
 
-            while (rx_len > 0) {
-                if (rx_len > level) {
-                    tmp_rxlen = level;
-                    if (x2_qspi_poll_rx_empty(&regs->status2, RXFIFO_EMPTY, timeout)) {
-                        printf("%s:%d timeout no data fill into rx fifo\n", __func__, __LINE__);
-                        goto SPI_ERROR;
-                    }
-                    for (i = 0; i < tmp_rxlen; i++) {
-                        ptr[i] = readl(&regs->tx_rx_dat);
-                    }
+static int x2_qspi_wr_batch(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t len)
+{
+	u32 i, tx_len, offset = 0, tmp_len = len, ret = 0;
+	u32 *dbuf = (u32 *)pbuf;
 
-                    rx_len -= tmp_rxlen;
-                    ptr += tmp_rxlen;
-                } else {
-                    tmp_rxlen = rx_len;
-                    if (x2_qspi_poll_rx_empty(&regs->status2, RXFIFO_EMPTY, timeout)) {
-                        printf("%s:%d timeout no data fill into rx fifo\n", __func__, __LINE__);
-                        goto SPI_ERROR;
-                    }
-                    for (i = 0; i < tmp_rxlen; i++) {
-                        ptr[i] = readl(&regs->tx_rx_dat);
-                    }
+	x2_qspi_set_fw(x2qspi, X2_QSPI_FW32);
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_BAT_EN);
 
-                    rx_len -= tmp_rxlen;
-                    ptr += tmp_rxlen;
-                }
-            }
-            if (qspi_check_status(&regs->status1, BATCH_RXDONE, timeout)) {
-                printf("%s:%d timeout loop batch rx done\n", __func__, __LINE__);
-                goto SPI_ERROR;
-            }
+	while (tmp_len > 0) {
+		tx_len = MIN(tmp_len, BATCH_MAX_CNT);
+		x2_qspi_wr(x2qspi, X2_QSPI_TBC_REG, tx_len);
 
-            qspi_disable_rx(&regs->spi_ctl1);
-            /* clear BATCH_RXDONE bit */
-            qspi_batch_tx_rx_flag_clr(&regs->status1, 0);
-        } while (rx_remain != 0);
-    } else {
-        qspi_batch_mode_set(&regs->spi_ctl3, 0);
+		/* enbale tx */
+		x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_TX_EN);
 
-        do {
-            rx_len = rx_remain < 0xFFFF ? rx_remain : 0xFFFF;
-            rx_remain -= rx_len;
-            qspi_enable_rx(&regs->spi_ctl1);
+		for(i=0; i<tx_len; i+=8){
+			if(x2_qspi_tx_ae(x2qspi)) {
+				ret = -1;
+				goto tb_err;
+			}
+			x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, dbuf[offset++]);
+			x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, dbuf[offset++]);
+		}
+		if(x2_qspi_tb_done(x2qspi)) {
+			printf("%s_%d:tx failed! len=%d, received=%d, i=%d\n", __func__, __LINE__, len, offset, i);
+			ret = -1;
+			goto tb_err;
+		}
+		tmp_len = tmp_len - tx_len;
+	}
 
-            while (rx_len > 0) {
-                if (rx_len > level) {
-                    tmp_rxlen = level;
-                    if (qspi_check_status(&regs->status2, TXFIFO_EMPTY, timeout)) {
-                        printf("%s:%d generate read sclk failed\n", __func__, __LINE__);
-                        goto SPI_ERROR;
-                    }
+tb_err:
+	/* Disable batch mode and tx link */
+	x2_qspi_set_fw(x2qspi, X2_QSPI_FW8);
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_BAT_DIS);
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_TX_DIS);
 
-                    for (i = 0; i < tmp_rxlen; i++)
-                        writel(0x0, &regs->tx_rx_dat);
+	return ret;
+}
 
-                    if (x2_qspi_poll_rx_empty(&regs->status2, RXFIFO_EMPTY, timeout)) {
-                        printf("%s:%d timeout no data fill into rx fifo\n", __func__, __LINE__);
-                        goto SPI_ERROR;
-                    }
-                    for (i = 0; i < tmp_rxlen; i++) {
-                        ptr[i] = readl(&regs->tx_rx_dat);
-                    }
+static int x2_qspi_rd_byte(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t len)
+{
+	u32 i, ret = 0;
+	u8 *dbuf = (u8 *)pbuf;
 
-                    rx_len -= tmp_rxlen;
-                    ptr += tmp_rxlen;
-                } else {
-                    tmp_rxlen = rx_len;
-                    if (qspi_check_status(&regs->status2, TXFIFO_EMPTY, timeout)) {
-                        printf("%s:%d generate read sclk failed\n", __func__, __LINE__);
-                        goto SPI_ERROR;
-                    }
+	/* enbale rx */
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_EN);
 
-                    for (i = 0; i < tmp_rxlen; i++)
-                        writel(0x0, &regs->tx_rx_dat);
+	for(i=0; i<len; i++)
+	{
+		if(x2_qspi_tx_empty(x2qspi)) {
+			ret = -1;
+			goto rd_err;
+		}
+		x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, 0x00);
+		if(x2_qspi_rx_empty(x2qspi)) {
+			ret = -1;
+			goto rd_err;
+		}
+		dbuf[i] = x2_qspi_rd(x2qspi, X2_QSPI_DAT_REG) & 0xFF;
+	}
 
-                    if (x2_qspi_poll_rx_empty(&regs->status2, RXFIFO_EMPTY, timeout)) {
-                        printf("%s:%d timeout no data fill into rx fifo\n", __func__, __LINE__);
-                        goto SPI_ERROR;
-                    }
-                    for (i = 0; i < tmp_rxlen; i++) {
-                        ptr[i] = readl(&regs->tx_rx_dat);
-                    }
+rd_err:
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_RX_DIS);
 
-                    rx_len -= tmp_rxlen;
-                    ptr += tmp_rxlen;
-                }
-            }
-            qspi_disable_rx(&regs->spi_ctl1);
+	if (0 != ret)
+		printf("%s_%d:read op failed! i=%d\n", __func__, __LINE__, i);
 
-        } while (rx_remain != 0);
-    }
-    qspi_reset_fifo(&regs->spi_ctl3);
-    return 0;
+	return ret;
+}
 
-SPI_ERROR:
-    qspi_disable_rx(&regs->spi_ctl1);
-    qspi_reset_fifo(&regs->spi_ctl3);
-    printf("error: spi rx = %x\n", err);
-    return err;
+static int x2_qspi_wr_byte(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t len)
+{
+	u32 i, ret = 0;
+	u8 *dbuf = (u8 *)pbuf;
+
+	/* enbale tx */
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_TX_EN);
+
+	for(i=0; i<len; i++)
+	{
+		if(x2_qspi_tx_full(x2qspi)) {
+			ret = -1;
+			goto wr_err;
+		}
+		x2_qspi_wr(x2qspi, X2_QSPI_DAT_REG, dbuf[i]);
+	}
+	/* Check tx complete */
+	if(x2_qspi_tx_empty(x2qspi))
+		ret = -1;
+
+wr_err:
+	x2_qspi_set_xfer(x2qspi, X2_QSPI_OP_TX_DIS);
+
+	if (0 != ret)
+		printf("%s_%d:write op failed! i=%d\n", __func__, __LINE__, i);
+
+	return ret;
+}
+
+static int x2_qspi_read(struct x2_qspi_priv *x2qspi, void *pbuf, uint32_t len)
+{
+	u32 ret = 0;
+	u32 remainder = len % X2_QSPI_TRIG_LEVEL;
+	u32 residue   = len - remainder;
+
+	if (residue > 0)
+		ret = x2_qspi_rd_batch(x2qspi, pbuf, residue);
+	if (remainder > 0)
+		ret = x2_qspi_rd_byte(x2qspi, (u8 *)pbuf + residue, remainder);
+	if (ret < 0)
+		printf("x2_qspi_read failed!\n");
+
+	return ret;
+}
+
+static int x2_qspi_write(struct x2_qspi_priv *x2qspi, const void *pbuf, uint32_t len)
+{
+	u32 ret = 0;
+	u32 remainder = len % X2_QSPI_TRIG_LEVEL;
+	u32 residue   = len - remainder;
+
+	if (residue > 0)
+		ret = x2_qspi_wr_batch(x2qspi, pbuf, residue);
+	if (remainder > 0)
+		ret = x2_qspi_wr_byte(x2qspi, (u8 *)pbuf + residue, remainder);
+	if (ret < 0)
+		printf("x2_qspi_write failed!\n");
+
+	return ret;
 }
 
 int x2_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
-                 void *din, unsigned long flags)
+				 void *din, unsigned long flags)
 {
-    int ret = 0;
-    unsigned int len, cs;
-    struct udevice *bus       = dev->parent;
-    struct x2_qspi_priv *priv = dev_get_priv(bus);
-    struct x2_qspi_regs *regs = priv->regs;
-    struct dm_spi_slave_platdata *slave_plat = dev_get_parent_platdata(dev);
+	int ret = 0;
+	unsigned int len, cs;
+	struct udevice *bus = dev->parent;
+	struct x2_qspi_priv *x2qspi = dev_get_priv(bus);
+	struct dm_spi_slave_platdata *slave_plat = dev_get_parent_platdata(dev);
 
-    if (bitlen == 0) {
-        return 0;
-    }
-    len = bitlen / 8;
-    cs  = slave_plat->cs;
+	if (bitlen == 0) {
+		return 0;
+	}
+	len = bitlen / 8;
+	cs	= slave_plat->cs;
 
-    if (flags & SPI_XFER_BEGIN)
-        writel(1 << cs, &regs->cs); /* Assert CS before transfer */
+	if (flags & SPI_XFER_BEGIN)
+		x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 1<<cs); /* Assert CS before transfer */
 
-    if (dout) {
-        ret = x2_qspi_write(priv, dout, len);
-    }
-    else if (din) {
-        ret = x2_qspi_read(priv, din, len);
-    }
+	if (dout) {
+		ret = x2_qspi_write(x2qspi, dout, len);
+	}
+	else if (din) {
+		ret = x2_qspi_read(x2qspi, din, len);
+	}
 
-    if (flags & SPI_XFER_END) {
-        writel(0, &regs->cs); /* Deassert CS after transfer */
-    }
+	if (flags & SPI_XFER_END) {
+		x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 0); /* Deassert CS after transfer */
+	}
 
-    if (flags & SPI_XFER_CMD) {
-        switch (((u8 *)dout)[0]) {
-        case CMD_READ_QUAD_OUTPUT_FAST:
-        case CMD_QUAD_PAGE_PROGRAM:
-        case CMD_READ_DUAL_OUTPUT_FAST:
-            x2_qspi_set_wire(regs, slave_plat->mode);
-            break;
-        }
-    } else {
-        x2_qspi_set_wire(regs, 0);
-    }
+	if (flags & SPI_XFER_CMD) {
+		switch (((u8 *)dout)[0]) {
+		case CMD_READ_QUAD_OUTPUT_FAST:
+		case CMD_QUAD_PAGE_PROGRAM:
+		case CMD_READ_DUAL_OUTPUT_FAST:
+			x2_qspi_set_wire(x2qspi, slave_plat->mode);
+			break;
+		}
+	} else {
+		x2_qspi_set_wire(x2qspi, 0);
+	}
 
-    return ret;
+	return ret;
 }
 
+static void x2_qspi_hw_init(struct x2_qspi_priv *x2qspi)
+{
+	uint32_t val;
+
+	/* disable batch operation and reset fifo */
+	val = x2_qspi_rd(x2qspi, X2_QSPI_CTL3_REG);
+	val |= X2_QSPI_BATCH_DIS;
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL3_REG, val);
+	x2_qspi_reset_fifo(x2qspi);
+
+	/* clear status */
+	val = X2_QSPI_MODF | X2_QSPI_RBD | X2_QSPI_TBD;
+	x2_qspi_wr(x2qspi, X2_QSPI_ST1_REG, val);
+	val = X2_QSPI_TXRD_EMPTY | X2_QSPI_RXWR_FULL;
+	x2_qspi_wr(x2qspi, X2_QSPI_ST2_REG, val);
+
+	/* set qspi work mode */
+	val = x2_qspi_rd(x2qspi, X2_QSPI_CTL1_REG);
+	val |= X2_QSPI_MST;
+	val &= (~X2_QSPI_FW_MASK);
+	val |= X2_QSPI_FW8;
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL1_REG, val);
+
+	/* Disable all interrupt */
+	x2_qspi_wr(x2qspi, X2_QSPI_CTL2_REG, 0x0);
+
+	/* unselect chip */
+	x2_qspi_wr(x2qspi, X2_QSPI_CS_REG, 0x0);
+
+	/* Always set SPI to one line as init. */
+	val = x2_qspi_rd(x2qspi, X2_QSPI_DQM_REG);
+	val |= 0xfc;
+	x2_qspi_wr(x2qspi, X2_QSPI_DQM_REG, val);
+
+	/* Disable hardware xip mode */
+	val = x2_qspi_rd(x2qspi, X2_QSPI_XIP_REG);
+	val &= ~(1 << 1);
+	x2_qspi_wr(x2qspi, X2_QSPI_XIP_REG, val);
+
+	/* Set Rx/Tx fifo trig level  */
+	x2_qspi_wr(x2qspi, X2_QSPI_RTL_REG, X2_QSPI_TRIG_LEVEL);
+	x2_qspi_wr(x2qspi, X2_QSPI_TTL_REG, X2_QSPI_TRIG_LEVEL);
+
+	return;
+}
+static int x2_qspi_ofdata_to_platdata(struct udevice *bus)
+{
+	struct x2_qspi_platdata *plat = bus->platdata;
+	const void *blob = gd->fdt_blob;
+	int node = dev_of_offset(bus);
+
+	plat->regs_base = (u32 *)fdtdec_get_addr(blob, node, "reg");
+	plat->freq		= fdtdec_get_int(blob, node, "spi-max-frequency", 500000000);
+
+	return 0;
+}
+
+static int x2_qspi_child_pre_probe(struct udevice *bus)
+{
+	/* printf("entry %s:%d\n", __func__, __LINE__); */
+	return 0;
+}
+
+static int x2_qspi_probe(struct udevice *bus)
+{
+	struct x2_qspi_platdata *plat = dev_get_platdata(bus);
+	struct x2_qspi_priv *priv	  = dev_get_priv(bus);
+
+	priv->regs_base = plat->regs_base;
+
+	/* init the x2 qspi hw */
+	x2_qspi_hw_init(priv);
+
+	return 0;
+}
 
 static const struct dm_spi_ops x2_qspi_ops = {
-    .claim_bus   = x2_qspi_claim_bus,
-    .release_bus = x2_qspi_release_bus,
-    .xfer        = x2_qspi_xfer,
-    .set_speed   = x2_qspi_set_speed,
-    .set_mode    = x2_qspi_set_mode,
+	.claim_bus	 = x2_qspi_claim_bus,
+	.release_bus = x2_qspi_release_bus,
+	.xfer		 = x2_qspi_xfer,
+	.set_speed	 = x2_qspi_set_speed,
+	.set_mode	 = x2_qspi_set_mode,
 };
 
 static const struct udevice_id x2_qspi_ids[] = {
-    { .compatible = "x2,qspi" },
-    { }
+	{ .compatible = "x2,qspi" },
+	{ }
 };
 
 U_BOOT_DRIVER(qspi) = {
-    .name     = "x2_qspi",
-    .id       = UCLASS_SPI,
-    .of_match = x2_qspi_ids,
-    .ops      = &x2_qspi_ops,
-    .ofdata_to_platdata       = x2_qspi_ofdata_to_platdata,
-    .platdata_auto_alloc_size = sizeof(struct x2_qspi_platdata),
-    .priv_auto_alloc_size     = sizeof(struct x2_qspi_priv),
-    .probe           = x2_qspi_probe,
-    .child_pre_probe = x2_qspi_child_pre_probe,
+	.name	  = X2_QSPI_NAME,
+	.id 	  = UCLASS_SPI,
+	.of_match = x2_qspi_ids,
+	.ops	  = &x2_qspi_ops,
+	.ofdata_to_platdata 	  = x2_qspi_ofdata_to_platdata,
+	.platdata_auto_alloc_size = sizeof(struct x2_qspi_platdata),
+	.priv_auto_alloc_size	  = sizeof(struct x2_qspi_priv),
+	.probe			 = x2_qspi_probe,
+	.child_pre_probe = x2_qspi_child_pre_probe,
 };
