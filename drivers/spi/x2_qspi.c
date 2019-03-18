@@ -568,12 +568,22 @@ static void x2_qspi_hw_init(struct x2_qspi_priv *x2qspi)
 }
 static int x2_qspi_ofdata_to_platdata(struct udevice *bus)
 {
+	int ret = 0;
 	struct x2_qspi_platdata *plat = bus->platdata;
 	const void *blob = gd->fdt_blob;
 	int node = dev_of_offset(bus);
+	struct clk x2qspi_clk;
 
-	plat->regs_base = (u32 *) fdtdec_get_addr(blob, node, "reg");
-	plat->freq		= fdtdec_get_int(blob, node, "spi-max-frequency", 500000000);
+	plat->regs_base = (u32 *)fdtdec_get_addr(blob, node, "reg");
+
+	ret = clk_get_by_index(bus, 0, &x2qspi_clk);
+	if (!(ret < 0)) {
+		plat->freq = clk_get_rate(&x2qspi_clk);
+	}
+	if ((ret < 0) || (plat->freq <= 0)) {
+		printf("Failed to get clk!\n");
+		plat->freq = fdtdec_get_int(blob, node, "spi-max-frequency", 500000000);
+	}
 
 	return 0;
 }

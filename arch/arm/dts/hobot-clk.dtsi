@@ -121,7 +121,7 @@
 			offset = <0x204>;
 			bits = <0>;
 			field = <3>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		cpu_mux_clk: cpu_mux_clk {
@@ -132,7 +132,7 @@
 			offset = <0x300>;
 			bits = <4>;
 			field = <0x1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		ace_div_aclk: ace_div_aclk {
@@ -198,7 +198,7 @@
 			offset = <0x204>;
 			bits = <8>;
 			field = <3>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sys_dmac_aclk: sys_dmac_aclk {
@@ -275,7 +275,7 @@
 			offset = <0x100 0x104 0x108>;
 			bits = <6 6 6>;
 			field = <0x1 0x1 0x1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sys_div_pclk: sys_div_pclk {

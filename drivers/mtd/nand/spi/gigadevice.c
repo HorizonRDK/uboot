@@ -20,7 +20,7 @@
 #define GIGADEVICE_STATUS_ECC_8_BITFLIPS	(3 << 4)
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
-		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
+		//SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_DUALIO_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
@@ -92,13 +92,13 @@ static int gd5f1gq4u_ecc_get_status(struct spinand_device *spinand,
 }
 
 static const struct spinand_info gigadevice_spinand_table[] = {
-	SPINAND_INFO("GD5F1GQ4UC", 0xd1,
+	SPINAND_INFO("GD5F1GQ4UC", 0xa1,
 		     NAND_MEMORG(1, 2048, 128, 64, 1024, 1, 1, 1),
 		     NAND_ECCREQ(8, 2048),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
-		     0,
+		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&gd5f1gq4u_ooblayout,
 				     gd5f1gq4u_ecc_get_status)),
 };
@@ -112,12 +112,12 @@ static int gigadevice_spinand_detect(struct spinand_device *spinand)
 	 * Gigadevice SPI NAND read ID need a dummy byte,
 	 * so the first byte in raw_id is dummy.
 	 */
-	if (id[1] != SPINAND_MFR_GIGADEVICE)
+	if (id[0] != SPINAND_MFR_GIGADEVICE)
 		return 0;
 
 	ret = spinand_match_and_init(spinand, gigadevice_spinand_table,
 				     ARRAY_SIZE(gigadevice_spinand_table),
-				     id[2]);
+				     id[1]);
 	if (ret)
 		return ret;
 

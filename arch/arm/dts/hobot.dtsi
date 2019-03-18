@@ -17,6 +17,7 @@
 		compatible = "x2,qspi";
 		status = "disabled";
 		num-cs = <1>;
+		clocks = <&sys_qspi_aclk>;
 		reg = <0x0 0xB0000000 0x0 0x1000>;
 	};
 
