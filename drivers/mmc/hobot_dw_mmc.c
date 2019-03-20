@@ -53,7 +53,6 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 #ifndef CONFIG_TARGET_X2_FPGA
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
-	int ret;
 
 	freq = clk_get_rate(&priv->clk);
 

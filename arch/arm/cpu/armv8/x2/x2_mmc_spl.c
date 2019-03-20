@@ -1,6 +1,7 @@
 
 #include <asm/io.h>
 #include <asm/arch/x2_reg.h>
+#include <asm/arch/x2_sysctrl.h>
 #include <asm/arch/x2_dev.h>
 
 #include "x2_mmc_spl.h"
@@ -194,6 +195,9 @@ static unsigned int emmc_read_blks(int lba,
 			cmd.cmd_idx = EMMC_CMD17;
 	}
 
+	/* lba should be a index based on block instead of bytes. */
+	lba = lba / EMMC_BLOCK_SIZE;
+
 	if ((emmc_ocr_value & OCR_ACCESS_MODE_MASK) == OCR_BYTE_MODE)
 		cmd.cmd_arg = lba * EMMC_BLOCK_SIZE;
 	else
@@ -248,12 +252,20 @@ static void emmc_init(dw_mmc_params_t * params)
 void spl_emmc_init(void)
 {
 	dw_mmc_params_t params;
+	unsigned int val;
+
+	/*
+	 * The divider will be updated
+	 * after PERIPLL has been set to 1500M.
+	 */
+	val = (5 << 4 | 4);
+	writel(val, X2_SD0_CCLK_CTRL);
 
 	memset(&params, 0, sizeof(dw_mmc_params_t));
 	params.reg_base = SDIO0_BASE;
-	params.bus_width = EMMC_BUS_WIDTH_8;
-	params.clk_rate = 12000000;
-	params.sclk = 12000000;
+	params.bus_width = EMMC_BUS_WIDTH_1;
+	params.clk_rate = 50000000;
+	params.sclk = 50000000;
 	params.flags = 0;
 
 	emmc_init(&params);

@@ -79,7 +79,7 @@
 	sdmmc:dwmmc@A5010000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,x2-dw-mshc";
-		bus-width = <8>;
+		bus-width = <1>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;
