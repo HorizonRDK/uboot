@@ -295,4 +295,9 @@ config MPC83XX_SERDES
 	help
 	  Support for serdes found on MPC83xx SoCs.
 
+config X2_EFUSE
+	bool "Enable Hobot X2 efuse driver"
+	help
+	  Support for x2-efuse read and program.
+
 endmenu
