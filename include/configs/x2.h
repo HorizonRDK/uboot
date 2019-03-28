@@ -16,6 +16,9 @@
 #define CONFIG_ARMV8_SWITCH_TO_EL1
 #define CONFIG_SYS_NONCACHED_MEMORY		(1 << 20)
 
+/* sw_reg30 and sw_reg31 in pmu */
+#define CPU_RELEASE_ADDR		(0xA6000278)
+
 /* Support spl */
 #ifdef CONFIG_SPL_BUILD
 
@@ -23,9 +26,9 @@
 #define CONFIG_SPL_MAX_SIZE    0x6800
 
 #define CONFIG_SPL_BSS_START_ADDR  (CONFIG_SPL_TEXT_BASE + CONFIG_SPL_MAX_SIZE)
-#define CONFIG_SPL_BSS_MAX_SIZE        0x800
+#define CONFIG_SPL_BSS_MAX_SIZE        0x600
 
-#define CONFIG_SPL_STACK	(CONFIG_SPL_BSS_START_ADDR + 0x1000)
+#define CONFIG_SPL_STACK	(CONFIG_SPL_BSS_START_ADDR + 0xC00)
 
 #define SPL_LOAD_OS_ADDR		0x80000
 #define SPL_LOAD_DTB_ADDR		0x10000000
@@ -61,6 +64,11 @@
 #define HR_TIMER
 #define HR_TIMER_BASE 0xA1002000
 #endif /*  CONFIG_X2_BIFSD */
+
+
+#define CONFIG_PHY_MARVELL
+#define CONFIG_BOUNCE_BUFFER
+
 #endif /* CONFIG_SPL_BUILD */
 
 #define CONFIG_SYS_TEXT_BASE	0x20000000		/* Offset is 512MB*/
@@ -84,14 +92,6 @@
 #define CONFIG_ENV_SIZE    0x8000
 #define CONFIG_BOOTCOMMAND	"run ${bootmode}"
 #define CONFIG_SF_DUAL_FLASH
-/*
-#define CONFIG_ENV_IS_IN_FAT
-#define FAT_ENV_INTERFACE               "mmc"
-#define FAT_ENV_DEVICE_AND_PART         "1:1"
-#define FAT_ENV_FILE                    "uboot.env"
-#define CONFIG_FAT_WRITE
-#define CONFIG_ENV_VARS_UBOOT_CONFIG
-*/
 
 /* Do not preserve environment */
 #if !defined(CONFIG_ENV_IS_IN_FAT)
@@ -124,8 +124,6 @@
 /* boot mode select */
 #define CONFIG_DDR_BOOT
 
-#define CONFIG_PHY_MARVELL
-#define CONFIG_BOUNCE_BUFFER
 /*
  * This include file must after CONFIG_BOOTCOMMAND
  * and must include, otherwise will generate getenv failed

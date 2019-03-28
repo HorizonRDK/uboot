@@ -52,18 +52,16 @@ _bss_start_ofs:
 _bss_end_ofs:
 	.quad	__bss_end - _start
 
-.globl	smc_hack
-
 reset:
 #ifdef CONFIG_SPL_BUILD
-.globl	smc_hack
+.globl smc_hack
 
-	mov 	x21, x0
+	mov	x21, x0
 	mov	x22, x1
 	mov	x0, #0x12
 	ldr	x1, =smc_hack
 	smc	#0
-	mov 	x0, x21
+	mov	x0, x21
 	mov	x1, x22
 #endif /* CONFIG_SPL_BUILD */
 
@@ -171,7 +169,6 @@ pie_fixup_done:
 	b	spin_table_secondary_jump
 	/* never return */
 #elif defined(CONFIG_ARMV8_MULTIENTRY)
-#if 0
 	branch_if_master x0, x1, master_cpu
 
 	/*
@@ -183,26 +180,9 @@ slave_cpu:
 	ldr	x0, [x1]
 	cbz	x0, slave_cpu
 	br	x0			/* branch to the given address */
-#else
-	branch_if_slave x0, slave_cpu
-#endif /* #if 0 */
 #endif /* CONFIG_ARMV8_MULTIENTRY */
 master_cpu:
 	bl	_main
-
-#if defined(CONFIG_ARMV8_MULTIENTRY)
-	/*
-	 * Slave CPUs
-	 */
-slave_cpu:
-	wfi
-#if 0
-	ldr	x1, =CPU_RELEASE_ADDR
-	ldr	x0, [x1]
-	cbz	x0, slave_cpu
-	br	x0			/* branch to the given address */
-#endif /* #if 0 */
-#endif /* CONFIG_ARMV8_MULTIENTRY */
 
 #ifdef CONFIG_SYS_RESET_SCTRL
 reset_sctrl:

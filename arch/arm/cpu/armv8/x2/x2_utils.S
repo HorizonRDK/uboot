@@ -18,14 +18,28 @@ copy_loop:
 	stp x4, x5, [x0], #16
 	subs x2, x2, #16
 	cbnz x2, copy_loop
+
 #endif /* CONFIG_SPL_BUILD */
 save_ret:
+	ldr	x4, =0xA6000278
+	str wzr, [x4]			/* PMU_SW_REG30 */
+	str wzr, [x4, #0x4]		/* PMU_SW_REG31 */
+
+	ldr	x4, =0xA1000500
+	ldr	x5, =save_boot_params_ret
+	str	w5, [x4, #0x4]		/* CORE1_RVBAR_REG */
+	mov	w5, #0x10
+	str	w5, [x4, #0x8]		/* CORE_RVBAR_SEL */
+	str	w5, [x4, #0x30]		/* CORE_WRST_REQ */
 	b	save_boot_params_ret
 ENDPROC(save_boot_params)
 
-/* Update bifsd's irq to group1 and disable fiq feature of group0. */
 #ifdef CONFIG_SPL_BUILD
 ENTRY(smc_hack)
+	/*
+	 * Update bifsd's irq to group1 and
+	 * disable fiq feature of group0 on core0.
+	 */
 	ldr x0, =0x90001000
 	mov w1, #~0
 	str w1, [x0, #0x84]
@@ -38,3 +52,57 @@ ENTRY(smc_hack)
 	ret
 ENDPROC(smc_hack)
 #endif /* CONFIG_SPL_BUILD */
+
+ENTRY(lowlevel_init)
+	mov	x29, lr			/* Save LR */
+
+#ifdef CONFIG_SPL_BUILD
+
+#ifdef CONFIG_ARMV8_MULTIENTRY
+	branch_if_master x0, x1, 2f
+
+	ldr x7, =0x90001000
+	ldr x8, =0x90002000
+	/*
+	 * Initialize SGIs and PPIs
+	 * x7: Distributor Base
+	 * x8: Cpu Interface Base
+	 */
+	mov	w9, #~0			/* Config SGIs and PPIs as Grp1 */
+	str	w9, [x7, 0x80]	/* GICD_IGROUPR0 */
+	mov	w9, #0x1		/* Enable SGI 0 */
+	str	w9, [x7, 0x100]	/* GICD_ISENABLERn */
+
+	/* Initialize Cpu Interface */
+	mov	w9, #0x1e7		/* Disable IRQ/FIQ Bypass & */
+					/* Enable Ack Group1 Interrupt & */
+					/* EnableGrp0 & EnableGrp1 */
+	str	w9, [x8]	/* Secure GICC_CTLR */
+
+	mov	w9, #0x1 << 7		/* Non-Secure access to GICC_PMR */
+	str	w9, [x8, 0x4]	/* GICC_PMR */
+
+	/*
+	 * All slaves will enter EL2 and optionally EL1.
+	 */
+	adr	x4, lowlevel_in_el2
+	ldr	x5, =ES_TO_AARCH64
+	bl	armv8_switch_to_el2
+
+lowlevel_in_el2:
+#ifdef CONFIG_ARMV8_SWITCH_TO_EL1
+	adr	x4, lowlevel_in_el1
+	ldr	x5, =ES_TO_AARCH64
+	bl	armv8_switch_to_el1
+
+lowlevel_in_el1:
+#endif
+
+#endif /* CONFIG_ARMV8_MULTIENTRY */
+
+#endif /* CONFIG_SPL_BUILD */
+
+2:
+	mov	lr, x29			/* Restore LR */
+	ret
+ENDPROC(lowlevel_init)
