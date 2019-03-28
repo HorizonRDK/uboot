@@ -10,6 +10,13 @@
 
 #ifdef CONFIG_X2_MMC_BOOT
 
+#define X2_EMMC_RE_CFG		(1 << 24)
+#define X2_EMMC_RE_WIDTH	(1 << 20)
+#define X2_EMMC_RE_SEQ		(1 << 16)
+#define X2_EMMC_RE_DIV		(0xFFFF)
+#define X2_EMMC_REF_DIV(x)		((x) & 0xF)
+#define X2_EMMC_PH_DIV(x)		(((x) >> 4) & 0x7)
+
 static const emmc_ops_t *ops;
 static emmc_csd_t emmc_csd;
 unsigned int emmc_flags;
@@ -70,17 +77,6 @@ static void emmc_set_ios(int clk, int bus_width)
 	/* Ignore improbable errors in release builds */
 	(void)ret;
 }
-
-#if 0
-static void sdio0_pinmux_set(void)
-{
-	unsigned int regv;
-	/* GPIO46 - GPIO49 GPIO50-GPIO58 */
-	regv = readl(GPIO3_CFG);
-	regv &= 0xFC000000;
-	writel(regv, GPIO3_CFG);
-}
-#endif /* #if 0 */
 
 static int emmc_enumerate(int clk, int bus_width)
 {
@@ -249,23 +245,51 @@ static void emmc_init(dw_mmc_params_t * params)
 	emmc_enumerate(params->sclk, params->bus_width);
 }
 
-void spl_emmc_init(void)
+void spl_emmc_init(unsigned int emmc_config)
 {
 	dw_mmc_params_t params;
-	unsigned int val;
+	unsigned int mclk;
+	unsigned int width = EMMC_BUS_WIDTH_4;
+	unsigned int ref_div = 14;
+	unsigned int ph_div = 7;
+	unsigned int val = X2_EMMC_REF_DIV(ref_div) | X2_EMMC_PH_DIV(ph_div);
+
+	if (emmc_config & X2_EMMC_RE_CFG) {
+		val = (emmc_config & X2_EMMC_RE_DIV);
+		width = (emmc_config & X2_EMMC_RE_WIDTH) ? EMMC_BUS_WIDTH_4 :
+			EMMC_BUS_WIDTH_8;
+		ref_div = X2_EMMC_REF_DIV(val);
+		ph_div = X2_EMMC_PH_DIV(val);
+	}
+
+	mclk = 1500000000 / (ref_div + 1) / (ph_div + 1);
 
 	/*
 	 * The divider will be updated
 	 * after PERIPLL has been set to 1500M.
 	 */
-	val = (5 << 4 | 4);
 	writel(val, X2_SD0_CCLK_CTRL);
+
+	switch (width) {
+		case EMMC_BUS_WIDTH_1:
+			val = 1;
+			break;
+
+		case EMMC_BUS_WIDTH_8:
+			val = 8;
+			break;
+
+		default:
+			val = 4;
+			break;
+	}
+	printf("emmc: width = %d, mclk = %d\n", val, mclk);
 
 	memset(&params, 0, sizeof(dw_mmc_params_t));
 	params.reg_base = SDIO0_BASE;
-	params.bus_width = EMMC_BUS_WIDTH_1;
-	params.clk_rate = 50000000;
-	params.sclk = 50000000;
+	params.bus_width = width;
+	params.clk_rate = mclk;
+	params.sclk = mclk;
 	params.flags = 0;
 
 	emmc_init(&params);

@@ -197,9 +197,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	while ((reg32_read(DDRC_STAT) & 0x7));
 
 	/*step2 Configure uMCTL2's registers */
-	debug("DDRINFO: ddrc config start\n");
 	lpddr4_cfg_umctl2(dram_timing->ddrc_cfg, dram_timing->ddrc_cfg_num);
-	debug("DDRINFO: ddrc config done\n");
 
 	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0x0);
 
@@ -240,7 +238,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 			fw_src_len = IMEM_LEN;
 		}
 
+#if defined(CONFIG_X2_YMODEM_BOOT) || defined(CONFIG_X2_AP_BOOT)
 		printf("\nLoad fw imem %dD ...\n", i + 1);
+#endif /* CONFIG_X2_YMODEM_BOOT */
+
 		/* Load 32KB firmware */
 		rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, fw_src_len);
 
@@ -260,7 +261,10 @@ void ddr_init(struct dram_timing_info *dram_timing)
 			fw_src_len = DMEM_LEN;
 		}
 
+#if defined(CONFIG_X2_YMODEM_BOOT) || defined(CONFIG_X2_AP_BOOT)
 		printf("\nLoad fw dmem %dD ...\n", i + 1);
+#endif /* CONFIG_X2_YMODEM_BOOT */
+
 		/* Load 16KB firmware */
 		rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, fw_src_len);
 

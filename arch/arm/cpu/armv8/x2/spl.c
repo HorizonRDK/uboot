@@ -51,8 +51,10 @@ void board_init_f(ulong dummy)
 #elif defined(CONFIG_X2_YMODEM_BOOT)
 	spl_x2_ymodem_init();
 #elif defined(CONFIG_X2_MMC_BOOT)
-	spl_emmc_init();
+	spl_emmc_init(g_binfo.emmc_cfg);
 #endif
+
+	icache_enable();
 
 	spl_dram_init();
 
