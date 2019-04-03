@@ -1,0 +1,92 @@
+
+/ {
+	compatible = "hobot,x2-fpga";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	uart0: serial@a5000000 {
+			u-boot,dm-pre-reloc;
+			compatible = "hobot,x2-uart";
+			status = "disabled";
+			reg = <0x0 0xA5000000 0x0 0x1000>;
+		};
+
+	qspi: qspi@B0000000 {
+		u-boot,dm-pre-reloc;
+		compatible = "x2,qspi";
+		status = "disabled";
+		num-cs = <1>;
+		reg = <0x0 0xB0000000 0x0 0x1000>;
+	};
+
+	gmac: ethernet@A5014000 {
+		compatible = "hobot,x2-gmac";
+		reg = <0x0 0xA5014000 0x0 0x2000>;
+		phy-mode = "rmii";
+		status = "disabled";
+	};
+
+	spi0: spi@A5004000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-spi";
+		status = "disabled";
+		reg = <0x0 0xA5004000 0x0 0x1000>;
+	};
+
+	spi1: spi@A5005000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-spi";
+		status = "disabled";
+		reg = <0x0 0xA5005000 0x0 0x1000>;
+	};
+
+	spi2: spi@A5006000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-spi";
+		status = "disabled";
+		reg = <0x0 0xA5006000 0x0 0x1000>;
+	};
+
+	pwm0: pwm@A500D000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-pwm";
+		status = "disabled";
+		reg = <0x0 0xA500D000 0x0 0x1000>;
+	};
+
+	pwm1: pwm@A500E000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-pwm";
+		status = "disabled";
+		reg = <0x0 0xA500E000 0x0 0x1000>;
+	};
+
+	pwm2: pwm@A500F000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-pwm";
+		status = "disabled";
+		reg = <0x0 0xA500F000 0x0 0x1000>;
+	};
+
+	bifsd: bifsd@A1007000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,bifsd";
+		status = "disabled";
+		reg = <0x0 0xA1007000 0x0 0x1000>;
+	};
+
+	sdmmc:dwmmc@A5010000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-dw-mshc";
+		bus-width = <8>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 20000000>;
+		status = "disabled";
+		reg = <0x0 0xA5010000 0x0 0x1000>;
+		};
+	};
