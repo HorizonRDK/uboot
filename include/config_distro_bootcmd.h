@@ -409,8 +409,9 @@
 			"run bootcmd_${target}; "                         \
 		"done\0"
 
-#ifndef CONFIG_BOOTCOMMAND
-#define CONFIG_BOOTCOMMAND "run distro_bootcmd"
-#endif
-
+/*
+ * #ifndef CONFIG_BOOTCOMMAND
+ * #define CONFIG_BOOTCOMMAND "run distro_bootcmd"
+ * #endif
+*/
 #endif  /* _CONFIG_CMD_DISTRO_BOOTCMD_H */

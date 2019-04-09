@@ -33,8 +33,8 @@
 #define SPL_LOAD_OS_ADDR		0x80000
 #define SPL_LOAD_DTB_ADDR		0x10000000
 
-#define CONFIG_X2_LPDDR4_3200	(3200)
-/* #define CONFIG_X2_LPDDR4_2666	(2666) */
+/* #define CONFIG_X2_LPDDR4_3200	(3200) */
+#define CONFIG_X2_LPDDR4_2666	(2666)
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
 
 /* #define CONFIG_X2_AP_BOOT */
@@ -91,7 +91,7 @@
 #define CONFIG_SYS_LOAD_ADDR		(CONFIG_SYS_SDRAM_BASE + 0x10000000)
 
 #define CONFIG_ENV_SIZE    0x8000
-#define CONFIG_BOOTCOMMAND	"run ${bootmode}"
+/* #define CONFIG_BOOTCOMMAND	"run ${bootmode}" */
 #define CONFIG_SF_DUAL_FLASH
 
 /* Do not preserve environment */
@@ -131,12 +131,23 @@
 */
 #include <config_distro_bootcmd.h>
 
+#define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "
+#define CONFIG_BOOTCOMMAND "run mmcboot;run mmcload;run ddrboot;"
+
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	"kernel_addr=0x80000\0" \
-	"fdt_addr=0x4000000\0"  \
-	"ddrboot=booti ${kernel_addr} - ${fdt_addr}\0"
+        "kernel_addr=0x80000\0" \
+    "fdt_addr=0x4000000\0" \
+    "bootfile=Image\0" \
+    "fdtimage=hobot-x2-soc.dtb\0" \
+    "mmcroot=/dev/mmcblk0p4\0" \
+    "mmcboot=setenv bootargs " CONFIG_BOOTARGS \
+        "root=${mmcroot} rootfstype=ext4 rw rootwait\0" \
+    "mmcload=mmc rescan;" \
+        "ext4load mmc 0:3 ${kernel_addr} ${bootfile};" \
+        "ext4load mmc 0:3 ${fdt_addr} ${fdtimage}\0" \
+    "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0"
 #endif
 
 /* #define X2_AUTOBOOT */

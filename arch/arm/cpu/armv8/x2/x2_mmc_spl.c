@@ -171,7 +171,10 @@ static unsigned int emmc_read_blks(int lba,
 	emmc_cmd_t cmd;
 	int ret;
 
-	flush_dcache_range(buf, size);
+        /* size aligning 512 */
+        size = ((size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE) * EMMC_BLOCK_SIZE;
+
+        flush_dcache_range(buf, size);
 	ret = ops->prepare(lba, buf, size);
 
 	if (is_cmd23_enabled()) {

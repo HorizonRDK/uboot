@@ -445,8 +445,8 @@ CONFIG_CMD_FLASH=y
 # CONFIG_CMD_FPGAD is not set
 # CONFIG_CMD_FUSE is not set
 # CONFIG_CMD_GPIO is not set
-# CONFIG_CMD_GPT is not set
-# CONFIG_RANDOM_UUID is not set
+CONFIG_CMD_GPT=y
+CONFIG_RANDOM_UUID=y
 # CONFIG_CMD_IDE is not set
 # CONFIG_CMD_IO is not set
 # CONFIG_CMD_IOTRACE is not set
@@ -460,7 +460,7 @@ CONFIG_CMD_MTD=y
 # CONFIG_CMD_NAND is not set
 # CONFIG_CMD_MMC_SPI is not set
 # CONFIG_CMD_ONENAND is not set
-# CONFIG_CMD_PART is not set
+CONFIG_CMD_PART=y
 # CONFIG_CMD_PCI is not set
 # CONFIG_CMD_PCMCIA is not set
 # CONFIG_CMD_READ is not set
@@ -556,7 +556,8 @@ CONFIG_CMD_MISC=y
 #
 # CONFIG_CMD_BTRFS is not set
 # CONFIG_CMD_EXT2 is not set
-# CONFIG_CMD_EXT4 is not set
+CONFIG_CMD_EXT4=y
+CONFIG_CMD_EXT4_WRITE=y
 # CONFIG_CMD_FAT is not set
 # CONFIG_CMD_FS_GENERIC is not set
 # CONFIG_CMD_FS_UUID is not set
@@ -1095,7 +1096,7 @@ CONFIG_X2_QSPI=y
 #
 # CONFIG_FS_BTRFS is not set
 # CONFIG_FS_CBFS is not set
-# CONFIG_FS_EXT4 is not set
+CONFIG_FS_EXT4=y
 # CONFIG_FS_FAT is not set
 # CONFIG_FS_JFFS2 is not set
 # CONFIG_UBIFS_SILENCE_MSG is not set
