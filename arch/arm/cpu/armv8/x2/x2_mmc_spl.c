@@ -467,10 +467,12 @@ static bool ota_spl_update_check(void) {
 
 static void emmc_load_image(struct x2_info_hdr *pinfo)
 {
-	unsigned int src_addr, src_len, dest_addr;
+	unsigned int src_addr;
+	unsigned int src_len;
+	unsigned int dest_addr;
 	unsigned int __maybe_unused read_bytes;
-	bool boot_flag = 0;
-	char upmode[16] = { 0 };
+        bool boot_flag = 0;
+        char upmode[16] = { 0 };
 
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
