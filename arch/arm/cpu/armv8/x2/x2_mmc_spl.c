@@ -227,7 +227,7 @@ static void emmc_load_image(struct x2_info_hdr *pinfo)
 	unsigned int src_addr;
 	unsigned int src_len;
 	unsigned int dest_addr;
-	unsigned int read_bytes;
+	unsigned int __maybe_unused read_bytes;
 
 	src_addr = pinfo->other_img[0].img_addr;
 	src_len = pinfo->other_img[0].img_size;
@@ -287,6 +287,10 @@ void spl_emmc_init(unsigned int emmc_config)
 			break;
 	}
 	printf("emmc: width = %d, mclk = %d\n", val, mclk);
+
+	val = readl(GPIO_BASE + 0x30);
+	val &= ~0x3ffffff;
+	writel(val, GPIO_BASE + 0x30);
 
 	memset(&params, 0, sizeof(dw_mmc_params_t));
 	params.reg_base = SDIO0_BASE;
