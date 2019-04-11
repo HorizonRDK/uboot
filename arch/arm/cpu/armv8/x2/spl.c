@@ -121,14 +121,11 @@ void spl_perform_fixups(struct spl_image_info *spl_image)
 		memcpy(spl_image->arg, spl_image->fdt_addr, fdt_size);
 	}
 #elif defined(CONFIG_X2_AP_BOOT)
-    printf("ap_boot_type=%u\n", ap_boot_type);
-	if (ap_boot_type == 1) {
-		spl_image->name = "Linux";
-		spl_image->os = IH_OS_LINUX;
-		spl_image->entry_point = (uintptr_t)switch_to_el1;
-		spl_image->size = 0xB00000;
-		spl_image->arg = (void *)SPL_LOAD_DTB_ADDR;
-	}
+	spl_image->name = "Linux";
+	spl_image->os = IH_OS_LINUX;
+	spl_image->entry_point = (uintptr_t)switch_to_el1;
+	spl_image->size = 0x800000;
+	spl_image->arg = (void *)SPL_LOAD_DTB_ADDR;
 #endif /* CONFIG_SPL_LOAD_FIT */
 
 	return;
