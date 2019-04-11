@@ -1,0 +1,37 @@
+/dts-v1/;
+
+/ {
+	description = "U-Boot fitImage for X2 kernel";
+	#address-cells = <1>;
+
+	images {
+		kernel {
+			description = "X2 Linux kernel";
+			data = /incbin/("Image");
+			type = "kernel";
+			arch = "arm64";
+			os = "linux";
+			compression = "none";
+			load = <0x00080000>;
+			entry = <0x00080000>;
+		};
+
+		fdt-1 {
+			description = "X2 Flattened Device Tree blob";
+			data = /incbin/("hobot-x2-soc.dtb");
+			type = "flat_dt";
+			arch = "arm64";
+			compression = "none";
+		};
+	};
+
+	configurations {
+		default = "config-1";
+
+		config-1 {
+			description = "Boot Linux kernel with FDT blob";
+			kernel = "kernel";
+			fdt = "fdt-1";
+		};
+	};
+};

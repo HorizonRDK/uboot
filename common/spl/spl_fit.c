@@ -466,7 +466,7 @@ int spl_load_simple_fit(struct spl_image_info *spl_image,
 	 * Booting a next-stage U-Boot may require us to append the FDT.
 	 * We allow this to fail, as the U-Boot image might embed its FDT.
 	 */
-	if (spl_image->os == IH_OS_U_BOOT)
+	if (spl_image->os == IH_OS_U_BOOT || spl_image->os == IH_OS_LINUX)
 		spl_fit_append_fdt(spl_image, info, sector, fit,
 				   images, base_offset);
 

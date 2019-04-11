@@ -184,6 +184,9 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	unsigned int fw_src_len;
 	unsigned int rd_byte;
 
+	unsigned int mcu_sram;
+	unsigned int min_len;
+
 	dram_pll_init(MHZ(g_ddr_rate));
 
 	reg32_write(X2_PMU_DDRSYS_CTRL, 0x1);
@@ -243,10 +246,18 @@ void ddr_init(struct dram_timing_info *dram_timing)
 #endif /* CONFIG_X2_YMODEM_BOOT */
 
 		/* Load 32KB firmware */
-		rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, fw_src_len);
+		mcu_sram = DDRP_BASE_ADDR + IMEM_OFFSET_ADDR;
+		while (fw_src_len > 0) {
+			min_len = fw_src_len > X2_SRAM_LOAD_MAX ?
+				X2_SRAM_LOAD_MAX : fw_src_len;
+			rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, min_len);
 
-		lpddr4_load_fw(DDRP_BASE_ADDR + IMEM_OFFSET_ADDR,
-			X2_SRAM_LOAD_ADDR, rd_byte, IMEM_LEN);
+			lpddr4_load_fw(mcu_sram, X2_SRAM_LOAD_ADDR, rd_byte, rd_byte);
+
+			fw_src_len -= min_len;
+			fw_src_laddr += min_len;
+			mcu_sram += min_len * 2;
+		}
 
 		if (g_dev_ops.post_read) {
 			g_dev_ops.post_read(0x0);
@@ -266,10 +277,18 @@ void ddr_init(struct dram_timing_info *dram_timing)
 #endif /* CONFIG_X2_YMODEM_BOOT */
 
 		/* Load 16KB firmware */
-		rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, fw_src_len);
+		mcu_sram = DDRP_BASE_ADDR + DMEM_OFFSET_ADDR;
+		while (fw_src_len > 0) {
+			min_len = fw_src_len > X2_SRAM_LOAD_MAX ?
+				X2_SRAM_LOAD_MAX : fw_src_len;
+			rd_byte = g_dev_ops.read(fw_src_laddr, X2_SRAM_LOAD_ADDR, min_len);
 
-		lpddr4_load_fw(DDRP_BASE_ADDR + DMEM_OFFSET_ADDR,
-			X2_SRAM_LOAD_ADDR, rd_byte, DMEM_LEN);
+			lpddr4_load_fw(mcu_sram, X2_SRAM_LOAD_ADDR, rd_byte, rd_byte);
+
+			fw_src_len -= min_len;
+			fw_src_laddr += min_len;
+			mcu_sram += min_len * 2;
+		}
 
 		if (g_dev_ops.post_read) {
 			g_dev_ops.post_read(0x0);

@@ -79,7 +79,8 @@ void spl_board_init(void)
 
 unsigned int spl_boot_device(void)
 {
-#if defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+#if defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_MMC_BOOT) \
+	|| defined(CONFIG_X2_NOR_BOOT)
 
 	return BOOT_DEVICE_RAM;
 #elif defined(CONFIG_X2_YMODEM_BOOT)
@@ -90,23 +91,45 @@ unsigned int spl_boot_device(void)
 
 #ifdef CONFIG_SPL_OS_BOOT
 
+#ifdef CONFIG_X2_AP_BOOT
 static __maybe_unused void switch_to_el1(void)
 {
 	armv8_switch_to_el1((u64) SPL_LOAD_DTB_ADDR, 0, 0, 0,
 			    SPL_LOAD_OS_ADDR, ES_TO_AARCH64);
 }
 
-#ifdef CONFIG_X2_AP_BOOT
+#endif /* CONFIG_X2_AP_BOOT */
+
 void spl_perform_fixups(struct spl_image_info *spl_image)
 {
+#if CONFIG_IS_ENABLED(LOAD_FIT)
+	unsigned int fdt_size;
+
+	if (spl_image->os == IH_OS_LINUX) {
+		fdt_size = fdt_totalsize(spl_image->fdt_addr);
+
+		spl_image->arg = (void *)SPL_LOAD_DTB_ADDR;
+		memcpy(spl_image->arg, spl_image->fdt_addr, fdt_size);
+	}
+#elif defined(CONFIG_X2_AP_BOOT)
 	spl_image->name = "Linux";
 	spl_image->os = IH_OS_LINUX;
-	spl_image->entry_point = (uintptr_t) switch_to_el1;
+	spl_image->entry_point = (uintptr_t)switch_to_el1;
 	spl_image->size = 0x800000;
 	spl_image->arg = (void *)SPL_LOAD_DTB_ADDR;
+#endif /* CONFIG_SPL_LOAD_FIT */
 
 	return;
 }
-#endif /* CONFIG_X2_AP_BOOT */
 
 #endif /* CONFIG_SPL_OS_BOOT */
+
+#ifdef CONFIG_SPL_LOAD_FIT
+int board_fit_config_name_match(const char *name)
+{
+	/* Just empty function now - can't decide what to choose */
+	debug("%s: %s\n", __func__, name);
+
+	return 0;
+}
+#endif /* CONFIG_SPL_LOAD_FIT */
