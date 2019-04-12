@@ -21,6 +21,7 @@
 
 /* Support spl */
 #ifdef CONFIG_SPL_BUILD
+#include "x2_config.h"
 
 #define CONFIG_SPL_TEXT_BASE   0x80000000
 #define CONFIG_SPL_MAX_SIZE    0x6800
@@ -37,16 +38,10 @@
 #define CONFIG_X2_LPDDR4_2666	(2666)
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
 
-/* #define CONFIG_X2_AP_BOOT */
-#define CONFIG_X2_YMODEM_BOOT
-/* #define CONFIG_X2_NOR_BOOT */
-/* #define CONFIG_X2_MMC_BOOT */
 
 /* The option for palladium */
 /* #define CONFIG_SUPPORT_PALLADIUM */
 
-/* The option for som board */
-/* #define CONFIG_X2_SOM_BOARD */
 
 #else
 
