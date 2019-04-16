@@ -246,7 +246,7 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_MASTER0_CALOFFSETS, 0x2240 },
 	{ DDRP_MASTER0_PLLCTRL4_P0, 0x17f },
 
-#ifdef CONFIG_X2_SOM_BOARD
+#if defined(CONFIG_X2_SOM_BOARD) || defined(CONFIG_X2_MONO_BOARD)
 	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
 	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
 	{ DDRP_DBYTE0_DQ2LNSEL, 0x4 },
@@ -257,12 +257,20 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE0_DQ7LNSEL, 0x3 },
 
 	{ DDRP_DBYTE1_DQ0LNSEL, 0x1 },
+#ifdef CONFIG_X2_SOM_BOARD
 	{ DDRP_DBYTE1_DQ1LNSEL, 0x6 },
+#else
+	{ DDRP_DBYTE1_DQ1LNSEL, 0x7 },
+#endif /* CONFIG_X2_SOM_BOARD */
 	{ DDRP_DBYTE1_DQ2LNSEL, 0x5 },
 	{ DDRP_DBYTE1_DQ3LNSEL, 0x4 },
 	{ DDRP_DBYTE1_DQ4LNSEL, 0x2 },
 	{ DDRP_DBYTE1_DQ5LNSEL, 0x0 },
+#ifdef CONFIG_X2_SOM_BOARD
 	{ DDRP_DBYTE1_DQ6LNSEL, 0x7 },
+#else
+	{ DDRP_DBYTE1_DQ6LNSEL, 0x6 },
+#endif /* CONFIG_X2_SOM_BOARD */
 	{ DDRP_DBYTE1_DQ7LNSEL, 0x3 },
 
 	{ DDRP_DBYTE2_DQ0LNSEL, 0x3 },
@@ -282,7 +290,7 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE3_DQ5LNSEL, 0x3 },
 	{ DDRP_DBYTE3_DQ6LNSEL, 0x1 },
 	{ DDRP_DBYTE3_DQ7LNSEL, 0x6 },
-#endif /* CONFIG_X2_SOM_BOARD */
+#endif /* CONFIG_X2_SOM_BOARD || CONFIG_X2_MONO_BOARD */
 };
 
 /* DRAM PHY init engine image */
