@@ -1,0 +1,27 @@
+/dts-v1/;
+
+/ {
+	description = "U-Boot fitImage for X2 u-boot";
+	#address-cells = <1>;
+
+	images {
+		uboot {
+			description = "X2 U-Boot (64-bit)";
+			data = /incbin/("/home/taolei/my-gitlab/u-boot/u-boot.bin");
+			type = "kernel";
+			arch = "arm64";
+			os = "u-boot";
+			compression = "none";
+			load = <0x20000000>;
+			entry = <0x20000000>;
+		};
+	};
+
+	configurations {
+		default = "config-1";
+		config-1 {
+			description = "Boot U-Boot";
+			kernel = "uboot";
+		};
+	};
+};
