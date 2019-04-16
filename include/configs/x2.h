@@ -71,7 +71,7 @@
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000
-#define PHYS_SDRAM_1_SIZE			0x80000000	/* 2G */
+#define PHYS_SDRAM_1_SIZE			0x40000000	/* 1G */
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
 #define CONFIG_SYS_SDRAM_SIZE		PHYS_SDRAM_1_SIZE
