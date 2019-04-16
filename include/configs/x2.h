@@ -55,6 +55,10 @@
 /* The option for palladium */
 /* #define CONFIG_SUPPORT_PALLADIUM */
 
+/* The option for som board */
+/* #define CONFIG_X2_SOM_BOARD */
+/* #define CONFIG_X2_MONO_BOARD */
+
 #else
 
 #ifdef CONFIG_X2_BIFSD
