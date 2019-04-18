@@ -25,13 +25,9 @@ enum spi_nor_option_flags {
 	SNOR_F_USE_UPAGE	= BIT(3),
 };
 
-#ifdef CONFIG_SPI_FLASH_4BC
 #define SPI_FLASH_4B_ADDR_LEN		4
 #define SPI_FLASH_CMD_LEN		(1 + SPI_FLASH_4B_ADDR_LEN)
-#else
-#define SPI_FLASH_3B_ADDR_LEN		3
-#define SPI_FLASH_CMD_LEN		(1 + SPI_FLASH_3B_ADDR_LEN)
-#endif
+
 #define SPI_FLASH_16MB_BOUN		0x1000000
 
 /* CFI Manufacture ID's */
@@ -46,6 +42,7 @@ enum spi_nor_option_flags {
 
 /* CFI Device ID's */
 #define SPI_FLASH_GIGA_GD25LQ256D   0x6019
+#define SPI_FLASH_GIGA_GD25LQ128D   0x6018
 
 /* Erase commands */
 #define CMD_ERASE_4K			0x20
