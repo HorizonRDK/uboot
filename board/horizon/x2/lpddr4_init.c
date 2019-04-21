@@ -1,4 +1,3 @@
-
 #include <common.h>
 #include <errno.h>
 #include <asm/arch/ddr.h>
@@ -8,6 +7,92 @@
 #include <asm/arch/x2_sysctrl.h>
 #include <asm/arch/x2_share.h>
 #include <asm/arch/x2_dev.h>
+
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+struct dram_cfg_param lpddr4_ddrc_mono[] = {
+	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
+	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
+	{ DDRP_DBYTE0_DQ2LNSEL, 0x4 },
+	{ DDRP_DBYTE0_DQ3LNSEL, 0x2 },
+	{ DDRP_DBYTE0_DQ4LNSEL, 0x7 },
+	{ DDRP_DBYTE0_DQ5LNSEL, 0x5 },
+	{ DDRP_DBYTE0_DQ6LNSEL, 0x6 },
+	{ DDRP_DBYTE0_DQ7LNSEL, 0x3 },
+
+	{ DDRP_DBYTE1_DQ0LNSEL, 0x1 },
+	{ DDRP_DBYTE1_DQ1LNSEL, 0x7 },
+	{ DDRP_DBYTE1_DQ2LNSEL, 0x5 },
+	{ DDRP_DBYTE1_DQ3LNSEL, 0x4 },
+	{ DDRP_DBYTE1_DQ4LNSEL, 0x2 },
+	{ DDRP_DBYTE1_DQ5LNSEL, 0x0 },
+	{ DDRP_DBYTE1_DQ6LNSEL, 0x6 },
+	{ DDRP_DBYTE1_DQ7LNSEL, 0x3 },
+
+	{ DDRP_DBYTE2_DQ0LNSEL, 0x3 },
+	{ DDRP_DBYTE2_DQ1LNSEL, 0x6 },
+	{ DDRP_DBYTE2_DQ2LNSEL, 0x0 },
+	{ DDRP_DBYTE2_DQ3LNSEL, 0x1 },
+	{ DDRP_DBYTE2_DQ4LNSEL, 0x7 },
+	{ DDRP_DBYTE2_DQ5LNSEL, 0x5 },
+	{ DDRP_DBYTE2_DQ6LNSEL, 0x2 },
+	{ DDRP_DBYTE2_DQ7LNSEL, 0x4 },
+
+	{ DDRP_DBYTE3_DQ0LNSEL, 0x7 },
+	{ DDRP_DBYTE3_DQ1LNSEL, 0x0 },
+	{ DDRP_DBYTE3_DQ2LNSEL, 0x4 },
+	{ DDRP_DBYTE3_DQ3LNSEL, 0x2 },
+	{ DDRP_DBYTE3_DQ4LNSEL, 0x5 },
+	{ DDRP_DBYTE3_DQ5LNSEL, 0x3 },
+	{ DDRP_DBYTE3_DQ6LNSEL, 0x1 },
+	{ DDRP_DBYTE3_DQ7LNSEL, 0x6 },
+};
+
+struct dram_cfg_param lpddr4_ddrc_som[] = {
+	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
+	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
+	{ DDRP_DBYTE0_DQ2LNSEL, 0x4 },
+	{ DDRP_DBYTE0_DQ3LNSEL, 0x2 },
+	{ DDRP_DBYTE0_DQ4LNSEL, 0x7 },
+	{ DDRP_DBYTE0_DQ5LNSEL, 0x5 },
+	{ DDRP_DBYTE0_DQ6LNSEL, 0x6 },
+	{ DDRP_DBYTE0_DQ7LNSEL, 0x3 },
+
+	{ DDRP_DBYTE1_DQ0LNSEL, 0x1 },
+	{ DDRP_DBYTE1_DQ1LNSEL, 0x6 },
+	{ DDRP_DBYTE1_DQ2LNSEL, 0x5 },
+	{ DDRP_DBYTE1_DQ3LNSEL, 0x4 },
+	{ DDRP_DBYTE1_DQ4LNSEL, 0x2 },
+	{ DDRP_DBYTE1_DQ5LNSEL, 0x0 },
+	{ DDRP_DBYTE1_DQ6LNSEL, 0x7 },
+	{ DDRP_DBYTE1_DQ7LNSEL, 0x3 },
+
+	{ DDRP_DBYTE2_DQ0LNSEL, 0x3 },
+	{ DDRP_DBYTE2_DQ1LNSEL, 0x6 },
+	{ DDRP_DBYTE2_DQ2LNSEL, 0x0 },
+	{ DDRP_DBYTE2_DQ3LNSEL, 0x1 },
+	{ DDRP_DBYTE2_DQ4LNSEL, 0x7 },
+	{ DDRP_DBYTE2_DQ5LNSEL, 0x5 },
+	{ DDRP_DBYTE2_DQ6LNSEL, 0x2 },
+	{ DDRP_DBYTE2_DQ7LNSEL, 0x4 },
+
+	{ DDRP_DBYTE3_DQ0LNSEL, 0x7 },
+	{ DDRP_DBYTE3_DQ1LNSEL, 0x0 },
+	{ DDRP_DBYTE3_DQ2LNSEL, 0x4 },
+	{ DDRP_DBYTE3_DQ3LNSEL, 0x2 },
+	{ DDRP_DBYTE3_DQ4LNSEL, 0x5 },
+	{ DDRP_DBYTE3_DQ5LNSEL, 0x3 },
+	{ DDRP_DBYTE3_DQ6LNSEL, 0x1 },
+	{ DDRP_DBYTE3_DQ7LNSEL, 0x6 },
+};
+
+static unsigned int x2_board_id[] = {
+	0x100, 0x200, 0x201, 0x102, 0x103, 0x101, 0x202, 0x301, 0x302, 0x303, 0x304
+};
+
+static unsigned int x2_gpio_id[] = {
+	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0x34, 0x36, 0x35, 0x37
+};
+#endif
 
 #if 0
 #define LPDDR4_DEBUG	1
@@ -31,15 +116,94 @@ static void lpddr4_cfg_umctl2(struct dram_cfg_param *ddrc_cfg, int num)
 	}
 }
 
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+static unsigned int spl_gpio_get(void)
+{
+	unsigned int reg_x, reg_y;
+
+	reg_x = reg32_read(X2_GPIO_BASE + GPIO_GRP5_REG);
+	reg_y = reg32_read(X2_GPIO_BASE + GPIO_GRP4_REG);
+
+	return PIN_BOARD_SEL(reg_x, reg_y);
+}
+
+static int spl_board_id_verify(unsigned int board_id)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(x2_board_id); i++) {
+		if (board_id == x2_board_id[i])
+			return 0;
+	}
+
+	return -1;
+}
+
+static unsigned int spl_gpio_to_borad_id(unsigned int gpio_id)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(x2_gpio_id); i++) {
+		if (gpio_id == x2_gpio_id[i])
+			return x2_board_id[i];
+	}
+
+	if (gpio_id == 0x3f)
+		return X2_SOM_3V3_ID;
+
+	return 0xff;
+}
+#endif
+
 static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 {
 	int i = 0;
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+	unsigned int size = 0;
+	unsigned int board_id = g_binfo.board_id;
+	unsigned int gpio_id = 0;
+#endif
 	struct dram_cfg_param *ddrp_cfg = dram_timing->ddrphy_cfg;
 
 	for (i = 0; i < dram_timing->ddrphy_cfg_num; i++) {
 		reg32_write(ddrp_cfg->reg, ddrp_cfg->val);
 		ddrp_cfg++;
 	}
+
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+	if (board_id == X2_GPIO_MODE) {
+		gpio_id = spl_gpio_get();
+
+		board_id = spl_gpio_to_borad_id(gpio_id);
+
+		if (board_id == 0xff) {
+			printf("error: gpio id %02x not support \n", gpio_id);
+			return;
+		}
+	} else {
+		if (spl_board_id_verify(board_id) != 0) {
+			printf("error: board id %02x not support \n", board_id);
+			return;
+		}
+	}
+
+	/* svb board */
+	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
+		return;
+
+	if (board_id == X2_MONO_BOARD_ID) {
+		ddrp_cfg = lpddr4_ddrc_mono;
+		size = ARRAY_SIZE(lpddr4_ddrc_mono);
+	} else {
+		ddrp_cfg = lpddr4_ddrc_som;
+		size = ARRAY_SIZE(lpddr4_ddrc_som);
+	}
+
+	for (i = 0; i < size; i++) {
+		reg32_write(ddrp_cfg->reg, ddrp_cfg->val);
+		ddrp_cfg++;
+	}
+#endif
 }
 
 static void lpddr4_load_fw(unsigned long dest,

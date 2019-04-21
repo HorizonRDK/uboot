@@ -8,6 +8,13 @@
 #include <asm/armv8/mmu.h>
 #include <asm/arch/x2_reg.h>
 
+#include <asm/arch/ddr.h>
+#include <configs/x2.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+
+unsigned int sys_sdram_size = 0x80000000; /* 2G */
+unsigned int x2_src_boot = 1;
+
 DECLARE_GLOBAL_DATA_PTR;
 
 static struct mm_region x2_mem_map[] = {
@@ -42,10 +49,69 @@ static struct mm_region x2_mem_map[] = {
 };
 
 struct mm_region *mem_map = x2_mem_map;
+static void x2_boot_src_init(void)
+{
+	unsigned int reg;
+
+	reg = reg32_read(X2_GPIO_BASE + STRAP_PIN_REG);
+	x2_src_boot = PIN_2NDBOOT_SEL(reg);
+
+	printf("x2_gpio_boot_mode is %02x \n", x2_src_boot);
+}
+
+static void system_sdram_size_init(void)
+{
+	unsigned int board_id = 0;
+	unsigned int gpio_id = 0;
+	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) 0x10000000;
+
+	board_id = boot_info->board_id;
+
+	if (board_id == X2_GPIO_MODE) {
+		gpio_id = x2_gpio_get();
+
+		board_id = x2_gpio_to_borad_id(gpio_id);
+
+		if (board_id == 0xff) {
+			printf("error: gpio id %02x not support \n", gpio_id);
+			return;
+		}
+	} else {
+		if (board_id_verify(board_id) != 0) {
+			printf("error: board id %02x not support \n", board_id);
+			return;
+		}
+	}
+
+	/* svb board */
+	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
+		return;
+
+	/* sdram size set */
+	if (board_id != J2_SOM_BOARD_ID && board_id != X2_MONO_BOARD_ID)
+		sys_sdram_size = 0x40000000;
+}
+
+static void x2_mem_map_init(void)
+{
+	system_sdram_size_init();
+
+	x2_mem_map[0].size = sys_sdram_size;
+	printf("sys_sdram_size = %02x \n", sys_sdram_size);
+}
 
 int dram_init(void)
 {
-	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
+	x2_boot_src_init();
+
+	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF)) {
+		x2_mem_map_init();
+
+		gd->ram_size = sys_sdram_size;
+	} else {
+		gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
+	}
+
 	return 0;
 }
 

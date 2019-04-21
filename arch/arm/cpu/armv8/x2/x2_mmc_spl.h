@@ -22,6 +22,8 @@ typedef struct dw_mmc_params {
 	unsigned int flags;
 } dw_mmc_params_t;
 
+void x2_bootinfo_init(void);
+
 void spl_emmc_init(unsigned int emmc_config);
 
 #endif /* CONFIG_X2_MMC_SPL */

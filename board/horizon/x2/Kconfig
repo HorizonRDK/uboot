@@ -1,8 +1,40 @@
+menu "X2 mode board set"
+config X2_BOARD_SOM
+        bool "som -support som board"
+        help
+          som mode set.
+
+config X2_BOARD_SVB
+        bool "svb -support svb board"
+        help
+          svb mode set.
+
+config X2_MODE_UART
+        bool "uart -support uart mode"
+        help
+          uart mode enable.
+
+config X2_MODE_AP
+        bool "ap -support ap mode"
+        help
+          ap mode enable.
+
+config X2_MODE_EMMC
+        bool "emmc -support emmc mode"
+        help
+          emmc mode enable.
+
+config X2_MODE_NOR
+        bool "nor -support nor mode"
+        help
+          ap mode enable.
+endmenu
+
 if TARGET_X2
 
 config ARCH_X2
 	bool
-	default y
+        default y
 
 config SYS_BOARD
 	default "x2"

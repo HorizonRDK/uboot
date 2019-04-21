@@ -12,8 +12,12 @@
 #include <console.h>
 #include <version.h>
 #include <asm/io.h>
+#include <asm/arch/ddr.h>
+
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 extern int boot_stage_mark(int stage);
+extern unsigned int x2_src_boot;
 
 
 /*
@@ -115,6 +119,128 @@ void wait_start(void)
 }
 #endif
 
+static unsigned int x2_board_id[] = {
+	0x100, 0x200, 0x201, 0x102, 0x103, 0x101, 0x202, 0x301, 0x302, 0x303, 0x304
+};
+
+static unsigned int x2_gpio_id[] = {
+	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0x34, 0x36, 0x35, 0x37
+};
+
+unsigned int x2_gpio_get(void)
+{
+	unsigned int reg_x, reg_y;
+
+	reg_x = reg32_read(X2_GPIO_BASE + GPIO_GRP5_REG);
+	reg_y = reg32_read(X2_GPIO_BASE + GPIO_GRP4_REG);
+
+	return PIN_BOARD_SEL(reg_x, reg_y);
+}
+
+int board_id_verify(unsigned int board_id)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(x2_board_id); i++) {
+		if (board_id == x2_board_id[i])
+			return 0;
+	}
+
+	return -1;
+}
+
+unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(x2_gpio_id); i++) {
+		if (gpio_id == x2_gpio_id[i])
+			return x2_board_id[i];
+	}
+
+	if (gpio_id == 0x3f)
+		return X2_SOM_3V3_ID;
+
+	return 0xff;
+}
+
+static char *x2_bootinfo_dtb_get(unsigned int board_id,
+		struct x2_kernel_hdr *config)
+{
+	char* s = NULL;
+	int i = 0;
+	int count = config->dtb_number;
+
+	if (count > 16) {
+		printf("error: count %02x not support\n", count);
+		return NULL;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (board_id == config->dtb[i].board_id) {
+			s = (char *)config->dtb[i].dtb_name;
+			break;
+		}
+	}
+
+	if (i == count)
+		printf("error: board_id %02x not support\n", board_id);
+
+	return s;
+}
+
+static void board_dtb_init(void)
+{
+	int rcode = 0;
+	char *s = NULL;
+	unsigned int board_id;
+	unsigned int gpio_id;
+	struct x2_info_hdr *x2_board_type;
+	struct x2_kernel_hdr *x2_kernel_conf;
+
+	/* load dtb-mapping.conf */
+	s = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
+	rcode = run_command_list(s, -1, 0);
+	if (rcode != 0) {
+		printf("error: dtb-mapping.conf not exit! \n");
+		return;
+	}
+
+	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
+	x2_kernel_conf = (struct x2_kernel_hdr *) X2_DTB_CONFIG_ADDR;
+	printf("board_id = %02x \n", x2_board_type->board_id);
+
+	board_id = x2_board_type->board_id;
+
+	if (board_id == X2_GPIO_MODE) {
+		gpio_id = x2_gpio_get();
+
+		board_id = x2_gpio_to_borad_id(gpio_id);
+
+		if (board_id == 0xff) {
+			printf("error: gpio id %02x not support \n", gpio_id);
+			return;
+		}
+	} else {
+		if (board_id_verify(board_id) != 0) {
+			printf("error: board id %02x not support \n", board_id);
+			return;
+		}
+	}
+
+	/* svb board */
+	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
+		return;
+
+	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
+
+	printf("fdtimage = %s\n", s);
+
+	env_set("fdtimage", s);
+
+	return;
+}
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
@@ -136,6 +262,9 @@ void main_loop(void)
 #if defined(CONFIG_UPDATE_TFTP)
 	update_tftp(0UL, NULL, NULL);
 #endif /* CONFIG_UPDATE_TFTP */
+
+	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
+		board_dtb_init();
 
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))

@@ -227,6 +227,7 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_MASTER0_DMIPINPRESENT_P0, 0x1 },
 	{ DDRP_MASTER0_ACX4ANIBDIS, 0x0 },
 
+#if defined(CONFIG_X2_YMODEM_BOOT)
 #if defined(CONFIG_X2_SOM_BOARD) || defined(CONFIG_X2_MONO_BOARD)
 	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
 	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
@@ -272,6 +273,7 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE3_DQ6LNSEL, 0x1 },
 	{ DDRP_DBYTE3_DQ7LNSEL, 0x6 },
 #endif /* CONFIG_X2_SOM_BOARD || CONFIG_X2_MONO_BOARD */
+#endif /* CONFIG_X2_YMODEM_BOOT */
 };
 
 /* DRAM PHY init engine image */

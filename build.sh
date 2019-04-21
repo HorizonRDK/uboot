@@ -2,67 +2,60 @@
 
 function choose()
 {
-    local tmp="include/configs/.x2_config.h"
-    local target="include/configs/x2_config.h"
     local board=$BOARD_TYPE
     local bootmode=$BOOT_MODE
-    local conftmp=".config_tmp"
-
-    cp .config $conftmp
-
-    echo "#ifndef __X2_CONFIG_H__" > $tmp
-    echo "#define __X2_CONFIG_H__" >> $tmp
 
     if [ "$bootmode" = "ap" ];then
-        echo "#define CONFIG_X2_AP_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
+        export UBOOT_DEFCONFIG=hr_x2_ap_defconfig
     elif [ "$bootmode" = "uart" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_YMODEM_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=y" >> $conftmp
+        export UBOOT_DEFCONFIG=hr_x2_uart_defconfig
     elif [ "$bootmode" = "nor" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_NOR_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
+        export UBOOT_DEFCONFIG=hr_x2_nor_defconfig
     elif [ "$bootmode" = "emmc" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_MMC_BOOT" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
+        export UBOOT_DEFCONFIG=hr_x2_emmc_defconfig
     else
         echo "Unknown BOOT_MODE value: $bootmode"
         exit 1
     fi
-    echo "" >> $tmp
-    if [ "$board" = "x2som" ];then
-        echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
-    elif [ "$board" = "x2svb" ];then
-        echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-    else
-        echo "Unknown BOARD_TYPE value: $board"
-        exit 1
+}
+
+function set_uart()
+{
+    local bootmode=$BOOT_MODE
+    local board=$BOARD_TYPE
+
+    if [ "$bootmode" = "uart" ];then
+        local tmp="include/configs/.x2_config.h"
+        local target="include/configs/x2_config.h"
+        local conftmp=".config_tmp"
+
+        cp .config $conftmp
+
+        echo "#ifndef __X2_CONFIG_H__" > $tmp
+        echo "#define __X2_CONFIG_H__" >> $tmp
+
+        if [ "$board" = "x2som" ];then
+            echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
+            echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+        elif [ "$board" = "x2svb" ];then
+            echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
+            echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+        elif [ "$board" = "x2mono" ];then
+            echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
+            echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
+        fi
+
+        echo "#endif /* __X2_CONFIG_H__ */" >> $tmp
+
+        mv $tmp $target
+        mv $conftmp .config
     fi
-
-    echo "#endif /* __X2_CONFIG_H__ */" >> $tmp
-
-    mv $tmp $target
-    mv $conftmp .config
 }
 
 function all()
 {
+    choose
+
     prefix=$TARGET_UBOOT_DIR
     config=$UBOOT_DEFCONFIG
     echo "uboot config: $config"
@@ -74,7 +67,7 @@ function all()
         exit 1
     }
 
-    choose
+    set_uart
 
     make -j${N} || {
         echo "make failed"

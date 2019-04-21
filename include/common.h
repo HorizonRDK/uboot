@@ -77,6 +77,10 @@ int	cpu_init(void);
 
 /* common/main.c */
 void	main_loop	(void);
+unsigned int x2_gpio_get(void);
+int board_id_verify(unsigned int board_id);
+unsigned int x2_gpio_to_borad_id(unsigned int gpio_id);
+
 int run_command(const char *cmd, int flag);
 int run_command_repeatable(const char *cmd, int flag);
 

@@ -734,6 +734,19 @@ static void nor_load_image(struct x2_info_hdr *pinfo)
 	return;
 }
 
+void x2_bootinfo_init(void)
+{
+	unsigned int src_addr;
+	unsigned int src_len;
+	unsigned int dest_addr;
+
+	src_addr = 0x10000;
+	src_len = 0x200;
+	dest_addr = X2_BOOTINFO_ADDR;
+
+	nor_read_blks((int)src_addr, dest_addr, src_len);
+}
+
 void spl_nor_init(void)
 {
 	spi_flash_init(0, 0, 0, X2_QSPI_MCLK, X2_QSPI_SCLK);

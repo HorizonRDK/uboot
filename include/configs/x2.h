@@ -51,6 +51,21 @@
 #define CONFIG_X2_LPDDR4_2666	(2666)
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
 
+#ifdef CONFIG_X2_MODE_AP
+#define CONFIG_X2_AP_BOOT
+#endif
+
+#ifdef CONFIG_X2_MODE_UART
+#define CONFIG_X2_YMODEM_BOOT
+#endif
+
+#ifdef CONFIG_X2_MODE_NOR
+#define CONFIG_X2_NOR_BOOT
+#endif
+
+#ifdef CONFIG_X2_MODE_EMMC
+#define CONFIG_X2_MMC_BOOT
+#endif
 
 /* The option for palladium */
 /* #define CONFIG_SUPPORT_PALLADIUM */

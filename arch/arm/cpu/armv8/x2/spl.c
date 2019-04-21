@@ -61,6 +61,11 @@ void board_init_f(ulong dummy)
 
 	spl_dram_init();
 
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+	/* write bootinfo to ddr 0x10000000 */
+	x2_bootinfo_init();
+#endif
+
 	return;
 }
 

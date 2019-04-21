@@ -238,6 +238,19 @@ static void emmc_load_image(struct x2_info_hdr *pinfo)
 	return;
 }
 
+void x2_bootinfo_init(void)
+{
+	unsigned int src_addr;
+	unsigned int src_len;
+	unsigned int dest_addr;
+
+	src_addr = 0x0;
+	src_len = 0x200;
+	dest_addr = X2_BOOTINFO_ADDR;
+
+	emmc_read_blks((int)src_addr, dest_addr, src_len);
+}
+
 static void emmc_init(dw_mmc_params_t * params)
 {
 	emmc_ops_t *ops_ptr = config_dw_mmc_ops(params);
