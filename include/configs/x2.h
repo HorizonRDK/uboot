@@ -47,32 +47,13 @@
 #define SPL_LOAD_OS_ADDR		0x80000
 #define SPL_LOAD_DTB_ADDR		0x10000000
 
+
 /* #define CONFIG_X2_LPDDR4_3200	(3200) */
-#define CONFIG_X2_LPDDR4_2666	(2666)
+/* #define CONFIG_X2_LPDDR4_2666	(2666) */
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
-
-#ifdef CONFIG_X2_MODE_AP
-#define CONFIG_X2_AP_BOOT
-#endif
-
-#ifdef CONFIG_X2_MODE_UART
-#define CONFIG_X2_YMODEM_BOOT
-#endif
-
-#ifdef CONFIG_X2_MODE_NOR
-#define CONFIG_X2_NOR_BOOT
-#endif
-
-#ifdef CONFIG_X2_MODE_EMMC
-#define CONFIG_X2_MMC_BOOT
-#endif
 
 /* The option for palladium */
 /* #define CONFIG_SUPPORT_PALLADIUM */
-
-/* The option for som board */
-/* #define CONFIG_X2_SOM_BOARD */
-/* #define CONFIG_X2_MONO_BOARD */
 
 #else
 

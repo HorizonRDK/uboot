@@ -2,60 +2,82 @@
 
 function choose()
 {
-    local board=$BOARD_TYPE
-    local bootmode=$BOOT_MODE
+    local tmp="include/configs/.x2_config.h"
+    local target="include/configs/x2_config.h"
+    local conftmp=".config_tmp"
+
+    echo "*********************************************************************"
+    echo "board = $board, boot mode= $bootmode"
+    echo "*********************************************************************"
+    cp .config $conftmp
+
+    echo "#ifndef __X2_CONFIG_H__" > $tmp
+    echo "#define __X2_CONFIG_H__" >> $tmp
 
     if [ "$bootmode" = "ap" ];then
-        export UBOOT_DEFCONFIG=hr_x2_ap_defconfig
+        echo "#define CONFIG_X2_AP_BOOT" >> $tmp
+        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "uart" ];then
-        export UBOOT_DEFCONFIG=hr_x2_uart_defconfig
+        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
+        echo "#define CONFIG_X2_YMODEM_BOOT" >> $tmp
+        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+        echo "CONFIG_SPL_YMODEM_SUPPORT=y" >> $conftmp
     elif [ "$bootmode" = "nor" ];then
-        export UBOOT_DEFCONFIG=hr_x2_nor_defconfig
+        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "#define CONFIG_X2_NOR_BOOT" >> $tmp
+        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "emmc" ];then
-        export UBOOT_DEFCONFIG=hr_x2_emmc_defconfig
+        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
+        echo "#define CONFIG_X2_MMC_BOOT" >> $tmp
+        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     else
         echo "Unknown BOOT_MODE value: $bootmode"
         exit 1
     fi
-}
 
-function set_uart()
-{
-    local bootmode=$BOOT_MODE
-    local board=$BOARD_TYPE
-
-    if [ "$bootmode" = "uart" ];then
-        local tmp="include/configs/.x2_config.h"
-        local target="include/configs/x2_config.h"
-        local conftmp=".config_tmp"
-
-        cp .config $conftmp
-
-        echo "#ifndef __X2_CONFIG_H__" > $tmp
-        echo "#define __X2_CONFIG_H__" >> $tmp
-
-        if [ "$board" = "x2som" ];then
-            echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
-            echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-        elif [ "$board" = "x2svb" ];then
-            echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-            echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-        elif [ "$board" = "x2mono" ];then
-            echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-            echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
-        fi
-
-        echo "#endif /* __X2_CONFIG_H__ */" >> $tmp
-
-        mv $tmp $target
-        mv $conftmp .config
+    echo "" >> $tmp
+    echo "ddr_frequency=$ddr_frequency"
+    if [ "$ddr_frequency" = "3200" ];then
+        echo "#define CONFIG_X2_LPDDR4_3200 (3200)" >> $tmp
+    else
+        echo "#define CONFIG_X2_LPDDR4_2666 (2666)" >> $tmp
     fi
+
+    echo "" >> $tmp
+    if [ "$board" = "x2som" ];then
+        echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
+        echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+    elif [ "$board" = "x2svb" ];then
+        echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+    elif [ "$board" = "x2mono" ];then
+        echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
+        echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
+    else
+        echo "Unknown BOARD_TYPE value: $board"
+        exit 1
+    fi
+
+    echo "#endif /* __X2_CONFIG_H__ */" >> $tmp
+
+    mv $tmp $target
+    mv $conftmp .config
 }
 
-function all()
+function build()
 {
-    choose
-
     prefix=$TARGET_UBOOT_DIR
     config=$UBOOT_DEFCONFIG
     echo "uboot config: $config"
@@ -67,7 +89,7 @@ function all()
         exit 1
     }
 
-    set_uart
+    choose
 
     make -j${N} || {
         echo "make failed"
@@ -80,10 +102,92 @@ function all()
     cpfiles "$UBOOT_SPL_NAME" "$prefix/"
 }
 
+function all()
+{
+    echo "path: dirname=$(dirname $0)"
+
+    if $all_boot_mode ;then
+        bootmode="emmc"
+        build
+        mv "u-boot-spl.bin" "spl-emmc.bin"
+        cd ../
+
+        bootmode="nor"
+        build
+        mv "u-boot-spl.bin" "spl-nor.bin"
+        cd ../
+
+        bootmode="uart"
+        build
+        mv "u-boot-spl.bin" "spl-uart.bin"
+        cd ../
+
+        bootmode="ap"
+        build
+        mv "u-boot-spl.bin" "spl-ap.bin"
+        cd ../
+    else
+        build
+    fi
+}
+
+
+function usage()
+{
+    echo "Usage: BOARD_TYPE=[x2som|x2svb|x2mono] BOOT_TYPE=[uart|emmc|ap|nor] buils.sh [-o all] [ -d 3200|2666]"
+    echo "Options:"
+    echo "  -o  compile all boot mode: uart, emmc, nor, ap"
+    echo "  -d  set ddr frequency 3200 or 2666"
+    echo "  -h  help info"
+    echo "Command:"
+    echo "  clean clean all the object files along with the executable"
+}
+
+board=$BOARD_TYPE
+bootmode=$BOOT_MODE
+ddr_frequency="2666"
+all_boot_mode=false
+while getopts "o:d:h:" opt
+do
+    case $opt in
+        o)
+            arg="$OPTARG"
+            if [ "$arg" = "all" ];then
+                all_boot_mode=true
+                echo "compile all boot mode"
+            else
+                usage
+                exit 1
+            fi
+            ;;
+        d)
+            arg="$OPTARG"
+            if [ "$arg" = "2666" ];then
+                ddr_frequency="2666"
+            elif [ "$arg" = "3200" ];then
+                ddr_frequency="3200"
+                echo "3200 set ok"
+            else
+                usage
+                exit 1
+            fi
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
 function clean()
 {
     make clean
 }
+
 
 # include
 . $INCLUDE_FUNCS
@@ -91,4 +195,4 @@ function clean()
 
 cd $(dirname $0)
 
-buildopt $1
+buildopt $cmd
