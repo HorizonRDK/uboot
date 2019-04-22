@@ -104,27 +104,35 @@ function build()
 
 function all()
 {
-    echo "path: dirname=$(dirname $0)"
+    local board_type=$board
+
+    if [ "$board_type" = "x2som" ];then
+        board_type="som"
+    elif [ "$board_type" == "x2svb" ];then
+        board_type="svb"
+    elif [ "$board_type" = "x2mono" ];then
+        board_type="mono"
+    fi
 
     if $all_boot_mode ;then
         bootmode="emmc"
         build
-        mv "u-boot-spl.bin" "spl-emmc.bin"
+        mv "u-boot-spl.bin" "spl-${board_type}-emmc-${ddr_frequency}.bin"
         cd ../
 
         bootmode="nor"
         build
-        mv "u-boot-spl.bin" "spl-nor.bin"
+        mv "u-boot-spl.bin" "spl-${board_type}-nor-${ddr_frequency}.bin"
         cd ../
 
         bootmode="uart"
         build
-        mv "u-boot-spl.bin" "spl-uart.bin"
+        mv "u-boot-spl.bin" "spl-${board_type}-uart-${ddr_frequency}.bin"
         cd ../
 
         bootmode="ap"
         build
-        mv "u-boot-spl.bin" "spl-ap.bin"
+        mv "u-boot-spl.bin" "spl-${board_type}-ap-${ddr_frequency}.bin"
         cd ../
     else
         build
@@ -166,7 +174,6 @@ do
                 ddr_frequency="2666"
             elif [ "$arg" = "3200" ];then
                 ddr_frequency="3200"
-                echo "3200 set ok"
             else
                 usage
                 exit 1
