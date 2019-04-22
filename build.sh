@@ -99,52 +99,54 @@ function build()
     # put binaries to dest directory
     cpfiles "$UBOOT_IMAGE_NAME" "$prefix/"
     cd spl/
-    cpfiles "$UBOOT_SPL_NAME" "$prefix/"
 }
 
 function all()
 {
-    local board_type=$board
-
-    if [ "$board_type" = "x2som" ];then
-        board_type="som"
-    elif [ "$board_type" == "x2svb" ];then
-        board_type="svb"
-    elif [ "$board_type" = "x2mono" ];then
-        board_type="mono"
-    fi
-
     if $all_boot_mode ;then
         bootmode="emmc"
         build
-        mv "u-boot-spl.bin" "spl-${board_type}-emmc-${ddr_frequency}.bin"
+        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        mv "u-boot-spl.bin" $splname
+        cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="nor"
         build
-        mv "u-boot-spl.bin" "spl-${board_type}-nor-${ddr_frequency}.bin"
+        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        mv "u-boot-spl.bin" $splname
+        cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="uart"
         build
-        mv "u-boot-spl.bin" "spl-${board_type}-uart-${ddr_frequency}.bin"
+        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        mv "u-boot-spl.bin" $splname
+        cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="ap"
         build
-        mv "u-boot-spl.bin" "spl-${board_type}-ap-${ddr_frequency}.bin"
+        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        mv "u-boot-spl.bin" $splname
+        cpfiles $splname "$prefix/"
         cd ../
     else
         build
+        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        mv "u-boot-spl.bin" $splname
+        cpfiles $splname "$prefix/"
+        cd ../
     fi
 }
 
 
 function usage()
 {
-    echo "Usage: BOARD_TYPE=[x2som|x2svb|x2mono] BOOT_TYPE=[uart|emmc|ap|nor] buils.sh [-o all] [ -d 3200|2666]"
+    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono> ] [ -d 3200|2666]"
     echo "Options:"
-    echo "  -o  compile all boot mode: uart, emmc, nor, ap"
+    echo "  -o  boot mode, all or one of uart, emmc, nor, ap"
+    echo "  -b  board type "
     echo "  -d  set ddr frequency 3200 or 2666"
     echo "  -h  help info"
     echo "Command:"
@@ -155,17 +157,29 @@ board=$BOARD_TYPE
 bootmode=$BOOT_MODE
 ddr_frequency="2666"
 all_boot_mode=false
-while getopts "o:d:h:" opt
+if [ "$board" = "x2som" ];then
+    board_type="som"
+elif [ "$board" == "x2svb" ];then
+    board_type="svb"
+elif [ "$board" = "x2mono" ];then
+    board_type="mono"
+fi
+
+while getopts "b:m:o:d:h:" opt
 do
     case $opt in
+        b)
+            export board_type="$OPTARG"
+            board="x2$board_type"
+            ;;
         o)
             arg="$OPTARG"
             if [ "$arg" = "all" ];then
                 all_boot_mode=true
                 echo "compile all boot mode"
             else
-                usage
-                exit 1
+                export bootmode="$OPTARG"
+                echo "compile boot mode $bootmode"
             fi
             ;;
         d)
