@@ -155,7 +155,7 @@ function usage()
 
 board=$BOARD_TYPE
 bootmode=$BOOT_MODE
-ddr_frequency="2666"
+ddr_frequency=$DDR_FREQ
 all_boot_mode=false
 if [ "$board" = "x2som" ];then
     board_type="som"
