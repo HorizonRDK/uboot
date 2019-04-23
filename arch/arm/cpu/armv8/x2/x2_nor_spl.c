@@ -124,6 +124,8 @@ const struct spi_flash_info spi_flash_ids[] = {
 	{"n25q256a", INFO(0x20BA19, 0x0, 64 * 1024, 8192, SECT_4K)},
 	{"gd25lq256d",
 	 INFO(0xc86019, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K)},
+	{"gd25lq128d",
+	 INFO(0xc86018, 0x0, 64 * 1024, 256, RD_FULL | WR_QPP | SECT_4K) },
 	{},			/* Empty entry to terminate the list */
 };
 
@@ -747,9 +749,18 @@ void x2_bootinfo_init(void)
 	nor_read_blks((int)src_addr, dest_addr, src_len);
 }
 
+static int x2_get_dev_mode(void)
+{
+	uint32_t reg = readl(X2_GPIO_BASE + STRAP_PIN_REG);
+
+	return !!(PIN_DEV_MODE_SEL(reg));
+}
+
 void spl_nor_init(void)
 {
-	spi_flash_init(0, 0, 0, X2_QSPI_MCLK, X2_QSPI_SCLK);
+	int dev_type = x2_get_dev_mode();
+
+	spi_flash_init(0, dev_type, 0, X2_QSPI_MCLK, X2_QSPI_SCLK);
 	g_dev_ops.proc_start = NULL;
 	g_dev_ops.pre_read = nor_pre_load;
 	g_dev_ops.read = nor_read_blks;

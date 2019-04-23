@@ -48,6 +48,8 @@
 #define J2_SVB_BOARD_ID		0x200
 #define X2_SOM_3V3_ID		0x103
 
+#define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
+
 struct x2_image_hdr {
 	unsigned int img_addr;
 	unsigned int img_size;
