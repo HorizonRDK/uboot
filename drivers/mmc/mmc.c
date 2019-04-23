@@ -2418,10 +2418,8 @@ static int mmc_startup(struct mmc *mmc)
 #endif
 	}
 
-//#ifdef CONFIG_TARGET_X2_FPGA
         mmc->tran_speed = 12000000;
         mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
-//#endif
 
 	/* fill in device description */
 	bdesc = mmc_get_blk_desc(mmc);

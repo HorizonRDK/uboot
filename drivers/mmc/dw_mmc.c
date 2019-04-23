@@ -502,10 +502,13 @@ void dwmci_setup_cfg(struct mmc_config *cfg, struct dwmci_host *host,
 
 	if (host->buswidth == 8) {
 		cfg->host_caps |= MMC_MODE_8BIT;
-		cfg->host_caps &= ~MMC_MODE_4BIT;
-	} else {
+		cfg->host_caps &= ~(MMC_MODE_4BIT | MMC_MODE_1BIT);
+	} else if (host->buswidth == 4){
 		cfg->host_caps |= MMC_MODE_4BIT;
-		cfg->host_caps &= ~MMC_MODE_8BIT;
+		cfg->host_caps &= ~(MMC_MODE_8BIT | MMC_MODE_1BIT);
+	} else {
+		cfg->host_caps |= MMC_MODE_1BIT;
+		cfg->host_caps &= ~(MMC_MODE_8BIT | MMC_MODE_4BIT);
 	}
 	cfg->host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;
 
