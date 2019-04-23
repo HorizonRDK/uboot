@@ -85,7 +85,7 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 
 	/* performance setting */
 	{ DDRC_ODTMAP, 0x00000000 },
-	{ DDRC_SCHED, 0x20001a01 },
+	{ DDRC_SCHED, 0x20003601 },
 	{ DDRC_SCHED1, 0x00000000 },
 	{ DDRC_PERFHPR1, 0x0f000001 },
 	{ DDRC_PERFLPR1, 0x0f00007f },
