@@ -265,11 +265,11 @@ void spl_emmc_init(unsigned int emmc_config)
 {
 	dw_mmc_params_t params;
 	unsigned int mclk;
-	unsigned int width = EMMC_BUS_WIDTH_4;
+	unsigned int width = EMMC_BUS_WIDTH_1;
 	unsigned int ref_div = 14;
 	unsigned int ph_div = 7;
 	unsigned int val = X2_EMMC_REF_DIV(ref_div) | X2_EMMC_PH_DIV(ph_div);
-
+#if 0
 	if (emmc_config & X2_EMMC_RE_CFG) {
 		val = (emmc_config & X2_EMMC_RE_DIV);
 		width = (emmc_config & X2_EMMC_RE_WIDTH) ? EMMC_BUS_WIDTH_4 :
@@ -277,7 +277,7 @@ void spl_emmc_init(unsigned int emmc_config)
 		ref_div = X2_EMMC_REF_DIV(val);
 		ph_div = X2_EMMC_PH_DIV(val);
 	}
-
+#endif
 	mclk = 1500000000 / (ref_div + 1) / (ph_div + 1);
 
 	/*
@@ -309,7 +309,7 @@ void spl_emmc_init(unsigned int emmc_config)
 	params.reg_base = SDIO0_BASE;
 	params.bus_width = width;
 	params.clk_rate = mclk;
-	params.sclk = mclk;
+	params.sclk = mclk - 500000;
 	params.flags = 0;
 
 	emmc_init(&params);
