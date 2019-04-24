@@ -62,7 +62,7 @@ function choose()
     elif [ "$board" = "x2svb" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-    elif [ "$board" = "x2mono" ];then
+    elif [ "$board" = "j2mono" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
     else
@@ -161,7 +161,7 @@ if [ "$board" = "x2som" ];then
     board_type="som"
 elif [ "$board" == "x2svb" ];then
     board_type="svb"
-elif [ "$board" = "x2mono" ];then
+elif [ "$board" = "j2mono" ];then
     board_type="mono"
 fi
 
