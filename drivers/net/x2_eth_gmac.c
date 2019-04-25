@@ -278,6 +278,7 @@ struct eqos_priv {
     void *rx_pkt;
     bool started;
     bool reg_access_ok;
+    unsigned is_88e6321;
 };
 
 /*
@@ -585,6 +586,11 @@ static int eqos_adjust_link(struct udevice *dev)
 
     debug("%s(dev=%p):\n", __func__, dev);
 
+    if (eqos->is_88e6321) {
+        eqos->phy->duplex = 1;
+        eqos->phy->speed = SPEED_1000;
+    }
+
     if (eqos->phy->duplex)
         ret = eqos_set_full_duplex(dev);
     else
@@ -667,6 +673,15 @@ static int eqos_write_hwaddr(struct udevice *dev)
     return 0;
 }
 
+static int get_product_id(struct mii_dev *bus, int addr, int devad)
+{
+    int value, reg;
+
+    value = eqos_mdio_read(bus, addr, devad, 0x03);
+    reg = value & 0xfff0;
+    return reg;
+}
+
 static int eqos_start(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
@@ -682,6 +697,7 @@ static int eqos_start(struct udevice *dev)
 
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
+    eqos->is_88e6321 = get_product_id(eqos->mii, 0x12, 0) == 0x3100 ? 1 : 0;
 
     ret = eqos_start_clks_tegra186(dev);
     if (ret < 0) {
@@ -711,6 +727,7 @@ static int eqos_start(struct udevice *dev)
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
 
+    if (!eqos->is_88e6321) {
     eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
     if (!eqos->phy) {
         pr_err("phy_connect() failed");
@@ -736,6 +753,19 @@ static int eqos_start(struct udevice *dev)
         pr_err("No link");
         goto err_shutdown_phy;
     }
+    }else {
+	/*set port 2, 6 1000M full duplex*/
+        eqos_mdio_write(eqos->mii, 0x12, 0, 4, 0x3 | (0x3 << 2) );
+        eqos_mdio_write(eqos->mii, 0x12, 0, 1, 0xc03e );
+
+        eqos_mdio_write(eqos->mii, 0x16, 0, 4, 0x3 | (0x3 << 2) );
+        eqos_mdio_write(eqos->mii, 0x16, 0, 1, 0xc03e );
+
+        /*disable port 0/1*/
+        eqos_mdio_write(eqos->mii, 0x10, 0, 1, 0x10 );
+        eqos_mdio_write(eqos->mii, 0x11, 0, 1, 0x10 );
+    }
+
 
     ret = eqos_adjust_link(dev);
     if (ret < 0) {
@@ -766,6 +796,17 @@ static int eqos_start(struct udevice *dev)
     rx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_SHIFT) &
                  EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
 
+    if (eqos->is_88e6321) {
+        /*set for mac for mavell*/
+        val |= ((1 << 28) | (1 << 5) | ( 1 << 1));
+        writel(val, &eqos->mac_regs->hw_feature1);
+
+        val = readl(&eqos->mac_regs->unused_0e0[0]);
+        val |= (( 1 << 12) | (1 << 9));
+        writel(val, &eqos->mac_regs->unused_0e0[0]);
+
+
+    }
     /*
      * r/tx_fifo_sz is encoded as log2(n / 128). Undo that by shifting.
      * r/tqs is encoded as (n / 256) - 1.
