@@ -22,6 +22,9 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SDIO0_EMMC_1ST_DIV_CLOCK_HZ 500000000
 #define SDIO0_EMMC_2ND_DIV_CLOCK_HZ 62500000
 
+#define SDIO1_EMMC_1ST_DIV_CLOCK_HZ 400000000
+#define SDIO1_EMMC_2ND_DIV_CLOCK_HZ 22500000
+
 struct hobot_mmc_plat {
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 	struct dtd_hobot_x2_dw_mshc dtplat;
@@ -47,6 +50,31 @@ static void sdio0_pin_mux_config(void)
     reg_val = readl(GPIO3_CFG);
     reg_val &= 0xFC000000;
     writel(reg_val, GPIO3_CFG);
+
+	/* GPIO78-GPIO83 */
+    reg_val = readl(GPIO5_CFG);
+    reg_val &= 0xFFFFF000;
+    writel(reg_val, GPIO5_CFG);
+
+	/* For x2 dev 3.3v voltage*/
+    reg_val = readl(GPIO7_CFG);
+    reg_val |= 0x00003000;
+    writel(reg_val, GPIO7_CFG);
+
+    reg_val = readl(GPIO7_DIR);
+    reg_val |= 0x00400000;
+    reg_val &= 0xffffffbf;
+    writel(reg_val, GPIO7_DIR);
+
+	/* For j2 dev 3.3v voltage*/
+    reg_val = readl(GPIO5_CFG);
+    reg_val |= 0x03000000;
+    writel(reg_val, GPIO5_CFG);
+
+    reg_val = readl(GPIO5_DIR);
+    reg_val |= 0x10000000;
+    reg_val &= 0xffffefff;
+    writel(reg_val, GPIO5_DIR);
 }
 static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 {
@@ -122,6 +150,7 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 	ret = clk_get_by_index_platdata(dev, 0, dtplat->clocks, &priv->clk);
 	if (ret < 0)
 		return ret;
+
 #else
 #ifndef CONFIG_TARGET_X2_FPGA
 
@@ -131,10 +160,18 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		return ret;
 	}
 
-	ret = clk_set_rate(&priv->div1_clk, SDIO0_EMMC_1ST_DIV_CLOCK_HZ);
-	if(ret < 0){
-		debug("failed to set 1st div rate.\n");
-		return ret;
+	if (host->dev_index == 0) {
+		ret = clk_set_rate(&priv->div1_clk, SDIO0_EMMC_1ST_DIV_CLOCK_HZ);
+		if(ret < 0){
+			debug("failed to set 1st div rate.\n");
+			return ret;
+		}
+	} else {
+		ret = clk_set_rate(&priv->div1_clk, SDIO1_EMMC_1ST_DIV_CLOCK_HZ);
+		if(ret < 0){
+			debug("failed to set 1st div rate.\n");
+			return ret;
+		}
 	}
 
 	ret = clk_get_by_index(dev, 1, &priv->div2_clk);
@@ -143,10 +180,18 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		return ret;
 	}
 
-	ret = clk_set_rate(&priv->div2_clk, SDIO0_EMMC_2ND_DIV_CLOCK_HZ);
-	if(ret < 0){
-		debug("failed to set 2nd div rate.\n");
-		return ret;
+	if (host->dev_index == 0) {
+		ret = clk_set_rate(&priv->div2_clk, SDIO0_EMMC_2ND_DIV_CLOCK_HZ);
+		if(ret < 0){
+			debug("failed to set 2nd div rate.\n");
+			return ret;
+		}
+	} else {
+		ret = clk_set_rate(&priv->div2_clk, SDIO1_EMMC_2ND_DIV_CLOCK_HZ);
+		if(ret < 0){
+			debug("failed to set 2nd div rate.\n");
+			return ret;
+		}
 	}
 
 	ret = clk_get_by_index(dev, 2, &priv->clk);

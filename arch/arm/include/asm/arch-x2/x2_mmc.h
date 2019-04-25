@@ -51,6 +51,14 @@
 #define GPIO3_DIR (PIN_MUX_BASE + 0x38)
 #define GPIO3_VAL (PIN_MUX_BASE + 0x3C)
 
+#define GPIO5_CFG (PIN_MUX_BASE + 0x50)
+#define GPIO5_DIR (PIN_MUX_BASE + 0x58)
+#define GPIO5_VAL (PIN_MUX_BASE + 0x5C)
+
+#define GPIO7_CFG (PIN_MUX_BASE + 0x70)
+#define GPIO7_DIR (PIN_MUX_BASE + 0x78)
+#define GPIO7_VAL (PIN_MUX_BASE + 0x7C)
+
 /* x2 MMC AHB related Registers */
 #define X2_MMC_BASE 0xA5010000
 #define MMC_IRQ_NUM (71)
