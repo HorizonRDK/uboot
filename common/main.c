@@ -241,6 +241,18 @@ static void board_dtb_init(void)
 	return;
 }
 
+#ifdef X2_AUTORESET
+static void prepare_autoreset(void)
+{
+	printf("prepare for auto reset test ...\n");
+	mdelay(50);
+
+	env_set("bootcmd_bak", env_get("bootcmd"));
+	env_set("bootcmd", "reset");
+	return;
+}
+#endif
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
@@ -265,6 +277,10 @@ void main_loop(void)
 
 	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
 		board_dtb_init();
+
+#ifdef X2_AUTORESET
+	prepare_autoreset();
+#endif
 
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))
