@@ -88,7 +88,8 @@ static void system_sdram_size_init(void)
 		return;
 
 	/* sdram size set */
-	if (board_id != J2_SOM_BOARD_ID && board_id != X2_MONO_BOARD_ID)
+	if (board_id != J2_SOM_BOARD_ID && board_id != X2_MONO_BOARD_ID
+                && board_id != J2_SOM_DEV_ID)
 		sys_sdram_size = 0x40000000;
 }
 
