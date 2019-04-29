@@ -62,6 +62,7 @@ static int x2_qspi_set_speed(struct udevice *bus, uint speed)
 			br_div = (prescaler + 1) * (2 << divisor);
 			if ((plat->freq / br_div) >= speed) {
 				confr = (prescaler | (divisor << 4)) & 0xFF;
+
 				x2_qspi_wr(x2qspi, X2_QSPI_BDR_REG, confr);
 				return 0;
 			}
@@ -146,7 +147,7 @@ static int x2_qspi_tx_ae(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(100);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
 	} while ((!(val&X2_QSPI_TX_AE)) && (trys<TRYS_TOTAL_NUM));
@@ -162,7 +163,7 @@ static int x2_qspi_rx_af(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(100);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
 	} while ((!(val&X2_QSPI_RX_AF)) && (trys<TRYS_TOTAL_NUM));
@@ -177,7 +178,7 @@ static int x2_qspi_tb_done(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(100);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
 	} while ((!(val&X2_QSPI_TBD)) && (trys<TRYS_TOTAL_NUM));
@@ -194,7 +195,7 @@ static int x2_qspi_rb_done(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(100);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST1_REG);
 		trys ++;
 	} while ((!(val&X2_QSPI_RBD)) && (trys<TRYS_TOTAL_NUM));
@@ -211,7 +212,7 @@ static int x2_qspi_tx_full(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(100);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
 		trys ++;
 	} while ((val&X2_QSPI_TX_FULL) && (trys<TRYS_TOTAL_NUM));
@@ -227,7 +228,7 @@ static int x2_qspi_tx_empty(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(10);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
 		trys ++;
 	} while ((!(val&X2_QSPI_TX_EP)) && (trys<TRYS_TOTAL_NUM));
@@ -243,7 +244,7 @@ static int x2_qspi_rx_empty(struct x2_qspi_priv *x2qspi)
 	u32 val, trys=0;
 
 	do {
-		udelay(10);
+		ndelay(10);
 		val = x2_qspi_rd(x2qspi, X2_QSPI_ST2_REG);
 		trys ++;
 	} while ((val&X2_QSPI_RX_EP) && (trys<TRYS_TOTAL_NUM));

@@ -204,6 +204,10 @@ do
     esac
 done
 
+shift $[ $OPTIND - 1 ]
+
+cmd=$1
+
 function clean()
 {
     make clean

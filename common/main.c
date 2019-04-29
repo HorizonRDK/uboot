@@ -164,13 +164,49 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 	return 0xff;
 }
 
+static unsigned int hex_to_char(unsigned int temp)
+{
+    uint8_t dst;
+    if (temp < 10) {
+        dst = temp + '0';
+    } else {
+        dst = temp -10 +'A';
+    }
+    return dst;
+}
+
+static void uint32_to_char(unsigned int temp, char *s)
+{
+	int i = 0;
+	unsigned char dst;
+	unsigned char str[10] = { 0 };
+
+	s[0] = '0';
+	s[1] = 'x';
+
+	for (i = 0; i < 4; i++) {
+		dst = (temp >> (8 * (3 - i))) & 0xff;
+
+		str[2*i + 2] = (dst >> 4) & 0xf;
+		str[2*i + 3] = dst & 0xf;
+	}
+
+	for (i =2; i < 10; i++) {
+		s[i] = hex_to_char(str[i]);
+	}
+
+	s[i + 2] = '\0';
+}
+
 static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		struct x2_kernel_hdr *config)
 {
-	char* s = NULL;
+	char *s = NULL;
 	int i = 0;
-	int count = config->dtb_number;
+	char string[20] = { 0 };
+	char cmd[256] = { 0 };
 
+	int count = config->dtb_number;
 	if (count > 16) {
 		printf("error: count %02x not support\n", count);
 		return NULL;
@@ -179,6 +215,38 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	for (i = 0; i < count; i++) {
 		if (board_id == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
+
+			if (x2_src_boot == PIN_2ND_SF) {
+				if (config->dtb[i].dtb_addr == 0x0) {
+					printf("error: dtb %s not exit\n", s);
+					return NULL;
+				}
+
+				/* load dtb file */
+				uint32_to_char(config->dtb[i].dtb_addr, string);
+				strcat(cmd, "sf read 0x4000000 ");
+				strcat(cmd, string);
+
+				uint32_to_char(config->dtb[i].dtb_size, string);
+				strcat(cmd, " ");
+				strcat(cmd, string);
+				run_command_list(cmd, -1, 0);
+
+				/* load Image */
+				uint32_to_char(config->Image_addr, string);
+				memset(cmd, 0, 256);
+				strcat(cmd, "sf read 0x80000 ");
+				strcat(cmd, string);
+
+				uint32_to_char(config->Image_size, string);
+				strcat(cmd, " ");
+				strcat(cmd, string);
+				run_command_list(cmd, -1, 0);
+
+				/* set bootcmd */
+				s = "run ddrboot";
+				env_set("bootcmd", s);
+			}
 			break;
 		}
 	}
@@ -198,12 +266,20 @@ static void board_dtb_init(void)
 	struct x2_info_hdr *x2_board_type;
 	struct x2_kernel_hdr *x2_kernel_conf;
 
-	/* load dtb-mapping.conf */
-	s = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
-	rcode = run_command_list(s, -1, 0);
-	if (rcode != 0) {
-		printf("error: dtb-mapping.conf not exit! \n");
-		return;
+	if (x2_src_boot == PIN_2ND_EMMC) {
+		/* load dtb-mapping.conf */
+		s = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
+		rcode = run_command_list(s, -1, 0);
+		if (rcode != 0) {
+			printf("error: dtb-mapping.conf not exit! \n");
+			return;
+		}
+	} else {
+		/* load dtb-mapping.conf */
+		s = "sf probe\0";
+		run_command_list(s, -1, 0);
+		s = "sf read 0x10001000 0x194400 0x400\0";
+		run_command_list(s, -1, 0);
 	}
 
 	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
@@ -228,15 +304,19 @@ static void board_dtb_init(void)
 		}
 	}
 
-	/* svb board */
-	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
-		return;
+	if (x2_src_boot == PIN_2ND_EMMC) {
+		/* svb board */
+		if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
+			return;
+	}
 
 	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
 
-	printf("fdtimage = %s\n", s);
+	if (x2_src_boot == PIN_2ND_EMMC) {
+		printf("fdtimage = %s\n", s);
 
-	env_set("fdtimage", s);
+		env_set("fdtimage", s);
+	}
 
 	return;
 }
