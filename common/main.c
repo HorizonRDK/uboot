@@ -284,23 +284,24 @@ static void board_dtb_init(void)
 
 	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
 	x2_kernel_conf = (struct x2_kernel_hdr *) X2_DTB_CONFIG_ADDR;
-	printf("board_id = %02x \n", x2_board_type->board_id);
+	gpio_id = x2_gpio_get();
+	printf("bootinfo/board_id = %02x gpio_id = %02x\n", x2_board_type->board_id, gpio_id);
 
 	board_id = x2_board_type->board_id;
 
 	if (board_id == X2_GPIO_MODE) {
-		gpio_id = x2_gpio_get();
 
 		board_id = x2_gpio_to_borad_id(gpio_id);
 
 		if (board_id == 0xff) {
-			printf("error: gpio id %02x not support \n", gpio_id);
-			return;
-		}
+			printf("error: gpio id %02x not support, set to default x2somfull(101) \n", gpio_id);
+			board_id = 0x101;
+		} else
+			printf("gpio/board_id = %02x\n", board_id);
 	} else {
 		if (board_id_verify(board_id) != 0) {
-			printf("error: board id %02x not support \n", board_id);
-			return;
+			printf("error: board id %02x not support  set to default x2somfull(101) \n", board_id);
+			board_id = 0x101;
 		}
 	}
 
@@ -310,6 +311,7 @@ static void board_dtb_init(void)
 			return;
 	}
 
+	printf("final/board_id = %02x\n", board_id);
 	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
 
 	if (x2_src_boot == PIN_2ND_EMMC) {

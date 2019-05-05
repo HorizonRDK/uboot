@@ -116,7 +116,6 @@ static void lpddr4_cfg_umctl2(struct dram_cfg_param *ddrc_cfg, int num)
 	}
 }
 
-#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
 static unsigned int spl_gpio_get(void)
 {
 	unsigned int reg_x, reg_y;
@@ -127,6 +126,7 @@ static unsigned int spl_gpio_get(void)
 	return PIN_BOARD_SEL(reg_x, reg_y);
 }
 
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
 static int spl_board_id_verify(unsigned int board_id)
 {
 	int i = 0;
@@ -158,10 +158,10 @@ static unsigned int spl_gpio_to_borad_id(unsigned int gpio_id)
 static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 {
 	int i = 0;
+	unsigned int gpio_id = 0;
 #if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
 	unsigned int size = 0;
 	unsigned int board_id = g_binfo.board_id;
-	unsigned int gpio_id = 0;
 #endif
 	struct dram_cfg_param *ddrp_cfg = dram_timing->ddrphy_cfg;
 
@@ -170,6 +170,8 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 		ddrp_cfg++;
 	}
 
+	gpio_id = spl_gpio_get();
+	printf("gpio_id: %02x \n", gpio_id);
 #if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
 	if (board_id == X2_GPIO_MODE) {
 		gpio_id = spl_gpio_get();
