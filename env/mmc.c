@@ -20,6 +20,7 @@
 
 #define __STR(X) #X
 #define STR(X) __STR(X)
+#define CONFIG_SYS_MMC_ENV_DEV 0
 
 #if defined(CONFIG_ENV_SIZE_REDUND) &&  \
 	(CONFIG_ENV_SIZE_REDUND != CONFIG_ENV_SIZE)
@@ -28,8 +29,14 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+/* using uboot partition */
 #if !defined(CONFIG_ENV_OFFSET)
-#define CONFIG_ENV_OFFSET 0
+#define CONFIG_ENV_OFFSET 0xFC400
+#endif
+
+/* size 32KB */
+#if !defined(CONFIG_ENV_SIZE)
+#define CONFIG_ENV_SIZE 0x8000
 #endif
 
 #if CONFIG_IS_ENABLED(OF_CONTROL)

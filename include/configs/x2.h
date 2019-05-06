@@ -103,10 +103,12 @@
 /* #define CONFIG_BOOTCOMMAND	"run ${bootmode}" */
 #define CONFIG_SF_DUAL_FLASH
 
-/* Do not preserve environment */
-#if !defined(CONFIG_ENV_IS_IN_FAT)
-#define CONFIG_ENV_IS_NOWHERE		1
-#endif
+/*
+ * Do not preserve environment
+ * #if !defined(CONFIG_ENV_IS_IN_FAT)
+ * #define CONFIG_ENV_IS_NOWHERE		1
+ * #endif
+ */
 
 /* Monitor Command Prompt */
 #define CONFIG_SYS_CBSIZE	512	/* Console I/O Buffer Size */
