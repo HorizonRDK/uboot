@@ -16,6 +16,9 @@
 #define CONFIG_ARMV8_SWITCH_TO_EL1
 #define CONFIG_SYS_NONCACHED_MEMORY		(1 << 20)
 
+/* sw_reg30 and sw_reg31 in pmu */
+#define CPU_RELEASE_ADDR		(0xA6000278)
+
 /* Support spl */
 #ifdef CONFIG_SPL_BUILD
 
