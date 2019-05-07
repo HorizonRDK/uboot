@@ -13,6 +13,8 @@
 #include <version.h>
 #include <asm/io.h>
 #include <asm/arch/ddr.h>
+#include <linux/libfdt.h>
+#include <mapmem.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -322,6 +324,134 @@ static void board_dtb_init(void)
 
 	return;
 }
+
+static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
+{
+	int address_cells = fdt_address_cells(fdt, 0);
+	int size_cells = fdt_size_cells(fdt, 0);
+	char *p = buf;
+
+	if (address_cells == 2)
+		*address = fdt64_to_cpu(*(fdt64_t *)p);
+	else
+		*address = fdt32_to_cpu(*(fdt32_t *)p);
+	p += 4 * address_cells;
+
+	if (size_cells == 2)
+		*size = fdt64_to_cpu(*(fdt64_t *)p);
+	else
+		*size = fdt32_to_cpu(*(fdt32_t *)p);
+	p += 4 * size_cells;
+
+	return 0;
+}
+
+static int fdt_pack_reg(const void *fdt, void *buf, u64 address, u64 size)
+{
+	int address_cells = fdt_address_cells(fdt, 0);
+	int size_cells = fdt_size_cells(fdt, 0);
+	char *p = buf;
+
+	if (address_cells == 2)
+		*(fdt64_t *)p = cpu_to_fdt64(address);
+	else
+		*(fdt32_t *)p = cpu_to_fdt32(address);
+	p += 4 * address_cells;
+
+	if (size_cells == 2)
+		*(fdt64_t *)p = cpu_to_fdt64(size);
+	else
+		*(fdt32_t *)p = cpu_to_fdt32(size);
+	p += 4 * size_cells;
+
+	return p - (char *)buf;
+}
+
+static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	const char *path;
+	int  nodeoffset;
+	char *prop;
+	static char data[1024] __aligned(4);
+	char reg_buf[256];
+	void *ptmp;
+	int  len;
+	void *fdt;
+	phys_addr_t fdt_paddr;
+	u64 ion_start, old_size;
+	u32 size;
+	char *s;
+	int ret;
+
+	if (argc > 1)
+		s = argv[1];
+
+	if (s) {
+		size = (u32)simple_strtoul(s, NULL, 10);
+		if (size == 0)
+			return 0;
+
+		if (size < 64)
+			size = 64;
+	} else {
+		return 0;
+	}
+
+	s = env_get("fdt_addr");
+	if (s) {
+		fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
+		fdt = map_sysmem(fdt_paddr, 0);
+	} else {
+		printf("Can't get fdt_addr !!!");
+		return 0;
+	}
+
+	path = "/reserved-memory/ion_reserved";
+	prop = "reg";
+
+	nodeoffset = fdt_path_offset (fdt, path);
+	if (nodeoffset < 0) {
+		/*
+			* Not found or something else bad happened.
+			*/
+		printf ("libfdt fdt_path_offset() returned %s\n",
+			fdt_strerror(nodeoffset));
+		return 1;
+	}
+	ptmp = fdt_getprop(fdt, nodeoffset, prop, &len);
+	if (len > 1024) {
+		printf("prop (%d) doesn't fit in scratchpad!\n",
+				len);
+		return 1;
+	}
+	if (!ptmp)
+		return 0;
+
+	fdt_get_reg(fdt, ptmp, &ion_start, &old_size);
+	printf("Orign(MAX) Ion Reserve Mem Size to %dM\n", old_size / 0x100000);
+
+	if (size > old_size / 0x100000) {
+		return 0;
+	}
+
+	len = fdt_pack_reg(fdt, data, ion_start, size * 0x100000);
+
+	ret = fdt_setprop(fdt, nodeoffset, prop, data, len);
+	if (ret < 0) {
+		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	printf("Change Ion Reserve Mem Size to %dM\n", size);
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	ion_modify,	2,	0,	do_change_ion_size,
+	"Change ION Reserved Mem Size(Mbyte)",
+	"-ion_modify 100"
+);
 
 #ifdef X2_AUTORESET
 static void prepare_autoreset(void)

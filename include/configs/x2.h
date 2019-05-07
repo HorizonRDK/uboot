@@ -143,7 +143,7 @@
 #include <config_distro_bootcmd.h>
 
 #define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "
-#define CONFIG_BOOTCOMMAND "run mmcboot;run mmcload;run ddrboot;"
+#define CONFIG_BOOTCOMMAND "run mmcboot;run mmcload;ion_modify ${ion_size};run ddrboot;"
 
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
