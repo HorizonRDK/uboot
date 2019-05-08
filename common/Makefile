@@ -124,3 +124,4 @@ obj-$(CONFIG_$(SPL_)LOG) += log.o
 obj-$(CONFIG_$(SPL_)LOG_CONSOLE) += log_console.o
 
 obj-$(CONFIG_AVB_VERIFY) += avb_verify.o
+obj-n += veeprom.o

@@ -15,6 +15,7 @@
 #include <asm/arch/ddr.h>
 #include <linux/libfdt.h>
 #include <mapmem.h>
+#include <veeprom.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -270,7 +271,7 @@ static void board_dtb_init(void)
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
 		/* load dtb-mapping.conf */
-		s = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
+		s = "ext4load mmc 0:4 0x10001000 dtb-mapping.conf\0";
 		rcode = run_command_list(s, -1, 0);
 		if (rcode != 0) {
 			printf("error: dtb-mapping.conf not exit! \n");
@@ -373,14 +374,13 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 	int  nodeoffset;
 	char *prop;
 	static char data[1024] __aligned(4);
-	char reg_buf[256];
 	void *ptmp;
 	int  len;
 	void *fdt;
 	phys_addr_t fdt_paddr;
 	u64 ion_start, old_size;
 	u32 size;
-	char *s;
+	char *s = NULL;
 	int ret;
 
 	if (argc > 1)
@@ -418,7 +418,7 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 			fdt_strerror(nodeoffset));
 		return 1;
 	}
-	ptmp = fdt_getprop(fdt, nodeoffset, prop, &len);
+	ptmp = (char *)fdt_getprop(fdt, nodeoffset, prop, &len);
 	if (len > 1024) {
 		printf("prop (%d) doesn't fit in scratchpad!\n",
 				len);
@@ -428,7 +428,7 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 		return 0;
 
 	fdt_get_reg(fdt, ptmp, &ion_start, &old_size);
-	printf("Orign(MAX) Ion Reserve Mem Size to %dM\n", old_size / 0x100000);
+	printf("Orign(MAX) Ion Reserve Mem Size to %lldM\n", old_size / 0x100000);
 
 	if (size > old_size / 0x100000) {
 		return 0;

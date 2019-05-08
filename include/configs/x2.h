@@ -152,12 +152,12 @@
     "fdt_addr=0x4000000\0" \
     "bootfile=Image\0" \
     "fdtimage=hobot-x2-soc.dtb\0" \
-    "mmcroot=/dev/mmcblk0p4\0" \
+    "mmcroot=/dev/mmcblk0p6\0" \
     "mmcboot=setenv bootargs " CONFIG_BOOTARGS \
         "root=${mmcroot} rootfstype=ext4 rw rootwait\0" \
     "mmcload=mmc rescan;" \
-        "ext4load mmc 0:3 ${kernel_addr} ${bootfile};" \
-        "ext4load mmc 0:3 ${fdt_addr} ${fdtimage}\0" \
+        "ext4load mmc 0:4 ${kernel_addr} ${bootfile};" \
+        "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
     "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0"
 #endif
 
