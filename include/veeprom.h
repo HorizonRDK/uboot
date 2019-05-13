@@ -36,6 +36,7 @@
 
 #define VEEPROM_MAX_SIZE			256
 
+struct mmc *init_mmc_device(int dev, bool force_init);
 int veeprom_init(void);
 
 void veeprom_exit(void);

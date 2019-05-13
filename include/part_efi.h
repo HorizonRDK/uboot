@@ -119,4 +119,8 @@ typedef struct _legacy_mbr {
 	__le16 signature;
 } __packed legacy_mbr;
 
+int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
+		gpt_header *pgpt_head, gpt_entry **pgpt_pte);
+
+int is_pte_valid(gpt_entry * pte);
 #endif	/* _DISK_PART_EFI_H */

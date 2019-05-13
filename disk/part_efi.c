@@ -46,11 +46,8 @@ static inline u32 efi_crc32(const void *buf, u32 len)
 
 static int pmbr_part_valid(struct partition *part);
 static int is_pmbr_valid(legacy_mbr * mbr);
-static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
-				gpt_header *pgpt_head, gpt_entry **pgpt_pte);
 static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
 					 gpt_header *pgpt_head);
-static int is_pte_valid(gpt_entry * pte);
 
 static char *print_efiname(gpt_entry *pte)
 {
@@ -927,7 +924,7 @@ static int is_pmbr_valid(legacy_mbr * mbr)
  * Description: returns 1 if valid,  0 on error.
  * If valid, returns pointers to PTEs.
  */
-static int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
+int is_gpt_valid(struct blk_desc *dev_desc, u64 lba,
 			gpt_header *pgpt_head, gpt_entry **pgpt_pte)
 {
 	/* Confirm valid arguments prior to allocation. */
@@ -1039,7 +1036,7 @@ static gpt_entry *alloc_read_gpt_entries(struct blk_desc *dev_desc,
  *
  * Description: returns 1 if valid,  0 on error.
  */
-static int is_pte_valid(gpt_entry * pte)
+int is_pte_valid(gpt_entry * pte)
 {
 	efi_guid_t unused_guid;
 

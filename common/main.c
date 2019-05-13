@@ -16,6 +16,10 @@
 #include <linux/libfdt.h>
 #include <mapmem.h>
 #include <veeprom.h>
+#include <part_efi.h>
+#include <mmc.h>
+#include <part.h>
+#include <memalign.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -260,19 +264,124 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	return s;
 }
 
+static int curr_device = 0;
+
+static char *printf_efiname(gpt_entry *pte)
+{
+	static char name[PARTNAME_SZ + 1];
+	int i;
+
+	for (i = 0; i < PARTNAME_SZ; i++) {
+		u8 c;
+		c = pte->partition_name[i] & 0xff;
+		name[i] = c;
+	}
+	name[PARTNAME_SZ] = 0;
+
+	return name;
+}
+
+static int get_gpt_table(char *partname)
+{
+	struct blk_desc *mmc_dev;
+	struct mmc *mmc;
+	struct part_driver *drv;
+	int i = 0;
+	gpt_entry *gpt_pte = NULL;
+	char *name;
+
+	mmc = init_mmc_device(curr_device, false);
+	if (!mmc)
+		return CMD_RET_FAILURE;
+
+	mmc_dev = blk_get_devnum_by_type(IF_TYPE_MMC, curr_device);
+	if (mmc_dev !=NULL && mmc_dev->type != DEV_TYPE_UNKNOWN) {
+		drv = part_driver_lookup_type(mmc_dev);
+		if (!drv)
+			return CMD_RET_SUCCESS;
+
+		ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_head, 1, mmc_dev->blksz);
+
+		/* This function validates AND fills in the GPT header and PTE */
+		if (is_gpt_valid(mmc_dev, GPT_PRIMARY_PARTITION_TABLE_LBA,
+			gpt_head, &gpt_pte) != 1) {
+			printf("%s: *** ERROR: Invalid GPT ***\n", __func__);
+			if (is_gpt_valid(mmc_dev, (mmc_dev->lba - 1),
+				gpt_head, &gpt_pte) != 1) {
+				printf("%s: *** ERROR: Invalid Backup GPT ***\n",
+					__func__);
+				return CMD_RET_SUCCESS;
+			} else {
+				printf("%s: ***        Using Backup GPT ***\n",
+					__func__);
+			}
+		}
+
+	for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
+		/* Stop at the first non valid PTE */
+		if (!is_pte_valid(&gpt_pte[i]))
+			break;
+
+		name = printf_efiname(&gpt_pte[i]);
+		if ( strcmp(name, partname) == 0 ) {
+			return i+1;
+		}
+	}
+
+	/* Remember to free pte */
+	free(gpt_pte);
+		return 0;
+	}
+
+	return CMD_RET_FAILURE;
+}
+
+static void environmet_init(void)
+{
+	char mmcroot[256] = "/dev/mmcblk0p4\0";
+	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${kernel_addr} ${bootfile};";
+	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage}\0";
+
+	char rootfs[] = "system";
+	char kernel[] = "kernel";
+
+	int rootfs_part_id, kernel_part_id;
+
+	/* init mmcroot environment */
+	rootfs_part_id = get_gpt_table(rootfs);
+
+	mmcroot[13] = hex_to_char(rootfs_part_id);
+	env_set("mmcroot", mmcroot);
+
+	/* init mmcload environment */
+	kernel_part_id = get_gpt_table(kernel);
+
+	mmcload[26] = hex_to_char(kernel_part_id);
+	tmp[15] = mmcload[26];
+	strcat(mmcload, tmp);
+
+	env_set("mmcload", mmcload);
+}
+
 static void board_dtb_init(void)
 {
 	int rcode = 0;
+	char command[256] = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
 	char *s = NULL;
 	unsigned int board_id;
 	unsigned int gpio_id;
 	struct x2_info_hdr *x2_board_type;
 	struct x2_kernel_hdr *x2_kernel_conf;
+	char partname[] = "kernel";
+
+	int kernel_id = get_gpt_table(partname);
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
+
 		/* load dtb-mapping.conf */
-		s = "ext4load mmc 0:4 0x10001000 dtb-mapping.conf\0";
-		rcode = run_command_list(s, -1, 0);
+		command[15] = hex_to_char(kernel_id);
+		printf("command is %s\n", command);
+		rcode = run_command_list(command, -1, 0);
 		if (rcode != 0) {
 			printf("error: dtb-mapping.conf not exit! \n");
 			return;
@@ -490,6 +599,7 @@ void main_loop(void)
 	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
 		board_dtb_init();
 
+	environmet_init();
 #ifdef X2_AUTORESET
 	prepare_autoreset();
 #endif

@@ -23,7 +23,7 @@
 /* Check all partition types */
 #define PART_TYPE_ALL		-1
 
-static struct part_driver *part_driver_lookup_type(struct blk_desc *dev_desc)
+struct part_driver *part_driver_lookup_type(struct blk_desc *dev_desc)
 {
 	struct part_driver *drv =
 		ll_entry_start(struct part_driver, part_driver);

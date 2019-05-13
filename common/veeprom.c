@@ -12,7 +12,7 @@ static char buffer[BUFFER_SIZE];
 static int curr_device = -1;
 
 /* init mmc device and return device pointer */
-static struct mmc *init_mmc_device(int dev, bool force_init)
+struct mmc *init_mmc_device(int dev, bool force_init)
 {
 	struct mmc *mmc = NULL;
 

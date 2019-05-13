@@ -75,6 +75,7 @@ struct disk_part {
 	struct list_head list;
 };
 
+struct part_driver *part_driver_lookup_type(struct blk_desc *dev_desc);
 /* Misc _get_dev functions */
 #ifdef CONFIG_PARTITIONS
 /**
