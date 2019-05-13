@@ -378,7 +378,7 @@ static int do_mtd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			return CMD_RET_FAILURE;
 		}
 
-	} else if (!strcmp(cmd, "erase")) {
+	} else if (!strncmp(cmd, "erase", 5)) {
 		bool scrub = strstr(cmd, ".dontskipbad");
 		struct erase_info erase_op = {};
 		u64 off, len;
