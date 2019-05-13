@@ -3,8 +3,6 @@
 
 #ifdef CONFIG_X2_NOR_BOOT
 
-#define X2_QSPI_MCLK		(500000000)
-#define X2_QSPI_SCLK		(50000000)
 /* #define CONFIG_QSPI_DUAL */
 #define CONFIG_QSPI_QUAD
 #define SPI_FLASH_MAX_ID_LEN	8

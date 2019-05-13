@@ -1,8 +1,8 @@
 #include <asm/io.h>
 #include <asm/arch/x2_dev.h>
-#include "x2_spi_spl.h"
-//#include "x2_qspi.h"
+#include <spi.h>
 #include "x2_nor_spl.h"
+#include "x2_spi_spl.h"
 #include "x2_info.h"
 
 #ifdef CONFIG_X2_NOR_BOOT
@@ -44,11 +44,7 @@
 #define CMD_OP_EN4B		0xb7	/* Enter 4-byte mode */
 #define CMD_OP_EX4B		0xe9	/* Exit 4-byte mode */
 
-#define SPI_XFER_READ		BIT(4)
-#define SPI_XFER_WRITE		BIT(5)
-
 #define JEDEC_MFR(info)		((info)->id[0])
-#define BIT(nr)			(1UL << (nr))
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
 		.id = {							\
@@ -112,7 +108,6 @@ struct spi_flash {
 	uint8_t read_cmd;
 	uint8_t write_cmd;
 	uint8_t dummy_byte;
-	//void *memory_map;
 };
 
 static struct spi_flash g_spi_flash;
@@ -174,16 +169,17 @@ static int spi_flash_cmd(struct spi_slave *spi, uint8_t cmd, void *response,
 static int spi_flash_reset(struct spi_flash *flash)
 {
 	int ret;
+	struct spi_slave *spi = (struct spi_slave *)flash->spi;
 
-	spi_claim_bus(flash->spi);
+	spi_claim_bus(spi);
 	ret = spi_flash_cmd(flash->spi, CMD_RESET_EN, NULL, 0);
-	spi_release_bus(flash->spi);
+	spi_release_bus(spi);
 
 	udelay(2);
 
-	spi_claim_bus(flash->spi);
+	spi_claim_bus(spi);
 	ret = spi_flash_cmd(flash->spi, CMD_RESET, NULL, 0);
-	spi_release_bus(flash->spi);
+	spi_release_bus(spi);
 
 	udelay(100);
 
@@ -195,12 +191,13 @@ static const struct spi_flash_info *spi_flash_read_id(struct spi_flash *flash)
 	int tmp;
 	uint8_t id[SPI_FLASH_MAX_ID_LEN];
 	const struct spi_flash_info *info;
+	struct spi_slave *spi = (struct spi_slave *)flash->spi;
 
 	memset(id, 0, sizeof(id));
 
-	spi_claim_bus(flash->spi);
+	spi_claim_bus(spi);
 	tmp = spi_flash_cmd(flash->spi, CMD_READ_ID, id, SPI_FLASH_MAX_ID_LEN);
-	spi_release_bus(flash->spi);
+	spi_release_bus(spi);
 
 	if (tmp < 0) {
 		printf("SF: error %d reading JEDEC ID\n", tmp);
@@ -557,7 +554,7 @@ int spi_flash_read(u32 offset, size_t len, void *data)
 
 static int spi_flash_scan(struct spi_flash *flash)
 {
-	struct spi_slave *spi = flash->spi;
+	struct spi_slave *spi = (struct spi_slave *)flash->spi;
 	const struct spi_flash_info *info = NULL;
 	__maybe_unused int ret;
 	unsigned int smode = spi->mode;
@@ -663,9 +660,13 @@ static int spi_flash_init(unsigned int spi_num, unsigned int addr_w,
 	struct spi_slave *pslave;
 	int ret;
 
-	pslave = spi_setup_slave(spi_num, sclk);
-	spi_init(pslave, mclk, sclk);
-
+#ifdef CONFIG_QSPI_DUAL
+	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
+#elif defined(CONFIG_QSPI_QUAD)
+	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
+#else
+	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
+#endif /* CONFIG_QSPI_DUAL */
 	pflash->spi = pslave;
 
 	if (reset > 0)

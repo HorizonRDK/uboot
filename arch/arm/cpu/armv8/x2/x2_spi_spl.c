@@ -1,9 +1,91 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/x2_reg.h>
+#include <spi.h>
 #include "x2_spi_spl.h"
 
-#ifdef CONFIG_X2_NOR_BOOT
+#if defined(CONFIG_X2_NOR_BOOT) || defined(CONFIG_X2_NAND_BOOT)
+
+#define SPI_TXREG(_base_)			((_base_) + 0x0)
+#define SPI_RXREG(_base_) 			((_base_) + 0x0)
+#define SPI_SCLK(_base_) 		    ((_base_) + 0x4)
+#define SPI_CTRL1(_base_)			((_base_) + 0x8)
+#define SPI_CTRL2(_base_)			((_base_) + 0xC)
+#define SPI_CTRL3(_base_)			((_base_) + 0x10)
+#define SPI_CS(_base_)				((_base_) + 0x14)
+#define SPI_STATUS1(_base_)			((_base_) + 0x18)
+#define SPI_STATUS2(_base_)			((_base_) + 0x1C)
+#define SPI_BATCH_CNT_RX(_base_)	((_base_) + 0x20)
+#define SPI_BATCH_CNT_TX(_base_)	((_base_) + 0x24)
+#define SPI_FIFO_RXTRIG_LVL(_base_)	((_base_) + 0x28)
+#define SPI_FIFO_TXTRIG_LVL(_base_)	((_base_) + 0x2C)
+#define SPI_DUAL_QUAD_MODE(_base_)	((_base_) + 0x30)
+#define SPI_XIP_CFG(_base_)			((_base_) + 0x34)
+
+#define MSB		 					(0x00)
+#define CPHA_H						(0x20)
+#define CPHA_L						(0x00)
+#define CPOL_H						(0x10)
+#define CPOL_L						(0x00)
+#define MST_MODE					(0x04)
+
+#define TX_ENABLE					(1 << 3)
+#define RX_ENABLE					(1 << 7)
+
+#define FIFO_WIDTH32				(0x02)
+#define FIFO_WIDTH16				(0x01)
+#define FIFO_WIDTH8					(0x00)
+#define FIFO_DEPTH					(16)
+#define BATCH_MAX_SIZE				(0x10000)
+
+#define SPI_FIFO_DEPTH				(FIFO_DEPTH)
+#define SPI_BACKUP_OFFSET			(0x10000)
+#define SPI_CS0						(0x01)
+#define SPI_MODE0 					(CPOL_L | CPHA_L)
+#define SPI_MODE1 					(CPOL_L | CPHA_H)
+#define SPI_MODE2 					(CPOL_H | CPHA_L)
+#define SPI_MODE3 					(CPOL_H | CPHA_H)
+
+/* Definition of SPI_CTRL3 */
+#define BATCH_DISABLE				(1 << 4)
+#define FIFO_RESET					(SW_RST_TX | SW_RST_RX)
+#define SW_RST_TX					(1 << 1)
+#define SW_RST_RX					(1 << 0)
+
+/* STATUS1 */
+#define BATCH_TXDONE				(1 << 5)
+#define BATCH_RXDONE				(1 << 4)
+#define MODF_CLR					(1 << 3)
+#define TX_ALMOST_EMPTY				(1 << 1)
+#define RX_ALMOST_FULL				(1 << 0)
+
+/* STATUS2 */
+#define TXFIFO_FULL					(1 << 5)
+#define RXFIFO_EMPTY				(1 << 4)
+#define TXFIFO_EMPTY				(1 << 1)
+#define RXFIFO_FULL					(1 << 0)
+
+#define QPI_ENABLE					(1 << 1)
+#define DPI_ENABLE					(1 << 0)
+
+/* SPI_XIP_CFG */
+#define XIP_EN 						(1 << 0)
+#define FLASH_HW_CFG				(1 << 1)
+#define FLASH_CTNU_MODE				(1 << 4)
+
+#define XIP_FLASH_ADDR_OFFSET		0x100
+/* Batch mode or no batch mode */
+#define SPI_BATCH_MODE				1
+#define SPI_NO_BATCH_MODE			0
+
+/* Wire mode */
+#define SPI_N_MODE					1
+#define SPI_D_MODE					2
+#define SPI_Q_MODE					4
+
+#define SCLK_DIV(div, scaler)   	((2 << (div)) * (scaler + 1))
+#define SCLK_VAL(div, scaler)		(((div) << 4) | ((scaler) << 0))
+
 #define ALIGN_4(x)  (((x) + 3) & ~(0x7))
 
 static struct spi_slave g_spi_slave;
@@ -16,31 +98,47 @@ void spi_release_bus(struct spi_slave *slave)
 #endif
 }
 
-void spi_claim_bus(struct spi_slave *slave)
+int spi_claim_bus(struct spi_slave *slave)
 {
 #if 0
 	uint64_t base = (uint64_t) slave->memory_map;
 	writel(slave->cs, SPI_CS(base));
 #endif
+	return 0;
 }
 
-struct spi_slave *spi_setup_slave(uint32_t spi_num, uint32_t sclk)
+struct spi_slave *spi_setup_slave(unsigned int bus, unsigned int cs,
+				  unsigned int max_hz, unsigned int mode)
 {
 	struct spi_slave *pslave = &g_spi_slave;
+	uint32_t val = 0;
+	uint64_t base;
 
-	pslave->bus = spi_num;
+	pslave->bus = bus;
 	pslave->memory_map = (void *)X2_QSPI_BASE;
-	pslave->cs = QSPI_DEV_CS0;
-#ifdef CONFIG_QSPI_DUAL
-	pslave->mode = SPI_RX_DUAL;
-#elif defined(CONFIG_QSPI_QUAD)
-	pslave->mode = SPI_RX_QUAD;
-#else
-	pslave->mode = SPI_RX_SLOW;
-#endif /* CONFIG_QSPI_DUAL */
+	pslave->cs = cs;
+	pslave->mode = mode;
 
-	pslave->speed = sclk;
+	spi_set_speed(pslave, X2_QSPI_SCLK);
 
+	base = (uint64_t) pslave->memory_map;
+	val = ((SPI_MODE0 & 0x30) | MST_MODE | FIFO_WIDTH8 | MSB);
+	writel(val, SPI_CTRL1(base));
+
+	writel(FIFO_DEPTH / 2, SPI_FIFO_RXTRIG_LVL(base));
+	writel(FIFO_DEPTH / 2, SPI_FIFO_TXTRIG_LVL(base));
+	/* Disable interrupt */
+	writel(0x0, SPI_CTRL2(base));
+	writel(0x0, SPI_CS(base));
+
+	/* Always set SPI to one line as init. */
+	writel(0xFC, SPI_DUAL_QUAD_MODE(base));
+
+	/* Software reset SPI FIFO */
+	val = MODF_CLR | BATCH_RXDONE | BATCH_TXDONE;
+	writel(val, SPI_STATUS1(base));
+	writel(FIFO_RESET, SPI_CTRL3(base));
+	writel(0x0, SPI_CTRL3(base));
 	return pslave;
 }
 
@@ -83,32 +181,13 @@ static uint32_t spi_calc_divider(uint32_t mclk, uint32_t sclk)
 	return SCLK_VAL(div, scaler);
 }
 
-void spi_init(struct spi_slave *spi, uint32_t mclk, uint32_t sclk)
+void spi_set_speed(struct spi_slave *slave, uint hz)
 {
-	uint32_t val = 0;
 	unsigned int div = 0;
-	uint64_t base = (uint64_t) spi->memory_map;
+	uint64_t base = (uint64_t) slave->memory_map;
 
-	div = spi_calc_divider(mclk, sclk);
+	div = spi_calc_divider(X2_QSPI_MCLK, hz);
 	writel(div, SPI_SCLK(base));
-
-	val = ((SPI_MODE0 & 0x30) | MST_MODE | FIFO_WIDTH8 | MSB);
-	writel(val, SPI_CTRL1(base));
-
-	writel(FIFO_DEPTH / 2, SPI_FIFO_RXTRIG_LVL(base));
-	writel(FIFO_DEPTH / 2, SPI_FIFO_TXTRIG_LVL(base));
-	/* Disable interrupt */
-	writel(0x0, SPI_CTRL2(base));
-	writel(0x0, SPI_CS(base));
-
-	/* Always set SPI to one line as init. */
-	writel(0xFC, SPI_DUAL_QUAD_MODE(base));
-
-	/* Software reset SPI FIFO */
-	val = MODF_CLR | BATCH_RXDONE | BATCH_TXDONE;
-	writel(val, SPI_STATUS1(base));
-	writel(FIFO_RESET, SPI_CTRL3(base));
-	writel(0x0, SPI_CTRL3(base));
 }
 
 static int spi_check_set(uint64_t reg, uint32_t flag, int32_t timeout)

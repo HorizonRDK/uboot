@@ -19,6 +19,7 @@
 #include "x2_ap_spl.h"
 #include "x2_ymodem_spl.h"
 #include "x2_nor_spl.h"
+#include "x2_nand_spl.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -59,6 +60,8 @@ void board_init_f(ulong dummy)
 	spl_emmc_init(g_binfo.emmc_cfg);
 #elif defined(CONFIG_X2_NOR_BOOT)
 	spl_nor_init();
+#elif defined(CONFIG_X2_NAND_BOOT)
+    spl_nand_init();
 #endif
 
 	icache_enable();
@@ -88,8 +91,8 @@ void spl_board_init(void)
 
 unsigned int spl_boot_device(void)
 {
-#if defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_MMC_BOOT) \
-	|| defined(CONFIG_X2_NOR_BOOT)
+#if defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_MMC_BOOT) || \
+  defined(CONFIG_X2_NOR_BOOT) || defined(CONFIG_X2_NAND_BOOT)
 
 	return BOOT_DEVICE_RAM;
 #elif defined(CONFIG_X2_YMODEM_BOOT)
