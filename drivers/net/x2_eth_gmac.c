@@ -685,7 +685,7 @@ static int get_product_id(struct mii_dev *bus, int addr, int devad)
 static int eqos_start(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
-    int ret, i;
+    int ret, i, type;
     ulong rate;
     u32 val, tx_fifo_sz, rx_fifo_sz, tqs, rqs, pbl;
     ulong last_rx_desc;
@@ -697,7 +697,13 @@ static int eqos_start(struct udevice *dev)
 
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
-    eqos->is_88e6321 = get_product_id(eqos->mii, 0x12, 0) == 0x3100 ? 1 : 0;
+    type = get_product_id(eqos->mii, 0x12, 0);
+    if (type == 0x3100)
+         eqos->is_88e6321 =  1;
+    else if (type == 0xffff)
+         eqos->is_88e6321 =  2;
+    else
+         eqos->is_88e6321 =  0;
 
     ret = eqos_start_clks_tegra186(dev);
     if (ret < 0) {
@@ -753,7 +759,7 @@ static int eqos_start(struct udevice *dev)
         pr_err("No link");
         goto err_shutdown_phy;
     }
-    }else {
+    } else if (eqos->is_88e6321 == 1) {
 	/*set port 2, 6 1000M full duplex*/
         eqos_mdio_write(eqos->mii, 0x12, 0, 4, 0x3 | (0x3 << 2) );
         eqos_mdio_write(eqos->mii, 0x12, 0, 1, 0xc03e );
@@ -796,7 +802,7 @@ static int eqos_start(struct udevice *dev)
     rx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_SHIFT) &
                  EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
 
-    if (eqos->is_88e6321) {
+    if (eqos->is_88e6321 ) {
         /*set for mac for mavell*/
         val |= ((1 << 28) | (1 << 5) | ( 1 << 1));
         writel(val, &eqos->mac_regs->hw_feature1);
