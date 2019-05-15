@@ -30,6 +30,7 @@
 #define PIN_SF_RESET_SEL(x)		(((x) >> 10) & 0x1)
 #define PIN_DIS_WDT_SEL(x)		(((x) >> 11) & 0x1)
 #define PIN_NID_DUMMY_SEL(x)	(((x) >> 12) & 0x1)
+#define PIN_NPL_NUM_SEL(x)      (((x) >> 13) & 0x1)
 
 static inline unsigned int x2_pin_get_uart_br(void)
 {

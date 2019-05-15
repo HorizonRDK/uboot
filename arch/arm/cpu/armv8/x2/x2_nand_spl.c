@@ -1,6 +1,5 @@
 #include <asm/io.h>
 #include <asm/arch/x2_dev.h>
-#include <asm/arch/x2_dev.h>
 #include <linux/mtd/spinand.h>
 #include <linux/mtd/nand.h>
 #include <spi-mem.h>
@@ -8,6 +7,7 @@
 #include "x2_spi_spl.h"
 #include "x2_nand_spl.h"
 #include "x2_info.h"
+#include "x2_info_spl.h"
 
 #ifdef CONFIG_X2_NAND_BOOT
 static const struct spinand_manufacturer spinand_manufacturers[] = {
@@ -352,6 +352,7 @@ static int spinand_init(struct spinand_device *dev, uint32_t page_flag,
 	pmemorg->pagesize = (page_flag > 0 ? 4096 : 2048);
 	pmemorg->oobsize = (page_flag > 0 ? 256 : 128);
 	pmemorg->pages_per_eraseblock = 64;
+	pmemorg->planes_per_lun = x2_get_spinand_lun();
 	g_shift = fls(pmemorg->pages_per_eraseblock - 1);
 
 	printf("%s SPI NAND was found.\n",
@@ -443,7 +444,13 @@ static void nand_load_image(struct x2_info_hdr *pinfo)
 
 void spl_nand_init(void)
 {
-	spinand_probe(0, 0, 0, 0, X2_NAND_MCLK, X2_NAND_SCLK);
+	int dm = x2_get_spinand_dummy();
+	int dev_mode = x2_get_dev_mode();
+	int rest = x2_get_reset_sf();
+
+	printf("%s dummy=%d, dev_mode=%d, reset=%d\n", __func__, dm, dev_mode,
+	       rest);
+	spinand_probe(0, dev_mode, dm, rest, X2_NAND_MCLK, X2_NAND_SCLK);
 	g_dev_ops.proc_start = NULL;
 	g_dev_ops.pre_read = nand_pre_load;
 	g_dev_ops.read = nand_read_blks;
