@@ -166,6 +166,22 @@ out:
 	return status & STATUS_BUSY ? -ETIMEDOUT : 0;
 }
 
+static void spinand_cache_op_adjust_colum(struct spinand_device *spinand,
+                                           const struct nand_page_io_req *req,
+                                           uint16_t *column)
+{
+	unsigned int shift;
+
+	if (spinand->base.memorg.planes_per_lun < 2) {
+		return;
+	}
+
+	/* The plane number is passed in MSB just above the column address */
+	shift = fls(spinand->base.memorg.pagesize);
+	*column |= (req->pos.eraseblock % spinand->base.memorg.planes_per_lun) << shift;
+}
+
+
 static int spinand_read_from_cache_op(struct spinand_device *spinand,
 				      const struct nand_page_io_req *req)
 {
@@ -184,6 +200,7 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 		nbytes = adjreq.datalen;
 	}
 
+	spinand_cache_op_adjust_colum(spinand, &adjreq, &column);
 	op.addr.val = column;
 
 	/*
@@ -352,7 +369,10 @@ static int spinand_init(struct spinand_device *dev, uint32_t page_flag,
 	pmemorg->pagesize = (page_flag > 0 ? 4096 : 2048);
 	pmemorg->oobsize = (page_flag > 0 ? 256 : 128);
 	pmemorg->pages_per_eraseblock = 64;
-	pmemorg->planes_per_lun = x2_get_spinand_lun();
+    pmemorg->luns_per_target = 1;
+	pmemorg->ntargets = 1;
+    pmemorg->planes_per_lun = x2_get_spinand_lun();
+
 	g_shift = fls(pmemorg->pages_per_eraseblock - 1);
 
 	printf("%s SPI NAND was found.\n",
