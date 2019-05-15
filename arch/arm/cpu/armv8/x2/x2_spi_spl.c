@@ -313,13 +313,10 @@ static int spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
 	uint32_t val = 0;
 	uint32_t rx_len = 0;
 	uint32_t *ptr = (uint32_t *) pbuf;
-	uint32_t level;
 	uint32_t rx_remain = len;
 	uint32_t time_out = 0x8000000;
 	int32_t err;
 	uint64_t base = (uint64_t) slave->memory_map;
-
-	level = readl(SPI_FIFO_RXTRIG_LVL(base));
 
 	val = readl(SPI_CTRL3(base));
 	/* Enable batch mode */
@@ -339,55 +336,34 @@ static int spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
 		val |= RX_ENABLE;
 		writel(val, SPI_CTRL1(base));
 
-		while (rx_len >= level) {
-			if (spi_check_set
-			    (SPI_STATUS1(base), RX_ALMOST_FULL, time_out) < 0) {
+		for (i = 0; i < rx_len; i += 8) {
+			if (spi_check_set(SPI_STATUS1(base), RX_ALMOST_FULL, time_out) < 0) {
 				err = -1;
 				goto SPI_ERROR;
 			}
 
-			for (i = 0; i < level / 4; i++) {
-				ptr[i] = readl(SPI_RXREG(base));
-			}
-
-			ptr += level / 4;
-			rx_len -= level;
+			*ptr++ = readl(SPI_RXREG(base));
+			*ptr++ = readl(SPI_RXREG(base));
 		}
 
-		if (rx_len > 0) {
-			rx_len = ALIGN_4(rx_len);
-			for (i = 0; i < rx_len / 4; i++) {
-				if (spi_check_unset(SPI_STATUS2(base),
-						    RXFIFO_EMPTY,
-						    time_out) < 0) {
-					err = -1;
-					goto SPI_ERROR;
-				}
-				ptr[i] = readl(SPI_RXREG(base));
-			}
-
-			ptr += rx_len / 4;
-			rx_len -= rx_len;
-		}
-#if 0
-		if (spi_check_set(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) <
-		    0) {
-			err = -1;
+		if (spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
+			err = -2;
 			goto SPI_ERROR;
 		}
-#endif
-	} while (rx_remain > 0);
 
-	if (spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
-		err = -1;
-		goto SPI_ERROR;
-	}
+		rx_remain -= rx_len;
+
+	} while (rx_remain > 0);
 
 	/* Clear rx done flag */
 	writel(BATCH_RXDONE, SPI_STATUS1(base));
 	val = readl(SPI_CTRL1(base));
-	val &= ~(RX_ENABLE | TX_ENABLE);
+	val &= ~RX_ENABLE;
 	writel(val, SPI_CTRL1(base));
+
+	val = readl(SPI_CTRL3(base));
+	/* Disable batch mode */
+	writel(val | BATCH_DISABLE, SPI_CTRL3(base));
 
 	return 0;
 
@@ -398,8 +374,106 @@ SPI_ERROR:
 	writel(FIFO_RESET, SPI_CTRL1(base));
 	writel(0x0, SPI_CTRL1(base));
 
-	printf("qspi rx = %d\n", err);
+	printf("qspi read32 rx = %d\n", err);
 	return err;
+}
+
+static int spi_read_bytes(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
+{
+	int32_t i = 0;
+	uint32_t val = 0;
+	uint8_t *ptr = (uint8_t *)pbuf;
+	uint32_t time_out = 0x8000000;
+	int32_t err;
+	uintptr_t base = (uintptr_t)slave->memory_map;
+
+	val = readl(SPI_CTRL3(base));
+	/* Enable batch mode */
+	writel(val & ~BATCH_DISABLE, SPI_CTRL3(base));
+
+	val = readl(SPI_CTRL1(base));
+	val &= ~(TX_ENABLE | RX_ENABLE);
+	writel(val, SPI_CTRL1(base));
+	/* Clear rx done flag */
+	writel(BATCH_RXDONE, SPI_STATUS1(base));
+
+	writel(len, SPI_BATCH_CNT_RX(base));
+
+	val |= RX_ENABLE;
+	writel(val, SPI_CTRL1(base));
+
+	for (i = 0; i < len; i++) {
+		if (spi_check_unset(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) < 0) {
+			err = -1;
+			goto SPI_ERROR;
+		}
+		ptr[i] = readl(SPI_RXREG(base)) & 0xFF;
+	}
+
+	if (spi_check_set(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) < 0) {
+		err = -2;
+		goto SPI_ERROR;
+	}
+
+	if (spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
+		err = -3;
+		goto SPI_ERROR;
+	}
+
+	/* Clear rx done flag */
+	writel(BATCH_RXDONE, SPI_STATUS1(base));
+	val = readl(SPI_CTRL1(base));
+	val &= ~RX_ENABLE;
+	writel(val, SPI_CTRL1(base));
+
+	val = readl(SPI_CTRL3(base));
+	/* Enable batch mode */
+	writel(val | BATCH_DISABLE, SPI_CTRL3(base));
+
+	return 0;
+
+SPI_ERROR:
+	val = readl(SPI_CTRL1(base));
+	writel(val & ~RX_ENABLE, SPI_CTRL1(base));
+	writel(BATCH_RXDONE, SPI_CTRL1(base));
+	writel(FIFO_RESET, SPI_CTRL1(base));
+	writel(0x0, SPI_CTRL1(base));
+
+	printf("qspi read bytes err = %d\n", err);
+	return err;
+}
+
+static int spi_read_data(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
+{
+	uint32_t level;
+	uintptr_t base = (uintptr_t)slave->memory_map;
+	uint32_t small_len;
+	uint32_t large_len;
+	int ret = 0;
+
+	level = readl(SPI_FIFO_RXTRIG_LVL(base));
+
+	small_len = len % level;
+	large_len = len - small_len;
+
+	if (large_len > 0) {
+		spi_set_fifo_width(slave, FIFO_WIDTH32);
+		ret = spi_read_32(slave, pbuf, large_len);
+		spi_set_fifo_width(slave, FIFO_WIDTH8);
+		if (ret < 0) {
+			return ret;
+		}
+	}
+
+	if (small_len > 0) {
+		spi_set_fifo_width(slave, FIFO_WIDTH8);
+		ret = spi_read_bytes(slave, pbuf + large_len, len);
+		if (ret < 0) {
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
@@ -420,9 +494,7 @@ int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 	if (dout) {
 		ret = spi_write(slave, dout, len);
 	} else if (din) {
-		spi_set_fifo_width(slave, FIFO_WIDTH32);
-		ret = spi_read_32(slave, din, len);
-		spi_set_fifo_width(slave, FIFO_WIDTH8);
+		ret = spi_read_data(slave, din, len);
 	}
 
 	if (flags & SPI_XFER_END) {
