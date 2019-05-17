@@ -148,7 +148,7 @@ static void spi_set_fifo_width(struct spi_slave *slave, unsigned char width)
 	uint32_t val;
 
 	if (width != FIFO_WIDTH8 &&
-	    width != FIFO_WIDTH16 && width != FIFO_WIDTH32) {
+			width != FIFO_WIDTH16 && width != FIFO_WIDTH32) {
 		return;
 	}
 
@@ -254,7 +254,7 @@ static int spi_write(struct spi_slave *slave, const void *pbuf, uint32_t len)
 		val |= TX_ENABLE;
 		writel(val, SPI_CTRL1(base));
 		if (spi_check_set(SPI_STATUS2(base), TXFIFO_EMPTY, time_out) <
-		    0) {
+				0) {
 			err = -1;
 			goto SPI_ERROR;
 		}

@@ -113,8 +113,7 @@ struct spi_flash {
 static struct spi_flash g_spi_flash;
 
 const struct spi_flash_info spi_flash_ids[] = {
-	{"gd25q256c/d",
-	 INFO(0xC84019, 0x0, 64 * 1024, 8192, SECT_4K | RD_DUAL)},
+	{"gd25q256c/d", INFO(0xC84019, 0x0, 64 * 1024, 8192, SECT_4K | RD_DUAL)},
 	{"w25q256fv", INFO(0xEF4019, 0x0, 64 * 1024, 8192, SECT_4K | RD_DUAL)},
 	{"n25q256a", INFO(0x20BA19, 0x0, 64 * 1024, 8192, SECT_4K)},
 	{"gd25lq256d",
@@ -125,7 +124,7 @@ const struct spi_flash_info spi_flash_ids[] = {
 };
 
 const struct spi_flash_info spi_flash_def =
-    { "unknown", INFO(0x0, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K) };
+{ "unknown", INFO(0x0, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K) };
 
 static int spi_flash_read_write(struct spi_slave *spi,
 				const uint8_t * cmd, size_t cmd_len,
@@ -144,8 +143,8 @@ static int spi_flash_read_write(struct spi_slave *spi,
 		       ret);
 	} else if (data_len != 0) {
 		ret =
-		    spi_xfer(spi, data_len * 8, data_out, data_in,
-			     SPI_XFER_END);
+			spi_xfer(spi, data_len * 8, data_out, data_in,
+				 SPI_XFER_END);
 		if (ret)
 			printf("SF: Failed to transfer %ld bytes of data: %d\n",
 			       data_len, ret);
@@ -212,9 +211,8 @@ static const struct spi_flash_info *spi_flash_read_id(struct spi_flash *flash)
 		}
 	}
 
-	printf
-	    ("SPL SF: JEDEC id: %02x, %02x, %02x\nUsing default configure info\n",
-	     id[0], id[1], id[2]);
+	printf("SPL SF: JEDEC id: %02x, %02x, %02x\nUsing default configure info\n",
+	       id[0], id[1], id[2]);
 	return &spi_flash_def;
 }
 
@@ -567,7 +565,6 @@ static int spi_flash_scan(struct spi_flash *flash)
 		return -EINVAL;
 
 	flash->name = info->name;
-	//flash->memory_map = spi->memory_map;
 
 	if (info->flags & SST_WR)
 		flash->flags |= SNOR_F_SST_WR;
@@ -616,8 +613,8 @@ static int spi_flash_scan(struct spi_flash *flash)
 #if 0
 	/* Set the quad enable bit - only for quad commands */
 	if ((flash->read_cmd == CMD_READ_QUAD_OUTPUT_FAST) ||
-	    (flash->read_cmd == CMD_READ_QUAD_IO_FAST) ||
-	    (flash->write_cmd == CMD_QUAD_PAGE_PROGRAM)) {
+			(flash->read_cmd == CMD_READ_QUAD_IO_FAST) ||
+			(flash->write_cmd == CMD_QUAD_PAGE_PROGRAM)) {
 		ret = set_quad_mode(flash, info);
 		if (ret) {
 			printf("SF: Fail to set QEB for %02x\n",
