@@ -50,13 +50,9 @@ void spl_dram_init(void)
 
 void board_init_f(ulong dummy)
 {
-#if 0
 	if (g_x2ver == 0) {
 		switch_peri_pll();
 	}
-#else
-	switch_peri_pll();
-#endif /* #if 0 */
 
 	icache_enable();
 

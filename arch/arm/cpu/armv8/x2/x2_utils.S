@@ -6,10 +6,14 @@
 
 .global g_binfo
 .global g_bootsrc
+.global g_x2ver
 
 ENTRY(save_boot_params)
 #ifdef CONFIG_SPL_BUILD
-	ldr x3, =g_bootsrc
+	ldr x3, =g_x2ver
+	str w23, [x3]
+
+	ldr x3, =g_bootsrc		/* Copy binfo to g_binfo */
 	str x0, [x3]
 	cbz x0, save_ret
 	ldr x0, =g_binfo
@@ -20,17 +24,24 @@ copy_loop:
 	cbnz x2, copy_loop
 
 #endif /* CONFIG_SPL_BUILD */
+
 save_ret:
 	ldr	x4, =0xA6000278
 	str wzr, [x4]			/* PMU_SW_REG30 */
 	str wzr, [x4, #0x4]		/* PMU_SW_REG31 */
 
-	ldr	x4, =0xA1000500
 	ldr	x5, =save_boot_params_ret
+	cbz w23, x2_rel1
+	str x5, [x4]			/* Update start-up addr in rel1_1 */
+	sev
+	b x2_ret
+x2_rel1:
+	ldr	x4, =0xA1000500		/* Warm rest in rel0 */
 	str	w5, [x4, #0x4]		/* CORE1_RVBAR_REG */
 	mov	w5, #0x10
 	str	w5, [x4, #0x8]		/* CORE_RVBAR_SEL */
 	str	w5, [x4, #0x30]		/* CORE_WRST_REQ */
+x2_ret:
 	b	save_boot_params_ret
 ENDPROC(save_boot_params)
 
