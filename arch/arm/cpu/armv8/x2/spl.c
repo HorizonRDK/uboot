@@ -25,6 +25,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 unsigned int g_bootsrc __attribute__ ((section(".data"), aligned(8)));
 struct x2_info_hdr g_binfo __attribute__ ((section(".data"), aligned(8)));
+unsigned int g_x2ver __attribute__ ((section(".data"), aligned(8)));
+
 struct x2_dev_ops g_dev_ops;
 
 #if IS_ENABLED(CONFIG_TARGET_X2)
@@ -48,7 +50,15 @@ void spl_dram_init(void)
 
 void board_init_f(ulong dummy)
 {
+#if 0
+	if (g_x2ver == 0) {
+		switch_peri_pll();
+	}
+#else
 	switch_peri_pll();
+#endif /* #if 0 */
+
+	icache_enable();
 
 	preloader_console_init();
 
@@ -61,10 +71,8 @@ void board_init_f(ulong dummy)
 #elif defined(CONFIG_X2_NOR_BOOT)
 	spl_nor_init();
 #elif defined(CONFIG_X2_NAND_BOOT)
-    spl_nand_init();
+	spl_nand_init();
 #endif
-
-	icache_enable();
 
 	spl_dram_init();
 
@@ -91,8 +99,10 @@ void spl_board_init(void)
 
 unsigned int spl_boot_device(void)
 {
-#if defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_MMC_BOOT) || \
-  defined(CONFIG_X2_NOR_BOOT) || defined(CONFIG_X2_NAND_BOOT)
+#if defined(CONFIG_X2_AP_BOOT) \
+	|| defined(CONFIG_X2_MMC_BOOT) \
+	|| defined(CONFIG_X2_NOR_BOOT) \
+	|| defined(CONFIG_X2_NAND_BOOT)
 
 	return BOOT_DEVICE_RAM;
 #elif defined(CONFIG_X2_YMODEM_BOOT)

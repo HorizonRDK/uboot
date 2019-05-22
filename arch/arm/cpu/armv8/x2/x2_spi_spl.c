@@ -90,76 +90,23 @@
 
 static struct spi_slave g_spi_slave;
 
-void spi_release_bus(struct spi_slave *slave)
+int spl_spi_claim_bus(struct spi_slave *slave)
 {
-#if 0
-	uint64_t base = (uint64_t) slave->memory_map;
-	writel(0x0, SPI_CS(base));
-#endif
-}
+	uint64_t base = (uint64_t)slave->memory_map;
 
-int spi_claim_bus(struct spi_slave *slave)
-{
-#if 0
-	uint64_t base = (uint64_t) slave->memory_map;
 	writel(slave->cs, SPI_CS(base));
-#endif
 	return 0;
 }
 
-struct spi_slave *spi_setup_slave(unsigned int bus, unsigned int cs,
-				  unsigned int max_hz, unsigned int mode)
+int spl_spi_release_bus(struct spi_slave *slave)
 {
-	struct spi_slave *pslave = &g_spi_slave;
-	uint32_t val = 0;
-	uint64_t base;
+	uint64_t base = (uint64_t)slave->memory_map;
 
-	pslave->bus = bus;
-	pslave->memory_map = (void *)X2_QSPI_BASE;
-	pslave->cs = cs;
-	pslave->mode = mode;
-
-	spi_set_speed(pslave, X2_QSPI_SCLK);
-
-	base = (uint64_t) pslave->memory_map;
-	val = ((SPI_MODE0 & 0x30) | MST_MODE | FIFO_WIDTH8 | MSB);
-	writel(val, SPI_CTRL1(base));
-
-	writel(FIFO_DEPTH / 2, SPI_FIFO_RXTRIG_LVL(base));
-	writel(FIFO_DEPTH / 2, SPI_FIFO_TXTRIG_LVL(base));
-	/* Disable interrupt */
-	writel(0x0, SPI_CTRL2(base));
 	writel(0x0, SPI_CS(base));
-
-	/* Always set SPI to one line as init. */
-	writel(0xFC, SPI_DUAL_QUAD_MODE(base));
-
-	/* Software reset SPI FIFO */
-	val = MODF_CLR | BATCH_RXDONE | BATCH_TXDONE;
-	writel(val, SPI_STATUS1(base));
-	writel(FIFO_RESET, SPI_CTRL3(base));
-	writel(0x0, SPI_CTRL3(base));
-	return pslave;
+	return 0;
 }
 
-static void spi_set_fifo_width(struct spi_slave *slave, unsigned char width)
-{
-	uint64_t base = (uint64_t) slave->memory_map;
-	uint32_t val;
-
-	if (width != FIFO_WIDTH8 &&
-			width != FIFO_WIDTH16 && width != FIFO_WIDTH32) {
-		return;
-	}
-
-	val = (readl(SPI_CTRL1(base)) & ~0x3);
-	val |= width;
-	writel(val, SPI_CTRL1(base));
-
-	return;
-}
-
-static uint32_t spi_calc_divider(uint32_t mclk, uint32_t sclk)
+static uint32_t spl_spi_calc_divider(uint32_t mclk, uint32_t sclk)
 {
 	uint32_t div = 0;
 	uint32_t div_min;
@@ -181,16 +128,69 @@ static uint32_t spi_calc_divider(uint32_t mclk, uint32_t sclk)
 	return SCLK_VAL(div, scaler);
 }
 
-void spi_set_speed(struct spi_slave *slave, uint hz)
+static void spl_spi_set_speed(struct spi_slave *slave, uint hz)
 {
 	unsigned int div = 0;
 	uint64_t base = (uint64_t) slave->memory_map;
 
-	div = spi_calc_divider(X2_QSPI_MCLK, hz);
+	div = spl_spi_calc_divider(X2_QSPI_MCLK, hz);
 	writel(div, SPI_SCLK(base));
 }
 
-static int spi_check_set(uint64_t reg, uint32_t flag, int32_t timeout)
+struct spi_slave *spl_spi_setup_slave(unsigned int bus, unsigned int cs,
+				  unsigned int max_hz, unsigned int mode)
+{
+	struct spi_slave *pslave = &g_spi_slave;
+	uint32_t val = 0;
+	uint64_t base;
+
+	pslave->bus = bus;
+	pslave->memory_map = (void *)X2_QSPI_BASE;
+	pslave->cs = cs;
+	pslave->mode = mode;
+
+	spl_spi_set_speed(pslave, X2_QSPI_SCLK);
+
+	base = (uint64_t)pslave->memory_map;
+	val = ((SPI_MODE0 & 0x30) | MST_MODE | FIFO_WIDTH8 | MSB);
+	writel(val, SPI_CTRL1(base));
+
+	writel(FIFO_DEPTH / 2, SPI_FIFO_RXTRIG_LVL(base));
+	writel(FIFO_DEPTH / 2, SPI_FIFO_TXTRIG_LVL(base));
+	/* Disable interrupt */
+	writel(0x0, SPI_CTRL2(base));
+	writel(0x0, SPI_CS(base));
+
+	/* Always set SPI to one line as init. */
+	writel(0xFC, SPI_DUAL_QUAD_MODE(base));
+
+	/* Software reset SPI FIFO */
+	val = MODF_CLR | BATCH_RXDONE | BATCH_TXDONE;
+	writel(val, SPI_STATUS1(base));
+	writel(FIFO_RESET, SPI_CTRL3(base));
+	writel(0x0, SPI_CTRL3(base));
+	return pslave;
+}
+
+static void spl_spi_set_fifo_width(struct spi_slave *slave, unsigned char width)
+{
+	uint64_t base = (uint64_t) slave->memory_map;
+	uint32_t val;
+
+	if (width != FIFO_WIDTH8 &&
+		width != FIFO_WIDTH16 &&
+		width != FIFO_WIDTH32) {
+		return;
+	}
+
+	val = (readl(SPI_CTRL1(base)) & ~0x3);
+	val |= width;
+	writel(val, SPI_CTRL1(base));
+
+	return;
+}
+
+static int spl_spi_check_set(uint64_t reg, uint32_t flag, int32_t timeout)
 {
 	uint32_t val;
 
@@ -208,7 +208,7 @@ static int spi_check_set(uint64_t reg, uint32_t flag, int32_t timeout)
 	return 0;
 }
 
-static int spi_check_unset(uint64_t reg, uint32_t flag, int32_t timeout)
+static int spl_spi_check_unset(uint64_t reg, uint32_t flag, int32_t timeout)
 {
 	while (readl(reg) & flag) {
 		if (timeout == 0) {
@@ -224,7 +224,7 @@ static int spi_check_unset(uint64_t reg, uint32_t flag, int32_t timeout)
 	return 0;
 }
 
-static int spi_write(struct spi_slave *slave, const void *pbuf, uint32_t len)
+static int spl_spi_write(struct spi_slave *slave, const void *pbuf, uint32_t len)
 {
 	uint32_t val;
 	uint32_t tx_len;
@@ -253,8 +253,7 @@ static int spi_write(struct spi_slave *slave, const void *pbuf, uint32_t len)
 
 		val |= TX_ENABLE;
 		writel(val, SPI_CTRL1(base));
-		if (spi_check_set(SPI_STATUS2(base), TXFIFO_EMPTY, time_out) <
-				0) {
+		if (spl_spi_check_set(SPI_STATUS2(base), TXFIFO_EMPTY, time_out) < 0) {
 			err = -1;
 			goto SPI_ERROR;
 		}
@@ -284,9 +283,9 @@ SPI_ERROR:
 
 }
 
-static void spi_cfg_dq_mode(struct spi_slave *slave, uint32_t enable)
+static void spl_spi_cfg_dq_mode(struct spi_slave *slave, uint32_t enable)
 {
-	uint64_t base = (uint64_t) slave->memory_map;
+	uint64_t base = (uint64_t)slave->memory_map;
 	uint32_t val = 0xFC;
 
 	if (enable) {
@@ -307,12 +306,12 @@ static void spi_cfg_dq_mode(struct spi_slave *slave, uint32_t enable)
 	return;
 }
 
-static int spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
+static int spl_spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
 {
 	int32_t i = 0;
 	uint32_t val = 0;
 	uint32_t rx_len = 0;
-	uint32_t *ptr = (uint32_t *) pbuf;
+	uint32_t *ptr = (uint32_t *)pbuf;
 	uint32_t rx_remain = len;
 	uint32_t time_out = 0x8000000;
 	int32_t err;
@@ -330,14 +329,13 @@ static int spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
 		writel(BATCH_RXDONE, SPI_STATUS1(base));
 
 		rx_len = rx_remain < 0x8000 ? rx_remain : 0x8000;
-		rx_remain -= rx_len;
 		writel(rx_len, SPI_BATCH_CNT_RX(base));
 
 		val |= RX_ENABLE;
 		writel(val, SPI_CTRL1(base));
 
-		for (i = 0; i < rx_len; i += 8) {
-			if (spi_check_set(SPI_STATUS1(base), RX_ALMOST_FULL, time_out) < 0) {
+		for (i = 0; i < rx_len / 8; i++) {
+			if (spl_spi_check_set(SPI_STATUS1(base), RX_ALMOST_FULL, 0) < 0) {
 				err = -1;
 				goto SPI_ERROR;
 			}
@@ -346,13 +344,12 @@ static int spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
 			*ptr++ = readl(SPI_RXREG(base));
 		}
 
-		if (spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
+		if (spl_spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
 			err = -2;
 			goto SPI_ERROR;
 		}
 
 		rx_remain -= rx_len;
-
 	} while (rx_remain > 0);
 
 	/* Clear rx done flag */
@@ -370,7 +367,7 @@ static int spi_read_32(struct spi_slave *slave, uint8_t * pbuf, uint32_t len)
 SPI_ERROR:
 	val = readl(SPI_CTRL1(base));
 	writel(val & ~RX_ENABLE, SPI_CTRL1(base));
-	writel(BATCH_RXDONE, SPI_CTRL1(base));
+	writel(BATCH_RXDONE, SPI_STATUS1(base));
 	writel(FIFO_RESET, SPI_CTRL1(base));
 	writel(0x0, SPI_CTRL1(base));
 
@@ -378,7 +375,7 @@ SPI_ERROR:
 	return err;
 }
 
-static int spi_read_bytes(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
+static int spl_spi_read_bytes(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
 {
 	int32_t i = 0;
 	uint32_t val = 0;
@@ -403,19 +400,19 @@ static int spi_read_bytes(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
 	writel(val, SPI_CTRL1(base));
 
 	for (i = 0; i < len; i++) {
-		if (spi_check_unset(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) < 0) {
+		if (spl_spi_check_unset(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) < 0) {
 			err = -1;
 			goto SPI_ERROR;
 		}
 		ptr[i] = readl(SPI_RXREG(base)) & 0xFF;
 	}
 
-	if (spi_check_set(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) < 0) {
+	if (spl_spi_check_set(SPI_STATUS2(base), RXFIFO_EMPTY, time_out) < 0) {
 		err = -2;
 		goto SPI_ERROR;
 	}
 
-	if (spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
+	if (spl_spi_check_set(SPI_STATUS1(base), BATCH_RXDONE, time_out) < 0) {
 		err = -3;
 		goto SPI_ERROR;
 	}
@@ -443,7 +440,7 @@ SPI_ERROR:
 	return err;
 }
 
-static int spi_read_data(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
+static int spl_spi_read_data(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
 {
 	uint32_t level;
 	uintptr_t base = (uintptr_t)slave->memory_map;
@@ -452,22 +449,21 @@ static int spi_read_data(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
 	int ret = 0;
 
 	level = readl(SPI_FIFO_RXTRIG_LVL(base));
-
 	small_len = len % level;
 	large_len = len - small_len;
 
 	if (large_len > 0) {
-		spi_set_fifo_width(slave, FIFO_WIDTH32);
-		ret = spi_read_32(slave, pbuf, large_len);
-		spi_set_fifo_width(slave, FIFO_WIDTH8);
+		spl_spi_set_fifo_width(slave, FIFO_WIDTH32);
+		ret = spl_spi_read_32(slave, pbuf, large_len);
+		spl_spi_set_fifo_width(slave, FIFO_WIDTH8);
 		if (ret < 0) {
 			return ret;
 		}
 	}
 
 	if (small_len > 0) {
-		spi_set_fifo_width(slave, FIFO_WIDTH8);
-		ret = spi_read_bytes(slave, pbuf + large_len, len);
+		spl_spi_set_fifo_width(slave, FIFO_WIDTH8);
+		ret = spl_spi_read_bytes(slave, pbuf + large_len, small_len);
 		if (ret < 0) {
 			return ret;
 		}
@@ -476,11 +472,10 @@ static int spi_read_data(struct spi_slave *slave, uint8_t *pbuf, uint32_t len)
 	return ret;
 }
 
-int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
+int spl_spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 	     void *din, unsigned long flags)
 {
 	uint32_t len;
-	uint64_t base = (uint64_t) slave->memory_map;
 	int ret = -1;
 
 	if (bitlen == 0) {
@@ -488,30 +483,25 @@ int spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 	}
 	len = bitlen / 8;
 
-	if (flags & SPI_XFER_BEGIN)
-		writel(slave->cs, SPI_CS(base));
-
 	if (dout) {
-		ret = spi_write(slave, dout, len);
+		ret = spl_spi_write(slave, dout, len);
 	} else if (din) {
-		ret = spi_read_data(slave, din, len);
+		ret = spl_spi_read_data(slave, din, len);
 	}
 
-	if (flags & SPI_XFER_END) {
-		writel(0x0, SPI_CS(base));
-	}
-
+#if 0
 	if (flags & SPI_XFER_CMD) {
 		switch (((u8 *) dout)[0]) {
 		case CMD_READ_QUAD_OUTPUT_FAST:
 		case CMD_QUAD_PAGE_PROGRAM:
 		case CMD_READ_DUAL_OUTPUT_FAST:
-			spi_cfg_dq_mode(slave, 1);
+			spl_spi_cfg_dq_mode(slave, 1);
 			break;
 		}
 	} else {
-		spi_cfg_dq_mode(slave, 0);
+		spl_spi_cfg_dq_mode(slave, 0);
 	}
+#endif /* #if 0 */
 
 	return ret;
 }

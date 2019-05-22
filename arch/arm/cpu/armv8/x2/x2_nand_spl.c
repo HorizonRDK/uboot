@@ -1,13 +1,10 @@
 #include <asm/io.h>
 #include <asm/arch/x2_dev.h>
-#include <linux/mtd/spinand.h>
 #include <linux/mtd/nand.h>
-#include <spi-mem.h>
-#include <spi.h>
+#include <asm/arch/x2_pinmux.h>
 #include "x2_spi_spl.h"
 #include "x2_nand_spl.h"
 #include "x2_info.h"
-#include "x2_info_spl.h"
 
 #ifdef CONFIG_X2_NAND_BOOT
 static const struct spinand_manufacturer spinand_manufacturers[] = {
@@ -17,9 +14,7 @@ static const struct spinand_manufacturer spinand_manufacturers[] = {
 	{0xC2, "Macronix"},
 };
 
-static struct spinand_device g_nand_dev;
-
-uint32_t g_shift = 0;
+static struct spinand_chip g_nand_chip;
 
 int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 {
@@ -50,7 +45,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 
 	op_len = sizeof(op->cmd.opcode) + op->addr.nbytes + op->dummy.nbytes;
 
-	spi_claim_bus(slave);
+	spl_spi_claim_bus(slave);
 	op_buf[pos++] = op->cmd.opcode;
 
 	if (op->addr.nbytes) {
@@ -70,24 +65,33 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	if (!tx_buf && !rx_buf)
 		flag |= SPI_XFER_END;
 
-	ret = spi_xfer(slave, op_len * 8, op_buf, NULL, flag);
+	ret = spl_spi_xfer(slave, op_len * 8, op_buf, NULL, flag);
 	if (ret)
 		return ret;
 
 	/* 2nd transfer: rx or tx data path */
 	if (tx_buf || rx_buf) {
-		ret = spi_xfer(slave, op->data.nbytes * 8, tx_buf,
+		ret = spl_spi_xfer(slave, op->data.nbytes * 8, tx_buf,
 			       rx_buf, SPI_XFER_END);
 		if (ret)
 			return ret;
 	}
 
-	spi_release_bus(slave);
+	spl_spi_release_bus(slave);
+
+	for (i = 0; i < pos; i++)
+		debug("%02x ", op_buf[i]);
+	debug("| [%dB %s] ",
+	      tx_buf || rx_buf ? op->data.nbytes : 0,
+	      tx_buf || rx_buf ? (tx_buf ? "out" : "in") : "-");
+	for (i = 0; i < op->data.nbytes; i++)
+		debug("%02x ", tx_buf ? tx_buf[i] : rx_buf[i]);
+	debug("[ret %d]\n", ret);
 
 	return 0;
 }
 
-static int spinand_write_reg_op(struct spinand_device *spinand, uint8_t reg,
+static int spinand_write_reg_op(struct spinand_chip *spinand, uint8_t reg,
 				uint8_t val)
 {
 	struct spi_mem_op op = SPINAND_SET_FEATURE_OP(reg, spinand->scratchbuf);
@@ -96,7 +100,7 @@ static int spinand_write_reg_op(struct spinand_device *spinand, uint8_t reg,
 	return spi_mem_exec_op(spinand->slave, &op);
 }
 
-static int spinand_read_reg_op(struct spinand_device *spinand, uint8_t reg,
+static int spinand_read_reg_op(struct spinand_chip *spinand, uint8_t reg,
 			       uint8_t * val)
 {
 	struct spi_mem_op op = SPINAND_GET_FEATURE_OP(reg,
@@ -111,26 +115,28 @@ static int spinand_read_reg_op(struct spinand_device *spinand, uint8_t reg,
 	return 0;
 }
 
-static int spinand_lock_block(struct spinand_device *spinand, uint8_t lock)
+static int spinand_lock_block(struct spinand_chip *spinand, uint8_t lock)
 {
 	return spinand_write_reg_op(spinand, REG_BLOCK_LOCK, lock);
 }
 
-static int spinand_read_status(struct spinand_device *spinand, uint8_t * status)
+static int spinand_read_status(struct spinand_chip *spinand, uint8_t * status)
 {
 	return spinand_read_reg_op(spinand, REG_STATUS, status);
 }
 
-static int spinand_load_page_op(struct spinand_device *spinand,
+static int spinand_load_page_op(struct spinand_chip *spinand,
 				const struct nand_page_io_req *req)
 {
-	unsigned int row = (req->pos.eraseblock << g_shift) | req->pos.page;
+	unsigned int row = (req->pos.eraseblock << spinand->memorg.eraseblock_addr_shift) |
+		req->pos.page;
+
 	struct spi_mem_op op = SPINAND_PAGE_READ_OP(row);
 
 	return spi_mem_exec_op(spinand->slave, &op);
 }
 
-static int spinand_wait(struct spinand_device *spinand, uint8_t * s)
+static int spinand_wait(struct spinand_chip *spinand, uint8_t * s)
 {
 	unsigned long start, stop;
 	uint8_t status;
@@ -147,7 +153,6 @@ static int spinand_wait(struct spinand_device *spinand, uint8_t * s)
 		if (!(status & STATUS_BUSY))
 			goto out;
 
-		udelay(2);
 		start++;
 	} while (start < stop);
 
@@ -166,23 +171,23 @@ out:
 	return status & STATUS_BUSY ? -ETIMEDOUT : 0;
 }
 
-static void spinand_cache_op_adjust_colum(struct spinand_device *spinand,
+static void spinand_cache_op_adjust_colum(struct spinand_chip *spinand,
                                            const struct nand_page_io_req *req,
                                            uint16_t *column)
 {
 	unsigned int shift;
 
-	if (spinand->base.memorg.planes_per_lun < 2) {
+	if (spinand->memorg.planes_per_lun < 2) {
 		return;
 	}
 
 	/* The plane number is passed in MSB just above the column address */
-	shift = fls(spinand->base.memorg.pagesize);
-	*column |= (req->pos.eraseblock % spinand->base.memorg.planes_per_lun) << shift;
+	shift = fls(spinand->memorg.pagesize);
+	*column |= (req->pos.eraseblock % spinand->memorg.planes_per_lun) << shift;
 }
 
 
-static int spinand_read_from_cache_op(struct spinand_device *spinand,
+static int spinand_read_from_cache_op(struct spinand_chip *spinand,
 				      const struct nand_page_io_req *req)
 {
 	struct spi_mem_op op =
@@ -194,7 +199,7 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 	int ret;
 
 	if (req->datalen) {
-		adjreq.datalen = spinand->base.memorg.pagesize;
+		adjreq.datalen = spinand->memorg.pagesize;
 		adjreq.dataoffs = 0;
 		buf = req->databuf.in;
 		nbytes = adjreq.datalen;
@@ -224,7 +229,7 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 	return 0;
 }
 
-static int spinand_read_page(struct spinand_device *spinand,
+static int spinand_read_page(struct spinand_chip *spinand,
 			     uint32_t offset, void *data)
 {
 	struct nand_page_io_req req;
@@ -234,15 +239,15 @@ static int spinand_read_page(struct spinand_device *spinand,
 	memset(&req, 0x0, sizeof(req));
 
 	req.pos.eraseblock =
-	    offset / (spinand->base.memorg.pages_per_eraseblock *
-		      spinand->base.memorg.pagesize);
-	req.pos.page =
-	    (offset %
-	     (spinand->base.memorg.pages_per_eraseblock *
-	      spinand->base.memorg.pagesize)) / spinand->base.memorg.pagesize;
+	    offset / (spinand->memorg.pages_per_eraseblock *
+		      spinand->memorg.pagesize);
+	req.pos.page = (offset %
+		(spinand->memorg.pages_per_eraseblock * spinand->memorg.pagesize)) /
+		spinand->memorg.pagesize;
 	req.databuf.in = data;
-	req.datalen = spinand->base.memorg.pagesize;
+	req.datalen = spinand->memorg.pagesize;
 	req.dataoffs = 0;
+
 	ret = spinand_load_page_op(spinand, &req);
 	if (ret) {
 		return ret;
@@ -261,11 +266,11 @@ static int spinand_read_page(struct spinand_device *spinand,
 	return 0;
 }
 
-size_t spinand_mtd_read(int offset, uintptr_t data, size_t len)
+size_t spinand_mtd_read(int offset, uint64_t data, size_t len)
 {
-	struct spinand_device *spinand = &g_nand_dev;
-	uint8_t *pbuf = (uint8_t *) data;
-	uint32_t addr = offset * spinand->base.memorg.pagesize;
+	struct spinand_chip *spinand = &g_nand_chip;
+	uint8_t *pbuf = (uint8_t *)data;
+	uint32_t addr = offset;
 	int ret = 0;
 	int count = 0;
 
@@ -275,16 +280,16 @@ size_t spinand_mtd_read(int offset, uintptr_t data, size_t len)
 			return ret;
 		}
 
-		addr += spinand->base.memorg.pagesize;
-		pbuf += spinand->base.memorg.pagesize;
-		len -= spinand->base.memorg.pagesize;
-		count += spinand->base.memorg.pagesize;
+		addr += spinand->memorg.pagesize;
+		pbuf += spinand->memorg.pagesize;
+		len -= spinand->memorg.pagesize;
+		count += spinand->memorg.pagesize;
 	}
 
 	return count;
 }
 
-static int spinand_read_id_op(struct spinand_device *spinand, uint8_t * buf)
+static int spinand_read_id_op(struct spinand_chip *spinand, uint8_t * buf)
 {
 	struct spi_mem_op op = SPINAND_READID_OP(0, spinand->scratchbuf,
 						 SPINAND_MAX_ID_LEN);
@@ -301,7 +306,7 @@ static int spinand_read_id_op(struct spinand_device *spinand, uint8_t * buf)
 	return ret;
 }
 
-static int spinand_reset_op(struct spinand_device *spinand)
+static int spinand_reset_op(struct spinand_chip *spinand)
 {
 	struct spi_mem_op op = SPINAND_RESET_OP;
 	int ret;
@@ -313,7 +318,7 @@ static int spinand_reset_op(struct spinand_device *spinand)
 	return spinand_wait(spinand, NULL);
 }
 
-static int spinand_manufacturer_detect(struct spinand_device *spinand)
+static int spinand_manufacturer_detect(struct spinand_chip *spinand)
 {
 	unsigned int i;
 	uint8_t *id = spinand->id.data;
@@ -331,7 +336,7 @@ static int spinand_manufacturer_detect(struct spinand_device *spinand)
 	return -1;
 }
 
-static int spinand_detect(struct spinand_device *spinand, unsigned int reset)
+static int spinand_detect(struct spinand_chip *spinand, unsigned int reset)
 {
 	int ret;
 
@@ -356,30 +361,31 @@ static int spinand_detect(struct spinand_device *spinand, unsigned int reset)
 	return 0;
 }
 
-static int spinand_init(struct spinand_device *dev, uint32_t page_flag,
+static int spinand_init(struct spinand_chip *dev, uint32_t page_flag,
 			uint32_t reset)
 {
 	int ret = 0;
-	struct nand_memory_organization *pmemorg;
+	struct nand_mem_org *pmemorg;
 
 	ret = spinand_detect(dev, reset);
 	dev->databuf = NULL;
-	pmemorg = &(dev->base.memorg);
+
+	pmemorg = &dev->memorg;
 	pmemorg->bits_per_cell = 1;
 	pmemorg->pagesize = (page_flag > 0 ? 4096 : 2048);
 	pmemorg->oobsize = (page_flag > 0 ? 256 : 128);
 	pmemorg->pages_per_eraseblock = 64;
-    pmemorg->luns_per_target = 1;
-	pmemorg->ntargets = 1;
-    pmemorg->planes_per_lun = x2_get_spinand_lun();
+	pmemorg->eraseblock_addr_shift = fls(pmemorg->pages_per_eraseblock - 1);
 
-	g_shift = fls(pmemorg->pages_per_eraseblock - 1);
+	pmemorg->planes_per_lun = x2_pin_get_nand_lun();
+	pmemorg->luns_per_target = 1;
+	pmemorg->ntargets = 1;
 
 	printf("%s SPI NAND was found.\n",
 	       dev->manufacturer ? dev->manufacturer->name : "Unknown");
 	printf("Block size: %u KiB, page size: %u\n",
-	       (dev->base.memorg.pages_per_eraseblock *
-		dev->base.memorg.pagesize) >> 10, dev->base.memorg.pagesize);
+	       (dev->memorg.pages_per_eraseblock *
+		dev->memorg.pagesize) >> 10, dev->memorg.pagesize);
 
 	/* After power up, all blocks are locked, so unlock them here. */
 	ret = spinand_lock_block(dev, BL_ALL_UNLOCKED);
@@ -394,15 +400,15 @@ int spinand_probe(uint32_t spi_num, uint32_t page_flag, uint32_t id_dummy,
 		  uint32_t reset, uint32_t mclk, uint32_t sclk)
 {
 	struct spi_slave *pslave;
-	struct spinand_device *pflash = &g_nand_dev;
+	struct spinand_chip *pflash = &g_nand_chip;
 	int ret = 0;
 
 #ifdef CONFIG_QSPI_NAND_DUAL
-	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
+	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
 #elif defined(CONFIG_QSPI_NAND_QUAD)
-	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
+	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
 #else
-	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
+	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
 #endif /* CONFIG_QSPI_DUAL */
 
 	pflash->slave = pslave;
@@ -418,7 +424,7 @@ int spinand_probe(uint32_t spi_num, uint32_t page_flag, uint32_t id_dummy,
 
 static unsigned int nand_read_blks(int lba, uint64_t buf, size_t size)
 {
-	return spinand_mtd_read(lba, (uintptr_t) buf, size);
+	return spinand_mtd_read(lba, buf, size);
 }
 
 static void nand_pre_load(struct x2_info_hdr *pinfo,
@@ -464,18 +470,19 @@ static void nand_load_image(struct x2_info_hdr *pinfo)
 
 void spl_nand_init(void)
 {
-	int dm = x2_get_spinand_dummy();
-	int dev_mode = x2_get_dev_mode();
-	int rest = x2_get_reset_sf();
+	int dm = x2_pin_get_nand_dummy();
+	int dev_mode = x2_pin_get_dev_mode();
 
-	printf("%s dummy=%d, dev_mode=%d, reset=%d\n", __func__, dm, dev_mode,
-	       rest);
-	spinand_probe(0, dev_mode, dm, rest, X2_NAND_MCLK, X2_NAND_SCLK);
+	printf("dummy=%d, dev_mode=%d\n", dm, dev_mode);
+
+	spinand_probe(0, dev_mode, dm, 0, X2_NAND_MCLK, X2_NAND_SCLK);
 	g_dev_ops.proc_start = NULL;
 	g_dev_ops.pre_read = nand_pre_load;
 	g_dev_ops.read = nand_read_blks;
 	g_dev_ops.post_read = NULL;
 	g_dev_ops.proc_end = nand_load_image;
+
 	return;
 }
-#endif
+
+#endif /* CONFIG_X2_NAND_BOOT */

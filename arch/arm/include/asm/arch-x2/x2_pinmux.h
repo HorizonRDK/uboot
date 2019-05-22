@@ -37,4 +37,25 @@ static inline unsigned int x2_pin_get_uart_br(void)
 	return (PIN_UART_BR_SEL(readl(STRAP_PIN_REG)));
 }
 
+static inline int x2_pin_get_nand_lun(void)
+{
+	unsigned int val = readl(STRAP_PIN_REG);
+
+	val = !!(PIN_NPL_NUM_SEL(val));
+
+	return (val > 0 ? 2 : 1);
+}
+
+static inline int x2_pin_get_nand_dummy(void)
+{
+	unsigned int val = readl(STRAP_PIN_REG);
+	return !!(PIN_NID_DUMMY_SEL(val));
+}
+
+static inline int x2_pin_get_dev_mode(void)
+{
+	unsigned int val = readl(STRAP_PIN_REG);
+	return !!(PIN_DEV_MODE_SEL(val));
+}
+
 #endif /* __ASM_ARCH_X2_PINMUX_H__ */

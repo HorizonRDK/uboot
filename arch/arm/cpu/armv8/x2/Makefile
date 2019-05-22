@@ -12,8 +12,7 @@ obj-$(CONFIG_SPL_BUILD) += spl.o x2_utils.o \
 			x2_ymodem_spl.o \
 			x2_nor_spl.o \
 			x2_spi_spl.o \
-			x2_nand_spl.o \
-			x2_info_spl.o
+			x2_nand_spl.o
 
 obj-y += reset.o
 
