@@ -24,14 +24,16 @@ static void x2_uart_setbrg(struct x2_uart_regs *regs,
 	unsigned int clock, unsigned int baud)
 {
 	unsigned int br_int;
-	unsigned int br_frac;
+	unsigned long br_frac;
 	unsigned int val = 0;
 
 	if (baud <= 0 || clock <= 0)
 		return;
 
 	br_int = (clock / (baud * BCR_LOW_MODE));
-	br_frac = (clock % (baud * BCR_LOW_MODE)) * 1024 / (baud * BCR_LOW_MODE);
+	br_frac = (clock % (baud * BCR_LOW_MODE));
+	br_frac *= 1024;
+	br_frac /= (baud * BCR_LOW_MODE);
 
 	val = X2_BCR_MODE(0) | X2_BCR_DIV_INT(br_int) | X2_BCR_DIV_FRAC(br_frac);
 
