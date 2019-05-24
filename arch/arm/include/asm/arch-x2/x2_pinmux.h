@@ -52,10 +52,23 @@ static inline int x2_pin_get_nand_dummy(void)
 	return !!(PIN_NID_DUMMY_SEL(val));
 }
 
+static inline int x2_pin_get_fastboot_sel(void)
+{
+	unsigned int val = readl(STRAP_PIN_REG);
+	return PIN_FAST_BOOT_SEL(val);
+}
+
+
 static inline int x2_pin_get_dev_mode(void)
 {
 	unsigned int val = readl(STRAP_PIN_REG);
 	return !!(PIN_DEV_MODE_SEL(val));
+}
+
+static inline int x2_pin_get_reset_sf(void)
+{
+	u32 v = readl(STRAP_PIN_REG);
+	return ! !(PIN_SF_RESET_SEL(v));
 }
 
 #endif /* __ASM_ARCH_X2_PINMUX_H__ */
