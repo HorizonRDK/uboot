@@ -137,13 +137,13 @@ static int spi_flash_read_write(struct spi_slave *spi,
 	if (data_len == 0)
 		flags |= SPI_XFER_END;
 
-	ret = spi_xfer(spi, cmd_len * 8, cmd, NULL, flags | SPI_XFER_CMD);
+	ret = spl_spi_xfer(spi, cmd_len * 8, cmd, NULL, flags | SPI_XFER_CMD);
 	if (ret) {
 		printf("SF: Failed to send command (%ld bytes): %d\n", cmd_len,
 		       ret);
 	} else if (data_len != 0) {
 		ret =
-			spi_xfer(spi, data_len * 8, data_out, data_in,
+			spl_spi_xfer(spi, data_len * 8, data_out, data_in,
 				 SPI_XFER_END);
 		if (ret)
 			printf("SF: Failed to transfer %ld bytes of data: %d\n",
@@ -170,15 +170,15 @@ static int spi_flash_reset(struct spi_flash *flash)
 	int ret;
 	struct spi_slave *spi = (struct spi_slave *)flash->spi;
 
-	spi_claim_bus(spi);
+	spl_spi_claim_bus(spi);
 	ret = spi_flash_cmd(flash->spi, CMD_RESET_EN, NULL, 0);
-	spi_release_bus(spi);
+	spl_spi_release_bus(spi);
 
 	udelay(2);
 
-	spi_claim_bus(spi);
+	spl_spi_claim_bus(spi);
 	ret = spi_flash_cmd(flash->spi, CMD_RESET, NULL, 0);
-	spi_release_bus(spi);
+	spl_spi_release_bus(spi);
 
 	udelay(100);
 
@@ -194,9 +194,9 @@ static const struct spi_flash_info *spi_flash_read_id(struct spi_flash *flash)
 
 	memset(id, 0, sizeof(id));
 
-	spi_claim_bus(spi);
+	spl_spi_claim_bus(spi);
 	tmp = spi_flash_cmd(flash->spi, CMD_READ_ID, id, SPI_FLASH_MAX_ID_LEN);
-	spi_release_bus(spi);
+	spl_spi_release_bus(spi);
 
 	if (tmp < 0) {
 		printf("SF: error %d reading JEDEC ID\n", tmp);
@@ -222,9 +222,9 @@ static int spi_flash_read_common(struct spi_flash *flash, const uint8_t * cmd,
 	struct spi_slave *spi = flash->spi;
 	int ret;
 
-	spi_claim_bus(spi);
+	spl_spi_claim_bus(spi);
 	ret = spi_flash_cmd_read(spi, cmd, cmd_len, data, data_len);
-	spi_release_bus(spi);
+	spl_spi_release_bus(spi);
 	if (ret < 0) {
 		printf("SF: read cmd failed\n");
 		return ret;
@@ -325,7 +325,7 @@ static int spi_flash_write_common(struct spi_flash *flash, const u8 * cmd,
 	if (buf == NULL)
 		timeout = SPI_FLASH_PAGE_ERASE_TIMEOUT;
 
-	spi_claim_bus(spi);
+	spl_spi_claim_bus(spi);
 	ret = spi_flash_cmd_write_enable(flash);
 	if (ret < 0) {
 		printf("SF: enabling write failed\n");
@@ -345,7 +345,7 @@ static int spi_flash_write_common(struct spi_flash *flash, const u8 * cmd,
 		       "program" : "page erase");
 		return ret;
 	}
-	spi_release_bus(spi);
+	spl_spi_release_bus(spi);
 
 	return ret;
 }
@@ -658,11 +658,11 @@ static int spi_flash_init(unsigned int spi_num, unsigned int addr_w,
 	int ret;
 
 #ifdef CONFIG_QSPI_DUAL
-	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
+	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
 #elif defined(CONFIG_QSPI_QUAD)
-	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
+	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
 #else
-	pslave = spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
+	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
 #endif /* CONFIG_QSPI_DUAL */
 	pflash->spi = pslave;
 
@@ -674,14 +674,14 @@ static int spi_flash_init(unsigned int spi_num, unsigned int addr_w,
 		return -1;
 
 	if (addr_w > 0) {
-		spi_claim_bus(pslave);
+		spl_spi_claim_bus(pslave);
 		ret = spi_flash_cmd(pslave, CMD_OP_EX4B, NULL, 0);
-		spi_release_bus(pslave);
+		spl_spi_release_bus(pslave);
 		pflash->addr_width = 3;
 	} else {
-		spi_claim_bus(pslave);
+		spl_spi_claim_bus(pslave);
 		ret = spi_flash_cmd(pslave, CMD_OP_EN4B, NULL, 0);
-		spi_release_bus(pslave);
+		spl_spi_release_bus(pslave);
 		pflash->addr_width = 4;
 	}
 
