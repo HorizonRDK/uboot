@@ -3,8 +3,6 @@
 
 #ifdef CONFIG_X2_NOR_BOOT
 
-/* #define CONFIG_QSPI_DUAL */
-//#define CONFIG_QSPI_QUAD
 #define SPI_FLASH_MAX_ID_LEN	8
 
 void x2_bootinfo_init(void);
@@ -32,8 +30,12 @@ void x2_bootinfo_init(void);
 #define CMD_WRITE_ENABLE		0x06
 #define CMD_QUAD_PAGE_PROGRAM		0x32
 
-void spl_nor_init(void);
+#define X2_QSPI_RE_FRQ          (1 << 3)
+#define X2_QSPI_RE_FRQ_SHIFT    (4)
+#define X2_QSPI_RE_MODE         (1 << 2)
+#define X2_QSPI_RE_MODE_MASK    (0x3)
 
+void spl_nor_init(unsigned int cfg);
 int spi_flash_read(u32 offset, size_t len, void *data);
 
 #endif

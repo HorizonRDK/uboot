@@ -1,5 +1,6 @@
 #include <asm/io.h>
 #include <asm/arch/x2_dev.h>
+#include <asm/arch/x2_pinmux.h>
 #include <spi.h>
 #include "x2_nor_spl.h"
 #include "x2_spi_spl.h"
@@ -59,6 +60,8 @@
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
 		.flags = (_flags),
+
+#define SPL_RECONF_SPI_FREQ(d, v)          ((d) ? (d) : (v))
 
 /* Dual SPI flash memories - see SPI_COMM_DUAL_... */
 enum spi_dual_flash {
@@ -142,8 +145,7 @@ static int spi_flash_read_write(struct spi_slave *spi,
 		printf("SF: Failed to send command (%ld bytes): %d\n", cmd_len,
 		       ret);
 	} else if (data_len != 0) {
-		ret =
-			spl_spi_xfer(spi, data_len * 8, data_out, data_in,
+		ret = spl_spi_xfer(spi, data_len * 8, data_out, data_in,
 				 SPI_XFER_END);
 		if (ret)
 			printf("SF: Failed to transfer %ld bytes of data: %d\n",
@@ -650,21 +652,22 @@ static int spi_flash_scan(struct spi_flash *flash)
 }
 
 static int spi_flash_init(unsigned int spi_num, unsigned int addr_w,
-			  unsigned int reset, unsigned int mclk,
-			  unsigned int sclk)
+			  unsigned int reset, unsigned int sclk, u8 mode)
 {
 	struct spi_flash *pflash = &g_spi_flash;
 	struct spi_slave *pslave;
 	int ret;
+        unsigned int mclk;
 
-#ifdef CONFIG_QSPI_DUAL
-	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
-#elif defined(CONFIG_QSPI_QUAD)
-	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
-#else
-	pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
-#endif /* CONFIG_QSPI_DUAL */
+	if (mode == X2_QSPI_DUAL_MODE) {
+		pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_DUAL);
+	} else if (mode == X2_QSPI_SLOW_MODE) {
+		pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_SLOW);
+	} else {
+		pslave = spl_spi_setup_slave(spi_num, QSPI_DEV_CS0, 0, SPI_RX_QUAD);
+	}
 	pflash->spi = pslave;
+	mclk = spl_spi_set_speed(pslave, sclk);
 
 	if (reset > 0)
 		spi_flash_reset(pflash);
@@ -684,6 +687,7 @@ static int spi_flash_init(unsigned int spi_num, unsigned int addr_w,
 		spl_spi_release_bus(pslave);
 		pflash->addr_width = 4;
 	}
+        printf("spi switch to %d HZ, mclk %d HZ, dev_m=%d, rest=%d, mode=0x%x\n", sclk, mclk, addr_w, reset, mode);
 
 	return 0;
 }
@@ -754,11 +758,22 @@ static int x2_get_dev_mode(void)
 	return !!(PIN_DEV_MODE_SEL(reg));
 }
 
-void spl_nor_init(void)
+void spl_nor_init(unsigned int recfg)
 {
-	int dev_type = x2_get_dev_mode();
+	int dev_mode = x2_pin_get_dev_mode();
+	int rest = x2_pin_get_reset_sf();
+	u32 freq = X2_QSPI_SCLK;
+	u8 mode = 0;
 
-	spi_flash_init(0, dev_type, 0, X2_QSPI_MCLK, X2_QSPI_SCLK);
+	if (recfg & X2_QSPI_RE_MODE) {
+		mode = recfg & X2_QSPI_RE_MODE_MASK;
+	}
+
+        if (recfg & X2_QSPI_RE_FRQ) {
+                freq = SPL_RECONF_SPI_FREQ(recfg >> X2_QSPI_RE_FRQ_SHIFT, freq);
+        }
+        spi_flash_init(0, dev_mode, rest, freq, mode);
+
 	g_dev_ops.proc_start = NULL;
 	g_dev_ops.pre_read = nor_pre_load;
 	g_dev_ops.read = nor_read_blks;

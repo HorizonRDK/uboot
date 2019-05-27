@@ -1,6 +1,7 @@
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/x2_reg.h>
+#include <asm/arch/x2_pinmux.h>
 #include <spi.h>
 #include "x2_spi_spl.h"
 
@@ -87,6 +88,23 @@
 #define SCLK_VAL(div, scaler)		(((div) << 4) | ((scaler) << 0))
 
 #define ALIGN_4(x)  (((x) + 3) & ~(0x7))
+#define spl_get_sys_noc_aclk()  ({             \
+                        unsigned int _u32 = 0; \
+                        switch(x2_pin_get_fastboot_sel()) {     \
+                        case 0:                                 \
+                                _u32 = 500000000;               \
+                                break;                          \
+                        case 1:                                 \
+                                _u32 = 250000000;               \
+                                break;                          \
+                        case 2:                                 \
+                                _u32 = 333000000;               \
+                                break;                          \
+                        case 3:                                 \
+                                _u32 = 12000000;                \
+                                break;                          \
+                        }                                       \
+                        _u32; })
 
 static struct spi_slave g_spi_slave;
 
@@ -128,13 +146,15 @@ static uint32_t spl_spi_calc_divider(uint32_t mclk, uint32_t sclk)
 	return SCLK_VAL(div, scaler);
 }
 
-static void spl_spi_set_speed(struct spi_slave *slave, uint hz)
+unsigned int spl_spi_set_speed(struct spi_slave *slave, uint hz)
 {
 	unsigned int div = 0;
 	uint64_t base = (uint64_t) slave->memory_map;
+        unsigned int mclk = spl_get_sys_noc_aclk();
 
-	div = spl_spi_calc_divider(X2_QSPI_MCLK, hz);
+	div = spl_spi_calc_divider(mclk, hz);
 	writel(div, SPI_SCLK(base));
+        return mclk;
 }
 
 struct spi_slave *spl_spi_setup_slave(unsigned int bus, unsigned int cs,
@@ -148,8 +168,6 @@ struct spi_slave *spl_spi_setup_slave(unsigned int bus, unsigned int cs,
 	pslave->memory_map = (void *)X2_QSPI_BASE;
 	pslave->cs = cs;
 	pslave->mode = mode;
-
-	spl_spi_set_speed(pslave, X2_QSPI_SCLK);
 
 	base = (uint64_t)pslave->memory_map;
 	val = ((SPI_MODE0 & 0x30) | MST_MODE | FIFO_WIDTH8 | MSB);
@@ -486,7 +504,9 @@ int spl_spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 	if (dout) {
 		ret = spl_spi_write(slave, dout, len);
 	} else if (din) {
+                spl_spi_cfg_dq_mode(slave, 1);
 		ret = spl_spi_read_data(slave, din, len);
+		spl_spi_cfg_dq_mode(slave, 0);
 	}
 
 #if 0

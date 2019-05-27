@@ -65,7 +65,7 @@ void board_init_f(ulong dummy)
 #elif defined(CONFIG_X2_MMC_BOOT)
 	spl_emmc_init(g_binfo.emmc_cfg);
 #elif defined(CONFIG_X2_NOR_BOOT)
-	spl_nor_init();
+	spl_nor_init(g_binfo.qspi_cfg);
 #elif defined(CONFIG_X2_NAND_BOOT)
 	spl_nand_init();
 #endif

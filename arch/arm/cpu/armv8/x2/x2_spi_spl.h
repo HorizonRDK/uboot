@@ -9,6 +9,11 @@
 #define X2_QSPI_MCLK		(500000000)
 #define X2_QSPI_SCLK		(50000000)
 
+#define X2_QSPI_SLOW_MODE       (0x0)
+#define X2_QSPI_DUAL_MODE       (0x1)
+#define X2_QSPI_QUAD_MODE       (0x2)
+
+unsigned int spl_spi_set_speed(struct spi_slave *slave, uint hz);
 int spl_spi_claim_bus(struct spi_slave *slave);
 
 int spl_spi_release_bus(struct spi_slave *slave);
