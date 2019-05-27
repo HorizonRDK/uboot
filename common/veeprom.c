@@ -127,7 +127,7 @@ int veeprom_read(int offset, char *buf, int size)
 		int operate_count = 0;
 		memset(buffer, 0, sizeof(buffer));
 
-		n = blk_dwrite(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
+		n = blk_dread(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
 		flush_cache((ulong)buffer, 512);
 		if (n != 1) {
 			printf("Error: read sector %d fail\n", cur_sector);

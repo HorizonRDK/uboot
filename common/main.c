@@ -20,12 +20,12 @@
 #include <mmc.h>
 #include <part.h>
 #include <memalign.h>
+#include <ota.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
-
 
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
@@ -171,40 +171,6 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 	return 0xff;
 }
 
-static unsigned int hex_to_char(unsigned int temp)
-{
-    uint8_t dst;
-    if (temp < 10) {
-        dst = temp + '0';
-    } else {
-        dst = temp -10 +'A';
-    }
-    return dst;
-}
-
-static void uint32_to_char(unsigned int temp, char *s)
-{
-	int i = 0;
-	unsigned char dst;
-	unsigned char str[10] = { 0 };
-
-	s[0] = '0';
-	s[1] = 'x';
-
-	for (i = 0; i < 4; i++) {
-		dst = (temp >> (8 * (3 - i))) & 0xff;
-
-		str[2*i + 2] = (dst >> 4) & 0xf;
-		str[2*i + 3] = dst & 0xf;
-	}
-
-	for (i =2; i < 10; i++) {
-		s[i] = hex_to_char(str[i]);
-	}
-
-	s[i + 2] = '\0';
-}
-
 static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		struct x2_kernel_hdr *config)
 {
@@ -264,97 +230,24 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	return s;
 }
 
-static int curr_device = 0;
-
-static char *printf_efiname(gpt_entry *pte)
-{
-	static char name[PARTNAME_SZ + 1];
-	int i;
-
-	for (i = 0; i < PARTNAME_SZ; i++) {
-		u8 c;
-		c = pte->partition_name[i] & 0xff;
-		name[i] = c;
-	}
-	name[PARTNAME_SZ] = 0;
-
-	return name;
-}
-
-static int get_gpt_table(char *partname)
-{
-	struct blk_desc *mmc_dev;
-	struct mmc *mmc;
-	struct part_driver *drv;
-	int i = 0;
-	gpt_entry *gpt_pte = NULL;
-	char *name;
-
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc)
-		return CMD_RET_FAILURE;
-
-	mmc_dev = blk_get_devnum_by_type(IF_TYPE_MMC, curr_device);
-	if (mmc_dev !=NULL && mmc_dev->type != DEV_TYPE_UNKNOWN) {
-		drv = part_driver_lookup_type(mmc_dev);
-		if (!drv)
-			return CMD_RET_SUCCESS;
-
-		ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_head, 1, mmc_dev->blksz);
-
-		/* This function validates AND fills in the GPT header and PTE */
-		if (is_gpt_valid(mmc_dev, GPT_PRIMARY_PARTITION_TABLE_LBA,
-			gpt_head, &gpt_pte) != 1) {
-			printf("%s: *** ERROR: Invalid GPT ***\n", __func__);
-			if (is_gpt_valid(mmc_dev, (mmc_dev->lba - 1),
-				gpt_head, &gpt_pte) != 1) {
-				printf("%s: *** ERROR: Invalid Backup GPT ***\n",
-					__func__);
-				return CMD_RET_SUCCESS;
-			} else {
-				printf("%s: ***        Using Backup GPT ***\n",
-					__func__);
-			}
-		}
-
-	for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
-		/* Stop at the first non valid PTE */
-		if (!is_pte_valid(&gpt_pte[i]))
-			break;
-
-		name = printf_efiname(&gpt_pte[i]);
-		if ( strcmp(name, partname) == 0 ) {
-			return i+1;
-		}
-	}
-
-	/* Remember to free pte */
-	free(gpt_pte);
-		return 0;
-	}
-
-	return CMD_RET_FAILURE;
-}
-
 static void environmet_init(void)
 {
-	char mmcroot[256] = "/dev/mmcblk0p4\0";
-	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${kernel_addr} ${bootfile};";
+	char mmcroot[64] = "/dev/mmcblk0p4\0";
+	char mmcload[128] = "mmc rescan;ext4load mmc 0:3 ${kernel_addr} ${bootfile};";
 	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage}\0";
 
-	char rootfs[] = "system";
-	char kernel[] = "kernel";
-
+	char rootfs[32] = "system";
+	char kernel[32] = "kernel";
 	int rootfs_part_id, kernel_part_id;
 
 	/* init mmcroot environment */
-	rootfs_part_id = get_gpt_table(rootfs);
+	rootfs_part_id = get_partition_id(rootfs);
 
 	mmcroot[13] = hex_to_char(rootfs_part_id);
 	env_set("mmcroot", mmcroot);
 
 	/* init mmcload environment */
-	kernel_part_id = get_gpt_table(kernel);
+	kernel_part_id = get_partition_id(kernel);
 
 	mmcload[26] = hex_to_char(kernel_part_id);
 	tmp[15] = mmcload[26];
@@ -374,7 +267,7 @@ static void board_dtb_init(void)
 	struct x2_kernel_hdr *x2_kernel_conf;
 	char partname[] = "kernel";
 
-	int kernel_id = get_gpt_table(partname);
+	int kernel_id = get_partition_id(partname);
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
 
@@ -574,7 +467,6 @@ static void prepare_autoreset(void)
 }
 #endif
 
-/* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
 	const char *s;
@@ -589,13 +481,14 @@ void main_loop(void)
 #endif /* CONFIG_VERSION_VARIABLE */
 
 	cli_init();
+	veeprom_init();
 
 	run_preboot_environment_command();
 
 #if defined(CONFIG_UPDATE_TFTP)
 	update_tftp(0UL, NULL, NULL);
 #endif /* CONFIG_UPDATE_TFTP */
-
+	
 	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
 		board_dtb_init();
 
