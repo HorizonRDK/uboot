@@ -119,10 +119,9 @@ const struct spi_flash_info spi_flash_ids[] = {
 	{"gd25q256c/d", INFO(0xC84019, 0x0, 64 * 1024, 8192, SECT_4K | RD_DUAL)},
 	{"w25q256fv", INFO(0xEF4019, 0x0, 64 * 1024, 8192, SECT_4K | RD_DUAL)},
 	{"n25q256a", INFO(0x20BA19, 0x0, 64 * 1024, 8192, SECT_4K)},
-	{"gd25lq256d",
-	 INFO(0xc86019, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K)},
-	{"gd25lq128d",
-	 INFO(0xc86018, 0x0, 64 * 1024, 256, RD_FULL | WR_QPP | SECT_4K) },
+	{"gd25lq128d", INFO(0xC86018, 0x0, 64 * 1024, 256, RD_FULL | WR_QPP | SECT_4K)},
+	{"gd25lq256d", INFO(0xc86019, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K)},
+	{"w25q256jw", INFO(0xef6019, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K)},
 	{},			/* Empty entry to terminate the list */
 };
 
