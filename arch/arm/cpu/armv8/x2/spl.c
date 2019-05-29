@@ -50,7 +50,7 @@ void spl_dram_init(void)
 
 void board_init_f(ulong dummy)
 {
-	if (g_x2ver == 0) {
+	if ((g_x2ver & 0xFF) == 0) {
 		switch_peri_pll();
 	}
 
