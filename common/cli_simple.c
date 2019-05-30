@@ -295,6 +295,9 @@ void cli_simple_loop(void)
 
 		if (len == -1)
 			puts("<INTERRUPT>\n");
+		else if (len == 0)
+			/* invalid commdand "Enter", not progress last instruction */
+			continue;
 		else
 			rc = run_command_repeatable(lastcommand, flag);
 
