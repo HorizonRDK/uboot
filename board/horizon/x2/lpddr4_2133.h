@@ -51,8 +51,8 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	{ DDRC_DRAMTMG14, 0x00000099 },
 	{ DDRC_DRAMTMG15, 0x80000000 },
 
-	{ DDRC_ZQCTL0, 0xc2160010 },
-	{ DDRC_ZQCTL1, 0x01b4c89b },
+	{ DDRC_ZQCTL0, 0x12160010 },
+	{ DDRC_ZQCTL1, 0x1b7f16c },
 	{ DDRC_ZQCTL2, 0x00000000 },
 
 	{ DDRC_DFITMG0, 0x03918206 },
