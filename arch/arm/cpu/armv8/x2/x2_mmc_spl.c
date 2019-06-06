@@ -3,6 +3,7 @@
 #include <asm/arch/x2_reg.h>
 #include <asm/arch/x2_sysctrl.h>
 #include <asm/arch/x2_dev.h>
+#include <veeprom.h>
 
 #include "x2_mmc_spl.h"
 #include "dw_mmc_spl.h"
@@ -222,17 +223,266 @@ static unsigned int emmc_read_blks(int lba,
 	return size;
 }
 
+static unsigned int emmc_write_blks(int lba,
+	uint64_t buf, size_t size)
+{
+	emmc_cmd_t cmd;
+	int ret;
+
+	/* size aligning 512 */
+	size = ((size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE) * EMMC_BLOCK_SIZE;
+
+	flush_dcache_range(buf, size);
+	ret = ops->prepare(lba, buf, size);
+
+	if (is_cmd23_enabled()) {
+		memset(&cmd, 0, sizeof(emmc_cmd_t));
+		/* set block count */
+		cmd.cmd_idx = EMMC_CMD23;
+		cmd.cmd_arg = (size + EMMC_BLOCK_SIZE) / EMMC_BLOCK_SIZE;
+		cmd.resp_type = EMMC_RESPONSE_R1;
+		ret = ops->send_cmd(&cmd);
+
+		memset(&cmd, 0, sizeof(emmc_cmd_t));
+		cmd.cmd_idx = EMMC_CMD18;
+	} else {
+		if (size > EMMC_BLOCK_SIZE)
+			cmd.cmd_idx = EMMC_CMD25;
+		else
+			cmd.cmd_idx = EMMC_CMD24;
+	}
+
+	/* lba should be a index based on block instead of bytes. */
+	lba = lba / EMMC_BLOCK_SIZE;
+
+	if ((emmc_ocr_value & OCR_ACCESS_MODE_MASK) == OCR_BYTE_MODE)
+		cmd.cmd_arg = lba * EMMC_BLOCK_SIZE;
+	else
+		cmd.cmd_arg = lba;
+
+	cmd.resp_type = EMMC_RESPONSE_R1;
+	ret = ops->send_cmd(&cmd);
+	ret = ops->write(lba, buf, size);
+
+	/* wait buffer empty */
+	emmc_device_state();
+
+	if (is_cmd23_enabled() == 0) {
+		if (size > EMMC_BLOCK_SIZE) {
+			memset(&cmd, 0, sizeof(emmc_cmd_t));
+			cmd.cmd_idx = EMMC_CMD12;
+			cmd.resp_type = EMMC_RESPONSE_R1;
+			ret = ops->send_cmd(&cmd);
+		}
+	}
+	/* Ignore improbable errors in release builds */
+	(void)ret;
+	return size;
+}
+
+static unsigned int start_sector = VEEPROM_START_SECTOR;
+static unsigned int end_sector = VEEPROM_END_SECTOR;
+static char buffer[512];
+
+/* check veeprom read/write offset and length */
+static int is_parameter_valid(int offset, int size)
+{
+	int offset_left = 0;
+	int offset_right = (end_sector - start_sector + 1) * EMMC_BLOCK_SIZE;
+
+	if (offset < offset_left || offset > offset_right - 1 || offset + size > offset_right)
+		return 0;
+
+	return 1;
+}
+
+int veeprom_read(int offset, char *buf, int size)
+{
+	int sector_left = 0;
+	int sector_right = 0;
+	int cur_sector = 0;
+	int offset_inner = 0;
+	int remain_inner = 0;
+	unsigned int n = 0;
+
+	if (!is_parameter_valid(offset, size)) {
+		printf("Error: parameters invalid\n");
+		return -1;
+	}
+
+	sector_left = start_sector + (offset / EMMC_BLOCK_SIZE);
+	sector_right = start_sector + ((offset + size - 1) / EMMC_BLOCK_SIZE);
+
+	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
+		int operate_count = 0;
+		memset(buffer, 0, sizeof(buffer));
+
+		n = emmc_read_blks(cur_sector * 512, (uint64_t) buffer, 0x200);
+		flush_cache((ulong)buffer, 512);
+		if (n != 0x200) {
+			printf("Error: read sector %d fail\n", cur_sector);
+			return -1;
+		}
+
+		offset_inner = offset - (cur_sector - start_sector) * EMMC_BLOCK_SIZE;
+		remain_inner = EMMC_BLOCK_SIZE - offset_inner;
+		operate_count = (remain_inner >= size ? size : remain_inner);
+		size -= operate_count;
+		offset += operate_count;
+		memcpy(buf, buffer + offset_inner, operate_count);
+		buf += operate_count;
+	}
+
+	return 0;
+}
+
+int veeprom_write(int offset, const char *buf, int size)
+{
+	int sector_left = 0;
+	int sector_right = 0;
+	int cur_sector = 0;
+	int offset_inner = 0;
+	int remain_inner = 0;
+	unsigned int n = 0;
+
+	if (!is_parameter_valid(offset, size)) {
+		printf("Error: parameters invalid\n");
+		return -1;
+	}
+
+	sector_left = start_sector + (offset / EMMC_BLOCK_SIZE);
+	sector_right = start_sector + ((offset + size - 1) / EMMC_BLOCK_SIZE);
+
+	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
+		int operate_count = 0;
+		memset(buffer, 0, sizeof(buffer));
+
+		n = emmc_read_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
+		flush_cache((ulong)buffer, 512);
+		if (n != 0x200) {
+			printf("Error: read sector %d fail\n", cur_sector);
+			return -1;
+		}
+
+		offset_inner = offset - (cur_sector - start_sector) * EMMC_BLOCK_SIZE;
+		remain_inner = EMMC_BLOCK_SIZE - offset_inner;
+		operate_count = (remain_inner >= size ? size : remain_inner);
+		size -= operate_count;
+		offset += operate_count;
+
+		memcpy(buffer + offset_inner, buf, operate_count);
+		buf += operate_count;
+
+		n = emmc_write_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
+		if (n != 0x200) {
+			printf("Error: write sector %d fail\n", cur_sector);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void ota_update_failed_output(char* boot_reason)
+{
+	printf("*************************************************\n");
+	printf("Error: update %s faild! \n", boot_reason);
+	printf("	   into uboot backup partition! \n");
+	printf("*************************************************\n");
+}
+
+static void ota_get_update_status(char* up_flag, char* partstatus,
+	char* boot_reason)
+{
+	veeprom_read(VEEPROM_UPDATE_FLAG_OFFSET, up_flag,
+			VEEPROM_UPDATE_FLAG_SIZE);
+
+	veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, partstatus,
+			VEEPROM_ABMODE_STATUS_SIZE);
+
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+			VEEPROM_RESET_REASON_SIZE);
+}
+
+static bool ota_spl_update_check(void) {
+	char boot_reason[64];
+	char up_flag, partstatus, count;
+	bool flash_success, first_try, app_success;
+	bool uboot_bak = 0;
+	bool uboot_status = 0;
+	int boot_flag = 0;
+
+	ota_get_update_status(&up_flag, &partstatus, boot_reason);
+	printf("boot reason: %s\n", boot_reason);
+	printf("partstatus = %d \n", partstatus);
+	printf("up_flag: %d\n", up_flag);
+
+	uboot_status = (partstatus >> 1) & 0x1;
+	boot_flag = uboot_status;
+
+	if ((strcmp(boot_reason, "uboot") == 0) ||
+		(strcmp(boot_reason, "all") == 0)) {
+
+		flash_success = (up_flag >> 2) & 0x1;
+		first_try = (up_flag >> 1) & 0x1;
+		app_success = up_flag & 0x1;
+		uboot_bak = uboot_status^1;
+
+		if (flash_success == 0)
+			boot_flag = uboot_bak;
+		else if (first_try == 1) {
+			up_flag = up_flag & 0xd;
+			veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+					VEEPROM_UPDATE_FLAG_SIZE);
+		} else if(app_success == 0) {
+				boot_flag = uboot_bak;
+		}
+
+		if (boot_flag == uboot_bak) {
+			up_flag = up_flag & 0x7;
+			veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+				VEEPROM_UPDATE_FLAG_SIZE);
+
+			ota_update_failed_output(boot_reason);
+		}
+	}
+
+	if (strcmp(boot_reason, "normal") == 0) {
+		/*
+		 * During normal startup, use backup partitions
+		 * if 10 consecutive startup failures occur
+		 */
+		veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+		count = count - 1;
+		veeprom_write(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+
+		if (count <= 0) {
+			printf("Error: Failed times more than 10, using backup partitions\n");
+			boot_flag = uboot_status^1;
+		}
+	}
+
+	return boot_flag;
+}
+
 static void emmc_load_image(struct x2_info_hdr *pinfo)
 {
-	unsigned int src_addr;
-	unsigned int src_len;
-	unsigned int dest_addr;
+	unsigned int src_addr, src_len, dest_addr;
 	unsigned int __maybe_unused read_bytes;
+	bool boot_flag = 0;
+	char upmode[16] = { 0 };
 
-	src_addr = pinfo->other_img[0].img_addr;
-	src_len = pinfo->other_img[0].img_size;
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	/* When upmode is AB, support update status checking */
+	if (strcmp(upmode, "AB") == 0)
+		boot_flag = ota_spl_update_check();
+
+	src_addr = pinfo->other_img[boot_flag].img_addr;
+	src_len = pinfo->other_img[boot_flag].img_size;
+
 	dest_addr = pinfo->other_laddr;
-
 	read_bytes = emmc_read_blks((int)src_addr, dest_addr, src_len);
 
 	return;

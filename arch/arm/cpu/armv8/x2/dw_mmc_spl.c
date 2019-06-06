@@ -106,7 +106,7 @@
 
 #define DWMMC_DMA_MAX_BUFFER_SIZE	(4096)
 #define DWMMC_8BIT_MODE			(1 << 6)
-#define TIMEOUT					(100000)
+#define TIMEOUT					(0x8000000)
 
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 #define MIN(a, b)		((a) < (b) ? (a) : (b))
@@ -123,6 +123,7 @@ static int dw_send_cmd(emmc_cmd_t * cmd);
 static int dw_set_ios(int clk, int width);
 static int dw_prepare(int lba, uint64_t buf, unsigned int size);
 static int dw_read(int lba, uint64_t buf, unsigned int size);
+static int dw_write(int lba, uint64_t buf, unsigned int size);
 
 static emmc_ops_t dw_mmc_ops = {
 	.init = dw_init,
@@ -130,6 +131,7 @@ static emmc_ops_t dw_mmc_ops = {
 	.set_ios = dw_set_ios,
 	.prepare = dw_prepare,
 	.read = dw_read,
+	.write = dw_write,
 };
 
 static dw_mmc_params_t dw_params;
@@ -438,6 +440,52 @@ static int dw_read(int lba, uint64_t buf, unsigned int size)
 			}
 
 			writel(INT_RXDR, (void *)(base + DWMMC_RINTSTS));
+		}
+
+		/* Data arrived correctly. */
+		if (mask & INT_DTO) {
+			break;
+		}
+	}
+
+	writel(mask, (void *)(base + DWMMC_RINTSTS));
+
+	return 0;
+#endif /* HOBOT_DW_MMC_DMA_MODE */
+}
+
+static int dw_write(int lba, uint64_t buf, unsigned int size)
+{
+#ifdef HOBOT_DW_MMC_DMA_MODE
+	return 0;
+#else
+	uint64_t base = dw_params.reg_base;
+	uint32_t mask, blocks, word_num, len;
+	uint32_t i;
+	uint32_t *pbuf = (uint32_t *) buf;
+	uint32_t fifo_depth = 0x100;
+
+	blocks = (size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE;
+	word_num = EMMC_BLOCK_SIZE * blocks / 4;
+
+	for (;;) {
+		mask = readl((void *)(base + DWMMC_RINTSTS));
+
+		len = 0;
+		if (mask & (INT_TXDR | INT_DTO)) {
+			while (word_num) {
+				len = readl((void *)(base + DWMMC_STATUS));
+				len = fifo_depth - ((len >> STATUS_FIFO_SHIFT) &
+				    STATUS_FIFO_MASK);
+				len = MIN(word_num, len);
+				for (i = 0; i < len; i++) {
+					writel(*pbuf++, (void*)(base + DWMMC_DATA));
+				}
+				word_num =
+				    word_num > len ? (word_num - len) : 0;
+			}
+
+			writel(INT_TXDR, (void *)(base + DWMMC_RINTSTS));
 		}
 
 		/* Data arrived correctly. */

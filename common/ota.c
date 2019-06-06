@@ -248,6 +248,22 @@ void uint32_to_char(unsigned int temp, char *s)
 	s[i + 2] = '\0';
 }
 
+static unsigned int partition_status_flag(char *partition)
+{
+	unsigned int flag = 0;
+
+	char parts[10][16] = {"spl", "uboot", "kernel", "system", "app",
+		"userdata"};
+
+	for (unsigned int i = 0; i < 16; i++) {
+		if (strcmp(parts[i], partition) == 0) {
+			flag = i;
+			break;
+		}
+	}
+	return flag;
+}
+
 int ota_update_image(char *name, char *addr, unsigned int bytes)
 {
 	unsigned int start_lba, end_lba;
@@ -286,7 +302,6 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 	return ret;
 }
 
-
 int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 						char *const argv[])
 {
@@ -314,4 +329,133 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 		printf("Error: ota update image faild!\n");
 
 	return ret;
+}
+
+void ota_update_failed_output(char *boot_reason)
+{
+	printf("*************************************************\n");
+	printf("Error: update %s faild! \n", boot_reason);
+	printf("	   into uboot backup partition! \n");
+	printf("*************************************************\n");
+}
+
+void ota_get_update_status(char *up_flag, char *partstatus,
+	char *boot_reason)
+{
+	veeprom_read(VEEPROM_UPDATE_FLAG_OFFSET, up_flag,
+			VEEPROM_UPDATE_FLAG_SIZE);
+
+	veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, partstatus,
+			VEEPROM_ABMODE_STATUS_SIZE);
+
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+			VEEPROM_RESET_REASON_SIZE);
+}
+
+void ota_update_set_bootdelay(char *boot_reason)
+{
+	/* update: setting delay 0 */
+	if (strcmp(boot_reason, "normal") != 0)
+		env_set("bootdelay", "0");
+}
+
+int ota_normal_boot(bool boot_flag, char *partition)
+{
+	if (boot_flag == 1) {
+		strcat(partition, "bak");
+	}
+	return get_partition_id(partition);
+}
+
+bool ota_kernel_or_system_update(char up_flag, bool part_status)
+{
+	bool flash_success, first_try, app_success;
+	bool boot_flag = part_status;
+
+	/* update flag */
+	flash_success = (up_flag >> 2) & 0x1;
+	first_try = (up_flag >> 1) & 0x1;
+	app_success = up_flag & 0x1;
+
+	if (flash_success == 0)
+		boot_flag = part_status^1;
+	else if (first_try == 1) {
+		up_flag = up_flag & 0xd;
+		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+			VEEPROM_UPDATE_FLAG_SIZE);
+	} else if(app_success == 0) {
+			boot_flag = part_status^1;
+	}
+
+	return boot_flag;
+}
+
+bool ota_all_update(char up_flag, bool part_status)
+{
+	bool flash_success, app_success;
+	bool boot_flag = part_status;
+	char count;
+
+	/* update flag */
+	flash_success = (up_flag >> 2) & 0x1;
+	app_success = up_flag & 0x1;
+
+	veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+
+	if (flash_success == 0)
+		boot_flag = part_status^1;
+	else if (count > 0 ) {
+		count = count - 1;
+		veeprom_write(VEEPROM_COUNT_OFFSET, &count,
+			VEEPROM_COUNT_SIZE);
+	} else if(app_success == 0) {
+		boot_flag = part_status^1;
+	}
+
+	return boot_flag;
+}
+
+unsigned int ota_uboot_update_check(char *partition) {
+	char boot_reason[64] = { 0 };
+	char up_flag, partstatus;
+	bool boot_bak, part_status;
+	bool boot_flag;
+
+	ota_get_update_status(&up_flag, &partstatus, boot_reason);
+
+	part_status = (partstatus >> partition_status_flag(partition)) & 0x1;
+	boot_flag = part_status;
+	boot_bak = part_status^1;
+
+	/* update: setting delay 0 */
+	ota_update_set_bootdelay(boot_reason);
+
+	/* normal boot */
+	if ((strcmp(boot_reason, partition) != 0) &&
+		(strcmp(boot_reason, "all") != 0))  {
+		return ota_normal_boot(boot_flag, partition);
+	}
+
+	/* update kernel , system or all */
+	if (strcmp(boot_reason, partition) == 0) {
+		boot_flag = ota_kernel_or_system_update(up_flag, part_status);
+	} else if(strcmp(boot_reason, "all") == 0) {
+		boot_flag = ota_all_update(up_flag, part_status);
+	}
+
+	/* If update failed, using backup partition */
+	if (boot_flag == boot_bak) {
+		veeprom_read(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+			VEEPROM_UPDATE_FLAG_SIZE);
+		up_flag = up_flag & 0x7;
+		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+			VEEPROM_UPDATE_FLAG_SIZE);
+
+		ota_update_failed_output(boot_reason);
+	}
+
+	if (boot_flag == 1) {
+		strcat(partition, "bak");
+	}
+	return get_partition_id(partition);
 }

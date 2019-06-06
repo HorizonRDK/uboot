@@ -127,11 +127,13 @@ void wait_start(void)
 #endif
 
 static unsigned int x2_board_id[] = {
-	0x100, 0x200, 0x201, 0x102, 0x103, 0x101, 0x202, 0x203, 0x301, 0x302, 0x303, 0x304
+	0x100, 0x200, 0x201, 0x102, 0x103, 0x101, 0x202, 0x203,
+	0x301, 0x302, 0x303, 0x304
 };
 
 static unsigned int x2_gpio_id[] = {
-	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0xff, 0x34, 0x36, 0x35, 0x37
+	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0xff,
+	0x34, 0x36, 0x35, 0x37
 };
 
 unsigned int x2_gpio_get(void)
@@ -230,7 +232,22 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	return s;
 }
 
-static void environmet_init(void)
+static bool check_dual_partition(void)
+{
+	bool dual_partition = 0;
+	char upmode[16] = { 0 };
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	/* When upmode is AB, support update status checking */
+	if (strcmp(upmode, "AB") == 0)
+		dual_partition = 1;
+
+	return dual_partition;
+}
+
+ static void environmet_init(void)
 {
 	char mmcroot[64] = "/dev/mmcblk0p4\0";
 	char mmcload[128] = "mmc rescan;ext4load mmc 0:3 ${kernel_addr} ${bootfile};";
@@ -238,18 +255,27 @@ static void environmet_init(void)
 
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
-	int rootfs_part_id, kernel_part_id;
+	unsigned int part_id;
+	bool dual_partition;
+
+	dual_partition = check_dual_partition();
 
 	/* init mmcroot environment */
-	rootfs_part_id = get_partition_id(rootfs);
+	if (dual_partition == 1)
+		part_id = ota_uboot_update_check(rootfs);
+	else
+		part_id = get_partition_id(rootfs);
 
-	mmcroot[13] = hex_to_char(rootfs_part_id);
+	mmcroot[13] = hex_to_char(part_id);
 	env_set("mmcroot", mmcroot);
 
 	/* init mmcload environment */
-	kernel_part_id = get_partition_id(kernel);
+	if (dual_partition == 1)
+		part_id = ota_uboot_update_check(kernel);
+	else
+		part_id = get_partition_id(kernel);
 
-	mmcload[26] = hex_to_char(kernel_part_id);
+	mmcload[26] = hex_to_char(part_id);
 	tmp[15] = mmcload[26];
 	strcat(mmcload, tmp);
 
@@ -270,7 +296,6 @@ static void board_dtb_init(void)
 	int kernel_id = get_partition_id(partname);
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
-
 		/* load dtb-mapping.conf */
 		command[15] = hex_to_char(kernel_id);
 		printf("command is %s\n", command);
@@ -290,7 +315,8 @@ static void board_dtb_init(void)
 	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
 	x2_kernel_conf = (struct x2_kernel_hdr *) X2_DTB_CONFIG_ADDR;
 	gpio_id = x2_gpio_get();
-	printf("bootinfo/board_id = %02x gpio_id = %02x\n", x2_board_type->board_id, gpio_id);
+	printf("bootinfo/board_id = %02x gpio_id = %02x\n",
+		x2_board_type->board_id, gpio_id);
 
 	board_id = x2_board_type->board_id;
 
@@ -299,13 +325,15 @@ static void board_dtb_init(void)
 		board_id = x2_gpio_to_borad_id(gpio_id);
 
 		if (board_id == 0xff) {
-			printf("error: gpio id %02x not support, set to default x2somfull(101) \n", gpio_id);
+			printf("Error: gpio id %02x not support, using x2dev(101)\n",
+				gpio_id);
 			board_id = 0x101;
 		} else
 			printf("gpio/board_id = %02x\n", board_id);
 	} else {
 		if (board_id_verify(board_id) != 0) {
-			printf("error: board id %02x not support  set to default x2somfull(101) \n", board_id);
+			printf("Error: board id %02x not support, using x2dev(101)\n",
+				board_id);
 			board_id = 0x101;
 		}
 	}
@@ -467,6 +495,7 @@ static void prepare_autoreset(void)
 }
 #endif
 
+/* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
 	const char *s;
@@ -488,7 +517,7 @@ void main_loop(void)
 #if defined(CONFIG_UPDATE_TFTP)
 	update_tftp(0UL, NULL, NULL);
 #endif /* CONFIG_UPDATE_TFTP */
-	
+
 	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
 		board_dtb_init();
 
