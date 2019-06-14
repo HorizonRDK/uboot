@@ -154,6 +154,8 @@ obj-$(CONFIG_CMD_GPT) += gpt.o
 obj-$(CONFIG_CMD_ETHSW) += ethsw.o
 obj-$(CONFIG_CMD_AXI) += axi.o
 
+obj-$(CONFIG_CMD_J2ID) += hobot-j2id.o
+
 # Power
 obj-$(CONFIG_CMD_PMIC) += pmic.o
 obj-$(CONFIG_CMD_REGULATOR) += regulator.o

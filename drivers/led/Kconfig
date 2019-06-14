@@ -55,6 +55,12 @@ config LED_GPIO
 	  The GPIO driver must used driver model. LEDs are configured using
 	  the device tree.
 
+config J2_LED
+	bool "j2_led"
+	depends on LED && DM_GPIO
+	help
+	  turn on j2 leds at boot,designed for matrix2.0 quad.
+
 config SPL_LED_GPIO
 	bool "LED support for GPIO-connected LEDs in SPL"
         depends on SPL_LED && DM_GPIO

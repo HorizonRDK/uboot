@@ -750,7 +750,12 @@ config CMD_GPIO
 	bool "gpio"
 	help
 	  GPIO support.
-
+	  
+config CMD_J2ID
+	bool "j2id"
+	help
+	  get ID of current j2 processor on hobot matrix v2.0 quad.
+	  
 config CMD_GPT
 	bool "GPT (GUID Partition Table) command"
 	select EFI_PARTITION

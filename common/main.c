@@ -21,6 +21,7 @@
 #include <part.h>
 #include <memalign.h>
 #include <ota.h>
+#include <j2-led.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -529,7 +530,9 @@ void main_loop(void)
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))
 		cli_secure_boot_cmd(s);
-
+#if defined(CONFIG_J2_LED)
+    j2_led_init();
+#endif
 	autoboot_command(s);
 
 	cli_loop();
