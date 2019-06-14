@@ -195,7 +195,7 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
 		return;
 
-	if (board_id == X2_MONO_BOARD_ID) {
+	if (board_id == X2_MONO_BOARD_ID || board_id == QUAD_BOARD_ID) {
 		ddrp_cfg = lpddr4_ddrc_mono;
 		size = ARRAY_SIZE(lpddr4_ddrc_mono);
 	} else {

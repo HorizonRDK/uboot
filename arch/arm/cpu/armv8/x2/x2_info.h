@@ -44,10 +44,11 @@
 
 #define J2_SOM_GPIO_ID		0x30
 #define J2_SOM_BOARD_ID		0x201
-#define J2_SOM_DEV_ID           0x203
+#define J2_SOM_DEV_ID		0x203
 #define X2_SVB_BOARD_ID		0x100
 #define J2_SVB_BOARD_ID		0x200
 #define X2_SOM_3V3_ID		0x103
+#define QUAD_BOARD_ID		0x300
 
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 
