@@ -722,7 +722,7 @@ static int eqos_start(struct udevice *dev)
     type = get_product_id(eqos->mii, 0x12, 0);
     if (type == 0x3100)
          eqos->is_88e6321 =  1;
-    else if (type == 0xffff)
+    else if (type == 0xfff0)
          eqos->is_88e6321 =  2;
     else
          eqos->is_88e6321 =  0;
