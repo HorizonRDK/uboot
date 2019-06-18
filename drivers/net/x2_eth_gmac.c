@@ -41,12 +41,16 @@
 #include <wait_bit.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 /* GPIO PIN MUX */
 #define PIN_MUX_BASE    0xA6003000
 #define GPIO2_CFG (PIN_MUX_BASE + 0x20)
 #define GPIO2_DIR (PIN_MUX_BASE + 0x28)
 #define GPIO2_VAL (PIN_MUX_BASE + 0x2C)
+#define GPIO4_CFG (PIN_MUX_BASE + 0x40)
+#define GPIO4_DIR (PIN_MUX_BASE + 0x48)
+#define GPIO4_VAL (PIN_MUX_BASE + 0x4C)
 
 /* Core registers */
 
@@ -459,6 +463,24 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret;
+    unsigned int reg_val;
+    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) 0x10000000;
+
+    if (boot_info->board_id == X2_MONO_BOARD_ID){
+		/* GPIO4   7 */
+	reg_val = readl(GPIO4_CFG);
+	reg_val |= 0x0000c000;
+	writel(reg_val, GPIO4_CFG);
+	reg_val = readl(GPIO4_DIR);
+	reg_val |= 0x00800000;
+	reg_val &= 0xffffff7f;
+	writel(reg_val, GPIO4_DIR);
+	printf("mono board reset phy...\n");
+	udelay(25000);
+	reg_val = readl(GPIO4_DIR);
+	reg_val |= 0x00800080;
+	writel(reg_val, GPIO4_DIR);
+    }
 
     debug("%s(dev=%p):\n", __func__, dev);
 
