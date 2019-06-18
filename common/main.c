@@ -177,7 +177,7 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		struct x2_kernel_hdr *config)
 {
-	char *s = NULL;
+	char *s = NULL, *tmp = NULL;
 	int i = 0;
 	char string[20] = { 0 };
 	char cmd[256] = { 0 };
@@ -211,7 +211,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 				/* load Image */
 				uint32_to_char(config->Image_addr, string);
 				memset(cmd, 0, 256);
-				strcat(cmd, "sf read 0x80000 ");
+				strcat(cmd, "sf read 0x20000000 ");
 				strcat(cmd, string);
 
 				uint32_to_char(config->Image_size, string);
@@ -220,8 +220,8 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 				run_command_list(cmd, -1, 0);
 
 				/* set bootcmd */
-				s = "run ddrboot";
-				env_set("bootcmd", s);
+				tmp = "run unzipimage;ion_modify ${ion_size};run ddrboot;";
+				env_set("bootcmd", tmp);
 			}
 			break;
 		}
@@ -251,7 +251,7 @@ static bool check_dual_partition(void)
  static void environmet_init(void)
 {
 	char mmcroot[64] = "/dev/mmcblk0p4\0";
-	char mmcload[128] = "mmc rescan;ext4load mmc 0:3 ${kernel_addr} ${bootfile};";
+	char mmcload[128] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
 	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage}\0";
 
 	char rootfs[32] = "system";
@@ -348,7 +348,7 @@ static void board_dtb_init(void)
 	printf("final/board_id = %02x\n", board_id);
 	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
 
-	if (x2_src_boot == PIN_2ND_EMMC) {
+	if (x2_src_boot == PIN_2ND_EMMC || x2_src_boot == PIN_2ND_SF) {
 		printf("fdtimage = %s\n", s);
 
 		env_set("fdtimage", s);
@@ -531,7 +531,7 @@ void main_loop(void)
 	if (cli_process_fdt(&s))
 		cli_secure_boot_cmd(s);
 #if defined(CONFIG_J2_LED)
-    j2_led_init();
+	j2_led_init();
 #endif
 	autoboot_command(s);
 

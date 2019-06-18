@@ -143,21 +143,23 @@
 #include <config_distro_bootcmd.h>
 
 #define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "
-#define CONFIG_BOOTCOMMAND "run mmcboot;run mmcload;ion_modify ${ion_size};run ddrboot;"
+#define CONFIG_BOOTCOMMAND "run mmcboot;run mmcload;run unzipimage;ion_modify ${ion_size};run ddrboot;"
 
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS \
-        "kernel_addr=0x80000\0" \
+    "kernel_addr=0x80000\0" \
     "fdt_addr=0x4000000\0" \
-    "bootfile=Image\0" \
+    "gz_addr=0x20000000\0" \
+    "bootfile=Image.gz\0" \
     "fdtimage=hobot-x2-soc.dtb\0" \
     "mmcroot=/dev/mmcblk0p6\0" \
     "mmcboot=setenv bootargs " CONFIG_BOOTARGS \
         "root=${mmcroot} rootfstype=ext4 rw rootwait\0" \
     "mmcload=mmc rescan;" \
-        "ext4load mmc 0:4 ${kernel_addr} ${bootfile};" \
+        "ext4load mmc 0:4 ${gz_addr} ${bootfile};" \
         "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
+    "unzipimage=unzip ${gz_addr} ${kernel_addr}\0" \
     "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0"
 #endif
 
