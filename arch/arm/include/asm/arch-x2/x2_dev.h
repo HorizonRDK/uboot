@@ -10,7 +10,7 @@ struct x2_dev_ops {
 		int tr_num, int tr_type,
 		unsigned int *pload_addr, unsigned int *pload_size);
 
-	unsigned int (*read)(int lba, uint64_t buf, size_t size);
+	unsigned int (*read)(uint64_t lba, uint64_t buf, size_t size);
 
 	int (*post_read)(unsigned int flag);
 	void (*proc_end)(struct x2_info_hdr *pinfo);

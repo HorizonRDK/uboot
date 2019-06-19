@@ -166,7 +166,7 @@ static void emmc_pre_load(struct x2_info_hdr *pinfo,
 	return;
 }
 
-static unsigned int emmc_read_blks(int lba,
+static unsigned int emmc_read_blks(uint64_t lba,
 	uint64_t buf, size_t size)
 {
 	emmc_cmd_t cmd;
@@ -223,7 +223,7 @@ static unsigned int emmc_read_blks(int lba,
 	return size;
 }
 
-static unsigned int emmc_write_blks(int lba,
+static unsigned int emmc_write_blks(uint64_t lba,
 	uint64_t buf, size_t size)
 {
 	emmc_cmd_t cmd;
@@ -298,12 +298,12 @@ static int is_parameter_valid(int offset, int size)
 
 int veeprom_read(int offset, char *buf, int size)
 {
-	int sector_left = 0;
-	int sector_right = 0;
-	int cur_sector = 0;
-	int offset_inner = 0;
-	int remain_inner = 0;
-	unsigned int n = 0;
+	uint64_t sector_left = 0;
+	uint64_t sector_right = 0;
+	uint64_t cur_sector = 0;
+	uint64_t offset_inner = 0;
+	uint64_t remain_inner = 0;
+	uint64_t n = 0;
 
 	if (!is_parameter_valid(offset, size)) {
 		printf("Error: parameters invalid\n");
@@ -320,7 +320,7 @@ int veeprom_read(int offset, char *buf, int size)
 		n = emmc_read_blks(cur_sector * 512, (uint64_t) buffer, 0x200);
 		flush_cache((ulong)buffer, 512);
 		if (n != 0x200) {
-			printf("Error: read sector %d fail\n", cur_sector);
+			printf("Error: read sector %lld fail\n", cur_sector);
 			return -1;
 		}
 
@@ -338,12 +338,12 @@ int veeprom_read(int offset, char *buf, int size)
 
 int veeprom_write(int offset, const char *buf, int size)
 {
-	int sector_left = 0;
-	int sector_right = 0;
-	int cur_sector = 0;
-	int offset_inner = 0;
-	int remain_inner = 0;
-	unsigned int n = 0;
+	uint64_t sector_left = 0;
+	uint64_t sector_right = 0;
+	uint64_t cur_sector = 0;
+	uint64_t offset_inner = 0;
+	uint64_t remain_inner = 0;
+	uint64_t n = 0;
 
 	if (!is_parameter_valid(offset, size)) {
 		printf("Error: parameters invalid\n");
@@ -360,7 +360,7 @@ int veeprom_write(int offset, const char *buf, int size)
 		n = emmc_read_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
 		flush_cache((ulong)buffer, 512);
 		if (n != 0x200) {
-			printf("Error: read sector %d fail\n", cur_sector);
+			printf("Error: read sector %lld fail\n", cur_sector);
 			return -1;
 		}
 
@@ -375,7 +375,7 @@ int veeprom_write(int offset, const char *buf, int size)
 
 		n = emmc_write_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
 		if (n != 0x200) {
-			printf("Error: write sector %d fail\n", cur_sector);
+			printf("Error: write sector %lld fail\n", cur_sector);
 			return -1;
 		}
 	}
@@ -447,7 +447,7 @@ static bool ota_spl_update_check(void) {
 		}
 	}
 
-	if (strcmp(boot_reason, "normal") == 0) {
+	if (strcmp(boot_reason, "normal") == 0)  {
 		/*
 		 * During normal startup, use backup partitions
 		 * if 10 consecutive startup failures occur
@@ -476,7 +476,7 @@ static void emmc_load_image(struct x2_info_hdr *pinfo)
 			VEEPROM_UPDATE_MODE_SIZE);
 
 	/* When upmode is AB, support update status checking */
-	if (strcmp(upmode, "AB") == 0)
+	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
 		boot_flag = ota_spl_update_check();
 
 	src_addr = pinfo->other_img[boot_flag].img_addr;

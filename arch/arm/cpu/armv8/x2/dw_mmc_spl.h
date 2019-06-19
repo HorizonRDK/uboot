@@ -104,9 +104,9 @@ typedef struct emmc_ops {
 	void (*init) (void);
 	int (*send_cmd) (emmc_cmd_t * cmd);
 	int (*set_ios) (int clk, int width);
-	int (*prepare) (int lba, uint64_t buf, unsigned int size);
-	int (*read) (int lba, uint64_t buf, unsigned int size);
-	int (*write) (int lba, const uint64_t buf, unsigned int size);
+	int (*prepare) (uint64_t lba, uint64_t buf, unsigned int size);
+	int (*read) (uint64_t lba, uint64_t buf, unsigned int size);
+	int (*write) (uint64_t lba, const uint64_t buf, unsigned int size);
 } emmc_ops_t;
 
 typedef struct emmc_csd {

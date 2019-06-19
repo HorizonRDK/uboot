@@ -23,7 +23,7 @@ static void ap_stop(struct x2_info_hdr *pinfo)
 	return;
 }
 
-static unsigned int ap_read_blk(int lba, uint64_t buf, size_t size)
+static unsigned int ap_read_blk(uint64_t lba, uint64_t buf, size_t size)
 {
 	unsigned int temp;
 

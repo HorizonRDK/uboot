@@ -121,9 +121,9 @@ struct dw_idmac_desc {
 static void dw_init(void);
 static int dw_send_cmd(emmc_cmd_t * cmd);
 static int dw_set_ios(int clk, int width);
-static int dw_prepare(int lba, uint64_t buf, unsigned int size);
-static int dw_read(int lba, uint64_t buf, unsigned int size);
-static int dw_write(int lba, uint64_t buf, unsigned int size);
+static int dw_prepare(uint64_t lba, uint64_t buf, unsigned int size);
+static int dw_read(uint64_t lba, uint64_t buf, unsigned int size);
+static int dw_write(uint64_t lba, uint64_t buf, unsigned int size);
 
 static emmc_ops_t dw_mmc_ops = {
 	.init = dw_init,
@@ -349,7 +349,7 @@ static int dw_set_ios(int clk, int width)
 	return 0;
 }
 
-static int dw_prepare(int lba, uint64_t buf, unsigned int size)
+static int dw_prepare(uint64_t lba, uint64_t buf, unsigned int size)
 {
 #ifdef HOBOT_DW_MMC_DMA_MODE
 	struct dw_idmac_desc *desc;
@@ -407,7 +407,7 @@ static int dw_prepare(int lba, uint64_t buf, unsigned int size)
 #endif /* HOBOT_DW_MMC_DMA_MODE */
 }
 
-static int dw_read(int lba, uint64_t buf, unsigned int size)
+static int dw_read(uint64_t lba, uint64_t buf, unsigned int size)
 {
 #ifdef HOBOT_DW_MMC_DMA_MODE
 	return 0;
@@ -454,7 +454,7 @@ static int dw_read(int lba, uint64_t buf, unsigned int size)
 #endif /* HOBOT_DW_MMC_DMA_MODE */
 }
 
-static int dw_write(int lba, uint64_t buf, unsigned int size)
+static int dw_write(uint64_t lba, uint64_t buf, unsigned int size)
 {
 #ifdef HOBOT_DW_MMC_DMA_MODE
 	return 0;

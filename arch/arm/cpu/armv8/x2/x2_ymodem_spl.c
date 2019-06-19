@@ -15,7 +15,7 @@ static int x2_ymodem_getc(void) {
 	return -1;
 }
 
-static unsigned int x2_ymodem_read(int lba, uint64_t buf, size_t size)
+static unsigned int x2_ymodem_read(uint64_t lba, uint64_t buf, size_t size)
 {
 	int total_size = 0;
 	int err;

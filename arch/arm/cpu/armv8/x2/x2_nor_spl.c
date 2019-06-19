@@ -690,7 +690,7 @@ static int spi_flash_init(unsigned int spi_num, unsigned int addr_w,
 	return 0;
 }
 
-static unsigned int nor_read_blks(int lba, uint64_t buf, size_t size)
+static unsigned int nor_read_blks(uint64_t lba, uint64_t buf, size_t size)
 {
 	return spi_flash_read(lba, size, (void *)buf);
 }
