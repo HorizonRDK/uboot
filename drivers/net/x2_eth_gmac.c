@@ -604,16 +604,14 @@ static int eqos_set_tx_clk_speed_tegra186(struct udevice *dev)
 static int eqos_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
-    int ret;
+    int ret, duplex, speed;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
-    if (eqos->is_88e6321) {
-        eqos->phy->duplex = 1;
-        eqos->phy->speed = SPEED_1000;
-    }
+    duplex = (eqos->is_88e6321) ? 1 : eqos->phy->duplex;
+    speed = (eqos->is_88e6321) ? SPEED_1000 : eqos->phy->speed;
 
-    if (eqos->phy->duplex)
+    if (duplex)
         ret = eqos_set_full_duplex(dev);
     else
         ret = eqos_set_half_duplex(dev);
@@ -622,7 +620,7 @@ static int eqos_adjust_link(struct udevice *dev)
         return ret;
     }
 
-    switch (eqos->phy->speed) {
+    switch (speed) {
     case SPEED_1000:
         ret = eqos_set_gmii_speed(dev);
         break;
@@ -633,7 +631,7 @@ static int eqos_adjust_link(struct udevice *dev)
         ret = eqos_set_mii_speed_10(dev);
         break;
     default:
-        pr_err("invalid speed %d", eqos->phy->speed);
+        pr_err("invalid speed %d", speed);
         return -EINVAL;
     }
     if (ret < 0) {
@@ -1257,6 +1255,7 @@ static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, type;
+    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) 0x10000000;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -1306,7 +1305,9 @@ static int eqos_probe(struct udevice *dev)
     type = get_product_id(eqos->mii, 0x12, 0);
     if (type == 0x3100)
          eqos->is_88e6321 =  1;
-    else if (type == 0xfff0)
+    else if (type == 0xfff0 &&
+            (boot_info->board_id == J2_SOM_BOARD_ID ||
+             boot_info->board_id == J2_SOM_DEV_ID))
          eqos->is_88e6321 =  2;
     else
          eqos->is_88e6321 =  0;
