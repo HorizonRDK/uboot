@@ -707,7 +707,7 @@ static int get_product_id(struct mii_dev *bus, int addr, int devad)
 static int eqos_start(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
-    int ret, i, type;
+    int ret, i;
     ulong rate;
     u32 val, tx_fifo_sz, rx_fifo_sz, tqs, rqs, pbl;
     ulong last_rx_desc;
@@ -719,13 +719,6 @@ static int eqos_start(struct udevice *dev)
 
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
-    type = get_product_id(eqos->mii, 0x12, 0);
-    if (type == 0x3100)
-         eqos->is_88e6321 =  1;
-    else if (type == 0xfff0)
-         eqos->is_88e6321 =  2;
-    else
-         eqos->is_88e6321 =  0;
 
     ret = eqos_start_clks_tegra186(dev);
     if (ret < 0) {
@@ -781,17 +774,6 @@ static int eqos_start(struct udevice *dev)
         pr_err("No link");
         goto err_shutdown_phy;
     }
-    } else if (eqos->is_88e6321 == 1) {
-	/*set port 2, 6 1000M full duplex*/
-        eqos_mdio_write(eqos->mii, 0x12, 0, 4, 0x3 | (0x3 << 2) );
-        eqos_mdio_write(eqos->mii, 0x12, 0, 1, 0xc03e );
-
-        eqos_mdio_write(eqos->mii, 0x16, 0, 4, 0x3 | (0x3 << 2) );
-        eqos_mdio_write(eqos->mii, 0x16, 0, 1, 0xc03e );
-
-        /*disable port 0/1*/
-        eqos_mdio_write(eqos->mii, 0x10, 0, 1, 0x10 );
-        eqos_mdio_write(eqos->mii, 0x11, 0, 1, 0x10 );
     }
 
 
@@ -1274,7 +1256,7 @@ static int eqos_remove_resources_tegra186(struct udevice *dev)
 static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
-    int ret;
+    int ret, type;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -1320,6 +1302,28 @@ static int eqos_probe(struct udevice *dev)
 
     /* set GPIO2 PINs to function0(RGMII) */
     writel(0, GPIO2_CFG);
+
+    type = get_product_id(eqos->mii, 0x12, 0);
+    if (type == 0x3100)
+         eqos->is_88e6321 =  1;
+    else if (type == 0xfff0)
+         eqos->is_88e6321 =  2;
+    else
+         eqos->is_88e6321 =  0;
+
+    if (eqos->is_88e6321 == 1) {
+        /*set port 2, 6 1000M full duplex*/
+        eqos_mdio_write(eqos->mii, 0x12, 0, 4, 0x3 | (0x3 << 2) );
+        eqos_mdio_write(eqos->mii, 0x12, 0, 1, 0xc03e );
+
+        eqos_mdio_write(eqos->mii, 0x16, 0, 4, 0x3 | (0x3 << 2) );
+        eqos_mdio_write(eqos->mii, 0x16, 0, 1, 0xc03e );
+
+        /*disable port 0/1*/
+        eqos_mdio_write(eqos->mii, 0x10, 0, 1, 0x10 );
+        eqos_mdio_write(eqos->mii, 0x11, 0, 1, 0x10 );
+    }
+
     debug("%s: OK\n", __func__);
     return 0;
 
