@@ -8,8 +8,8 @@
 #define _VEEPROM_H_
 
 /* define copy from include/veeprom.h in uboot */
-#define VEEPROM_START_SECTOR (7520215)
-#define VEEPROM_END_SECTOR (7520218)
+#define VEEPROM_START_SECTOR (34)
+#define VEEPROM_END_SECTOR (37)
 
 #define VEEPROM_BOARD_ID_OFFSET		0
 #define VEEPROM_BOARD_ID_SIZE		2
