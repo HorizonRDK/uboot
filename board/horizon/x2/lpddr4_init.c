@@ -458,13 +458,13 @@ void ddr_init(struct dram_timing_info *dram_timing)
 			mcu_sram += min_len * 2;
 		}
 
-		if (g_dev_ops.post_read) {
-			g_dev_ops.post_read(0x0);
-		}
-
 		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
 
 		lpddr4_exec_fw();
+
+		if (g_dev_ops.post_read) {
+			g_dev_ops.post_read(0x0);
+		}
 	}
 #endif /* CONFIG_SUPPORT_PALLADIUM */
 

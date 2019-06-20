@@ -6,6 +6,8 @@
 #if defined(CONFIG_X2_AP_BOOT) && defined(CONFIG_TARGET_X2)
 #include <asm/arch/x2_share.h>
 
+extern unsigned int ap_boot_type;
+
 static void ap_start(void)
 {
 	/* It means that we can receive firmwares. */
@@ -19,6 +21,8 @@ static void ap_stop(struct x2_info_hdr *pinfo)
 	writel(DDRT_MEM_RDY_BIT, X2_SHARE_DDRT_CTRL);
 
 	while ((readl(X2_SHARE_DDRT_CTRL) & DDRT_MEM_RDY_BIT));
+
+	ap_boot_type = readl(X2_SHARE_DDRT_BOOT_TYPE);
 
 	return;
 }
