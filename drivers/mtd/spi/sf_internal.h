@@ -39,6 +39,7 @@ enum spi_nor_option_flags {
 #define SPI_FLASH_CFI_MFR_WINBOND	0xef
 #define SPI_FLASH_CFI_MFR_ATMEL		0x1f
 #define SPI_FLASH_CFI_MFR_GIGA      0xc8
+#define SPI_FLASH_CFI_MFR_ISSI      0x9d
 
 /* CFI Device ID's */
 #define SPI_FLASH_GIGA_GD25LQ256D   0x6019

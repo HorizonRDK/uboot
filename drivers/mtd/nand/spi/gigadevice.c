@@ -19,6 +19,23 @@
 #define GIGADEVICE_STATUS_ECC_1TO7_BITFLIPS	(1 << 4)
 #define GIGADEVICE_STATUS_ECC_8_BITFLIPS	(3 << 4)
 
+// Add for GD5F1GQ4UC, SPI_MEM_OP_ADDR is 3byte, 1byte befor is dummy
+#define SPINAND_PAGE_READ_FROM_CACHE_X4_OP_GD5F1GQ4UC(addr, ndummy, buf, len)	\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(0x6b, 1),				\
+		   SPI_MEM_OP_ADDR(3, addr, 1),				\
+		   SPI_MEM_OP_DUMMY(ndummy, 1),				\
+		   SPI_MEM_OP_DATA_IN(len, buf, 4))
+
+// Add for GD5F1GQ4UC
+static SPINAND_OP_VARIANTS(gd5f1gq4uc_read_cache_variants,
+		//SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_X4_OP_GD5F1GQ4UC(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_DUALIO_OP(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_OP(true, 0, 1, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0));
+
+
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		//SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
@@ -95,12 +112,23 @@ static const struct spinand_info gigadevice_spinand_table[] = {
 	SPINAND_INFO("GD5F1GQ4UC", 0xa1,
 		     NAND_MEMORG(1, 2048, 128, 64, 1024, 1, 1, 1),
 		     NAND_ECCREQ(8, 2048),
-		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+		     // Use special read_cache_variants
+		     SPINAND_INFO_OP_VARIANTS(&gd5f1gq4uc_read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&gd5f1gq4u_ooblayout,
 				     gd5f1gq4u_ecc_get_status)),
+	SPINAND_INFO("GD5F4GQ4UAYIG", 0xa1,
+		     NAND_MEMORG(1, 2048, 128, 64, 4096, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&gd5f1gq4u_ooblayout,
+				     gd5f1gq4u_ecc_get_status)),
+
 };
 
 static int gigadevice_spinand_detect(struct spinand_device *spinand)

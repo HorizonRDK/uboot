@@ -1089,7 +1089,7 @@ int stm_unlock(struct spi_flash *flash, u32 ofs, size_t len)
 #endif
 
 
-#if defined(CONFIG_SPI_FLASH_MACRONIX) || defined(CONFIG_SPI_FLASH_GIGADEVICE)
+#if defined(CONFIG_SPI_FLASH_MACRONIX) || defined(CONFIG_SPI_FLASH_GIGADEVICE) || defined(CONFIG_SPI_FLASH_ISSI)
 static int macronix_quad_enable(struct spi_flash *flash)
 {
 	u8 qeb_status;
@@ -1200,9 +1200,10 @@ static int set_quad_mode(struct spi_flash *flash,
 			 const struct spi_flash_info *info)
 {
 	switch (JEDEC_MFR(info)) {
-#if defined(CONFIG_SPI_FLASH_MACRONIX) || defined(CONFIG_SPI_FLASH_GIGADEVICE)
+#if defined(CONFIG_SPI_FLASH_MACRONIX) || defined(CONFIG_SPI_FLASH_GIGADEVICE) || defined(CONFIG_SPI_FLASH_ISSI)
 	case SPI_FLASH_CFI_MFR_MACRONIX:
 	case SPI_FLASH_CFI_MFR_GIGA:
+	case SPI_FLASH_CFI_MFR_ISSI:
 		if (SPI_FLASH_GIGA_GD25LQ256D == JEDEC_ID(info) ||
 			SPI_FLASH_GIGA_GD25LQ128D == JEDEC_ID(info))
 			return giga_quad_enable(flash);
