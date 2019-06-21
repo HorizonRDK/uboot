@@ -57,3 +57,4 @@ obj-$(CONFIG_GDSYS_IOEP) += gdsys_ioep.o
 obj-$(CONFIG_GDSYS_RXAUI_CTRL) += gdsys_rxaui_ctrl.o
 obj-$(CONFIG_MPC83XX_SERDES) += mpc83xx_serdes.o
 obj-$(CONFIG_X2_EFUSE) += x2_efuse.o
+obj-$(CONFIG_X2_EFUSE_EX) += x2_efuse_ex.o

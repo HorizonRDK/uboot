@@ -746,6 +746,14 @@ config CMD_FUSE
 	  which control the behaviour of the device. The command uses the
 	  fuse_...() API.
 
+config CMD_FUSE_EX
+	bool "fuse_ex - support for the fuse_ex subssystem"
+	help
+	  (deprecated - needs conversion to driver model)
+	  This allows reading, sensing(to do), programming or overriding(to do) fuses
+	  which control the behaviour of the device. The command uses the
+	  fuse_ex_...() API.
+
 config CMD_GPIO
 	bool "gpio"
 	help

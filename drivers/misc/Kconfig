@@ -300,4 +300,9 @@ config X2_EFUSE
 	help
 	  Support for x2-efuse read and program.
 
+config X2_EFUSE_EX
+	bool "Enable Hobot new X2 efuse_ex driver"
+	help
+	  Support for x2-efuse read and program.
+
 endmenu
