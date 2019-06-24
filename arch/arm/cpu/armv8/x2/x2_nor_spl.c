@@ -752,7 +752,7 @@ void x2_bootinfo_init(void)
 
 static int x2_get_dev_mode(void)
 {
-	uint32_t reg = readl(X2_GPIO_BASE + STRAP_PIN_REG);
+	uint32_t reg = readl(X2_GPIO_BASE +X2_STRAP_PIN_REG);
 
 	return !!(PIN_DEV_MODE_SEL(reg));
 }

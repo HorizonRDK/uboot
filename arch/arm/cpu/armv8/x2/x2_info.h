@@ -10,7 +10,7 @@
 #define GPIO_GRP6_REG		0X060
 #define GPIO_GRP7_REG		0x070
 
-#define STRAP_PIN_REG		0x140
+#define X2_STRAP_PIN_REG		0x140
 
 #define X2_SYSCNT_BASE		(0xA6001000)
 #define X2_GPIO_BASE		(0xA6003000)
