@@ -150,11 +150,12 @@ unsigned int spl_spi_set_speed(struct spi_slave *slave, uint hz)
 {
 	unsigned int div = 0;
 	uint64_t base = (uint64_t) slave->memory_map;
-        unsigned int mclk = spl_get_sys_noc_aclk();
+	unsigned int mclk = spl_get_sys_noc_aclk();
 
 	div = spl_spi_calc_divider(mclk, hz);
 	writel(div, SPI_SCLK(base));
-        return mclk;
+
+	return mclk;
 }
 
 struct spi_slave *spl_spi_setup_slave(unsigned int bus, unsigned int cs,
@@ -298,7 +299,6 @@ SPI_ERROR:
 	printf("qspi tx err%d\n", err);
 
 	return err;
-
 }
 
 static void spl_spi_cfg_dq_mode(struct spi_slave *slave, uint32_t enable)
@@ -504,7 +504,7 @@ int spl_spi_xfer(struct spi_slave *slave, unsigned int bitlen, const void *dout,
 	if (dout) {
 		ret = spl_spi_write(slave, dout, len);
 	} else if (din) {
-                spl_spi_cfg_dq_mode(slave, 1);
+		spl_spi_cfg_dq_mode(slave, 1);
 		ret = spl_spi_read_data(slave, din, len);
 		spl_spi_cfg_dq_mode(slave, 0);
 	}

@@ -3,8 +3,6 @@
 #include "dw_mmc_spl.h"
 
 #ifdef CONFIG_X2_MMC_BOOT
-/* don't support eMMC to sdram */
-//#define HOBOT_DW_MMC_DMA_MODE
 
 #define DWMMC_CTRL				(0x00)
 #define CTRL_IDMAC_EN			(1 << 25)
@@ -64,8 +62,11 @@
 #define DWMMC_RESP3				(0x3c)
 #define DWMMC_RINTSTS			(0x44)
 #define DWMMC_STATUS			(0x48)
+
+#define STATUS_FIFO_EMPTY		(1 << 2)
+#define STATUS_FIFO_FULL		(1 << 3)
 #define STATUS_DATA_BUSY		(1 << 9)
-#define STATUS_FIFO_SHIFT		(0x11)
+#define STATUS_FIFO_SHIFT		(17)
 #define STATUS_FIFO_MASK		(0x1FFF)
 
 #define DWMMC_FIFOTH			(0x4c)
@@ -166,19 +167,19 @@ static void dw_set_clk(int clk)
 
 	/* wait until controller is idle */
 	do {
-		ret = readl((void *)(base + DWMMC_STATUS));
+		ret = readl(base + DWMMC_STATUS);
 	} while (ret & STATUS_DATA_BUSY);
 
 	/* disable clock before change clock rate */
-	writel(0x0, (void *)(base + DWMMC_CLKENA));
+	writel(0x0, base + DWMMC_CLKENA);
 	dw_update_clk();
 
-	writel(div, (void *)(base + DWMMC_CLKDIV));
+	writel(div, base + DWMMC_CLKDIV);
 	dw_update_clk();
 
 	/* enable clock */
-	writel(0x10001, (void *)(base + DWMMC_CLKENA));
-	writel(0, (void *)(base + DWMMC_CLKSRC));
+	writel(0x10001, base + DWMMC_CLKENA);
+	writel(0, base + DWMMC_CLKSRC);
 	dw_update_clk();
 }
 
@@ -189,47 +190,32 @@ static void dw_init(void)
 	uint64_t base;
 
 	base = dw_params.reg_base;
-	writel(CTRL_RESET_ALL, (void *)(base + DWMMC_CTRL));
+	writel(1, base + DWMMC_PWREN);
+
+	writel(CTRL_RESET_ALL, base + DWMMC_CTRL);
 	do {
-		ret = readl((void *)(base + DWMMC_CTRL));
+		ret = readl(base + DWMMC_CTRL);
 	} while (ret);
 
-	/* enable dma in CTRL */
-#ifdef HOBOT_DW_MMC_DMA_MODE
-	data = CTRL_INT_EN | CTRL_DMA_EN | CTRL_IDMAC_EN;
-#else
-	data = CTRL_INT_EN;
-#endif /* HOBOT_DW_MMC_DMA_MODE */
+	writel(VDD_VOLT_1_8V, base + DWMMC_UHS);
+	writel(~0, base + DWMMC_RINTSTS);
+	writel(0x0, base + DWMMC_INTMASK);
+	writel(~0, base + DWMMC_TMOUT);
+	writel(EMMC_BLOCK_SIZE, base + DWMMC_BLKSIZ);
+	writel(0xffffff, base + DWMMC_DEBNCE);
 
-	writel(VDD_VOLT_1_8V, (void *)(base + DWMMC_UHS));
-	writel(data, (void *)(base + DWMMC_CTRL));
-	writel(~0, (void *)(base + DWMMC_RINTSTS));
-	writel(0x0, (void *)(base + DWMMC_INTMASK));
-	writel(~0, (void *)(base + DWMMC_TMOUT));
-	writel(~0, (void *)(base + DWMMC_IDINTEN));
-	writel(EMMC_BLOCK_SIZE, (void *)(base + DWMMC_BLKSIZ));	/// 512 block size
-	writel(0xffffff, (void *)(base + DWMMC_DEBNCE));
-	writel(BMOD_SWRESET, (void *)(base + DWMMC_BMOD));
+	writel(BMOD_SWRESET, base + DWMMC_BMOD);
 	do {
-		ret = readl((void *)(base + DWMMC_BMOD));
+		ret = readl(base + DWMMC_BMOD);
 	} while (ret & BMOD_SWRESET);
 
-	fifo_size = readl((void *)(base + DWMMC_FIFOTH));
-	fifo_size =
-	    ((fifo_size & FIFOTH_RWMARK_MASK) >> FIFOTH_RWMARK_SHIFT) + 1;
-	data =
-	    FIFOTH_DMA_BURST_SIZE(0x2) | FIFOTH_RWMARK(fifo_size / 2 -
-						       1) |
+	fifo_size = readl(base + DWMMC_FIFOTH);
+	fifo_size = ((fifo_size & FIFOTH_RWMARK_MASK) >> FIFOTH_RWMARK_SHIFT) + 1;
+	data = FIFOTH_DMA_BURST_SIZE(0x2) | FIFOTH_RWMARK(fifo_size / 2 - 1) |
 	    FIFOTH_TWMARK(fifo_size / 2);
-	writel(data, (void *)(base + DWMMC_FIFOTH));
-	/* enable dma in BMOD */
-#ifdef HOBOT_DW_MMC_DMA_MODE
-	data = BMOD_ENABLE | BMOD_FB;
-	writel(data, (void *)(base + DWMMC_BMOD));
-#else
-	writel(0x0, (void *)(base + DWMMC_IDINTEN));
-	writel(0x0, (void *)(base + DWMMC_BMOD));
-#endif /* HOBOT_DW_MMC_DMA_MODE */
+	writel(data, base + DWMMC_FIFOTH);
+
+	writel(0x0, base + DWMMC_IDINTEN);
 
 	udelay(100);
 	dw_set_clk(EMMC_BOOT_CLK_RATE);
@@ -284,25 +270,26 @@ static int dw_send_cmd(emmc_cmd_t * cmd)
 		op |= CMD_RESP_EXPECT | CMD_CHECK_RESP_CRC;
 		break;
 	}
+
 	timeout = TIMEOUT;
 	do {
-		data = readl((void *)(base + DWMMC_STATUS));
+		data = readl(base + DWMMC_STATUS);
 		if (--timeout <= 0)
 			panic("timeout %d\n", __LINE__);
 	} while (data & STATUS_DATA_BUSY);
 
 	/* clear raw int regs content */
-	writel(~0, (void *)(base + DWMMC_RINTSTS));
+	writel(~0, base + DWMMC_RINTSTS);
 	/* cmd args to the card */
-	writel(cmd->cmd_arg, (void *)(base + DWMMC_CMDARG));
+	writel(cmd->cmd_arg, base + DWMMC_CMDARG);
 	/* 5:0, cmd idx */
-	writel(op | cmd->cmd_idx, (void *)(base + DWMMC_CMD));
+	writel(op | cmd->cmd_idx, base + DWMMC_CMD);
 
 	err_mask = INT_EBE | INT_HLE | INT_RTO | INT_RCRC | INT_RE |
 	    INT_DCRC | INT_DRT | INT_SBE;
 	timeout = TIMEOUT;
 	do {
-		data = readl((void *)(base + DWMMC_RINTSTS));
+		data = readl(base + DWMMC_RINTSTS);
 
 		if (data & err_mask) {
 			/* Nothing to do */
@@ -317,11 +304,11 @@ static int dw_send_cmd(emmc_cmd_t * cmd)
 	} while (!(data & INT_CMD_DONE));
 
 	if (op & CMD_RESP_EXPECT) {
-		cmd->resp_data[0] = readl((void *)(base + DWMMC_RESP0));
+		cmd->resp_data[0] = readl(base + DWMMC_RESP0);
 		if (op & CMD_RESP_LEN) {
-			cmd->resp_data[1] = readl((void *)(base + DWMMC_RESP1));
-			cmd->resp_data[2] = readl((void *)(base + DWMMC_RESP2));
-			cmd->resp_data[3] = readl((void *)(base + DWMMC_RESP3));
+			cmd->resp_data[1] = readl(base + DWMMC_RESP1);
+			cmd->resp_data[2] = readl(base + DWMMC_RESP2);
+			cmd->resp_data[3] = readl(base + DWMMC_RESP3);
 		}
 	}
 	return 0;
@@ -334,13 +321,13 @@ static int dw_set_ios(int clk, int width)
 	base = dw_params.reg_base;
 	switch (width) {
 	case EMMC_BUS_WIDTH_1:
-		writel(CTYPE_1BIT, (void *)(base + DWMMC_CTYPE));
+		writel(CTYPE_1BIT, base + DWMMC_CTYPE);
 		break;
 	case EMMC_BUS_WIDTH_4:
-		writel(CTYPE_4BIT, (void *)(base + DWMMC_CTYPE));
+		writel(CTYPE_4BIT, base + DWMMC_CTYPE);
 		break;
 	case EMMC_BUS_WIDTH_8:
-		writel(CTYPE_8BIT, (void *)(base + DWMMC_CTYPE));
+		writel(CTYPE_8BIT, base + DWMMC_CTYPE);
 		break;
 	default:
 		break;
@@ -351,68 +338,47 @@ static int dw_set_ios(int clk, int width)
 
 static int dw_prepare(uint64_t lba, uint64_t buf, unsigned int size)
 {
-#ifdef HOBOT_DW_MMC_DMA_MODE
-	struct dw_idmac_desc *desc;
-	int desc_cnt, i, last;
-	uint64_t base;
-
-	desc_cnt = (size + DWMMC_DMA_MAX_BUFFER_SIZE - 1) /
-	    DWMMC_DMA_MAX_BUFFER_SIZE;
-
-	base = dw_params.reg_base;
-	desc = (struct dw_idmac_desc *)dw_params.desc_base;
-	writel(size, (void *)(base + DWMMC_BYTCNT));
-	writel(~0, (void *)(base + DWMMC_RINTSTS));
-	for (i = 0; i < desc_cnt; i++) {
-		desc[i].des0 = IDMAC_DES0_OWN | IDMAC_DES0_CH | IDMAC_DES0_DIC;
-		desc[i].des1 = IDMAC_DES1_BS1(DWMMC_DMA_MAX_BUFFER_SIZE);
-		desc[i].des2 = buf + DWMMC_DMA_MAX_BUFFER_SIZE * i;
-		desc[i].des3 = dw_params.desc_base +
-		    (sizeof(struct dw_idmac_desc)) * (i + 1);
-	}
-	/* first descriptor */
-	desc->des0 |= IDMAC_DES0_FS;
-	/* last descriptor */
-	last = desc_cnt - 1;
-	(desc + last)->des0 |= IDMAC_DES0_LD;
-	(desc + last)->des0 &= ~(IDMAC_DES0_DIC | IDMAC_DES0_CH);
-	(desc + last)->des1 =
-	    IDMAC_DES1_BS1(ize - (last * DWMMC_DMA_MAX_BUFFER_SIZE));
-	/* set next descriptor address as 0 */
-	(desc + last)->des3 = 0;
-
-	writel(dw_params.desc_base, (void *)(base + DWMMC_DBADDR));
-	flush_dcache_range(dw_params.desc_base,
-			   desc_cnt * DWMMC_DMA_MAX_BUFFER_SIZE);
-
-	return 0;
-#else
-	uint64_t base = dw_params.reg_base;
+	uintptr_t base = dw_params.reg_base;
 	uint32_t timeout = 1000;
 	uint32_t ctrl;
 
-	writel(EMMC_BLOCK_SIZE, (void *)(base + DWMMC_BLKSIZ));
-	writel(size, (void *)(base + DWMMC_BYTCNT));
+	writel(EMMC_BLOCK_SIZE, base + DWMMC_BLKSIZ);
+	writel(size, base + DWMMC_BYTCNT);
 
-	ctrl = readl((void *)(base + DWMMC_CTRL));
-	writel(ctrl | CTRL_FIFO_RESET, (void *)(base + DWMMC_CTRL));
+	ctrl = readl(base + DWMMC_CTRL);
+	writel(ctrl | CTRL_FIFO_RESET, base + DWMMC_CTRL);
 
 	while (timeout--) {
-		ctrl = readl((void *)(base + DWMMC_CTRL));
+		ctrl = readl(base + DWMMC_CTRL);
 		if (!(ctrl & CTRL_RESET_ALL))
 			return 0;
 	}
 
 	return -1;
-#endif /* HOBOT_DW_MMC_DMA_MODE */
+}
+
+static int dw_fifo_ready(u32 bit, u32 *len)
+{
+	uintptr_t base = dw_params.reg_base;
+	u32 timeout = 20000;
+
+	*len = readl(base + DWMMC_STATUS);
+	while (--timeout && (*len & bit)) {
+		udelay(200);
+		*len = readl(base + DWMMC_STATUS);
+	}
+
+	if (!timeout) {
+		printf("%s: FIFO underflow timeout\n", __func__);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static int dw_read(uint64_t lba, uint64_t buf, unsigned int size)
 {
-#ifdef HOBOT_DW_MMC_DMA_MODE
-	return 0;
-#else
-	uint64_t base = dw_params.reg_base;
+	uintptr_t base = dw_params.reg_base;
 	uint32_t mask, blocks, word_num, len;
 	uint32_t i;
 	uint32_t *pbuf = (uint32_t *) buf;
@@ -421,25 +387,21 @@ static int dw_read(uint64_t lba, uint64_t buf, unsigned int size)
 	word_num = EMMC_BLOCK_SIZE * blocks / 4;
 
 	for (;;) {
-		mask = readl((void *)(base + DWMMC_RINTSTS));
+		mask = readl(base + DWMMC_RINTSTS);
 
 		len = 0;
 		if (mask & (INT_RXDR | INT_DTO)) {
 			while (word_num) {
-				len = readl((void *)(base + DWMMC_STATUS));
-				len =
-				    (len >> STATUS_FIFO_SHIFT) &
-				    STATUS_FIFO_MASK;
+				len = readl(base + DWMMC_STATUS);
+				len = (len >> STATUS_FIFO_SHIFT) & STATUS_FIFO_MASK;
 				len = MIN(word_num, len);
 				for (i = 0; i < len; i++) {
-					*pbuf++ =
-					    readl((void *)(base + DWMMC_DATA));
+					*pbuf++ = readl(base + DWMMC_DATA);
 				}
-				word_num =
-				    word_num > len ? (word_num - len) : 0;
+				word_num = word_num > len ? (word_num - len) : 0;
 			}
 
-			writel(INT_RXDR, (void *)(base + DWMMC_RINTSTS));
+			writel(INT_RXDR, base + DWMMC_RINTSTS);
 		}
 
 		/* Data arrived correctly. */
@@ -448,12 +410,62 @@ static int dw_read(uint64_t lba, uint64_t buf, unsigned int size)
 		}
 	}
 
-	writel(mask, (void *)(base + DWMMC_RINTSTS));
+	writel(mask, base + DWMMC_RINTSTS);
 
 	return 0;
-#endif /* HOBOT_DW_MMC_DMA_MODE */
 }
 
+static int dw_write(uint64_t lba, const uint64_t buf, unsigned int size)
+{
+	uintptr_t base = dw_params.reg_base;
+	uint32_t mask, blocks, word_num, len;
+	uint32_t i;
+	uint32_t *pbuf = (uint32_t *)buf;
+	uint32_t fifo_depth;
+	int ret = 0;
+
+	fifo_depth = readl(base + DWMMC_FIFOTH);
+	fifo_depth = (((fifo_depth & FIFOTH_RWMARK_MASK) >>
+		FIFOTH_RWMARK_SHIFT) + 1) * 2;
+
+	blocks = (size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE;
+	word_num = EMMC_BLOCK_SIZE * blocks / 4;
+
+	for (;;) {
+		mask = readl(base + DWMMC_RINTSTS);
+
+		if (mask & INT_TXDR) {
+			while (word_num) {
+				ret = dw_fifo_ready(STATUS_FIFO_FULL, &len);
+				if (ret < 0) {
+					break;
+				}
+
+				len = fifo_depth - ((len >> STATUS_FIFO_SHIFT) & STATUS_FIFO_MASK);
+				len = min(word_num, len);
+
+				for (i = 0; i < len; i++) {
+					writel(*pbuf++, base + DWMMC_DATA);
+				}
+
+				word_num = word_num > len ? (word_num - len) : 0;
+			}
+			writel(INT_TXDR, base + DWMMC_RINTSTS);
+		}
+
+		/* Data arrived correctly. */
+		if (mask & INT_DTO) {
+			ret = 0;
+			break;
+		}
+	}
+
+	writel(mask, base + DWMMC_RINTSTS);
+
+	return ret;
+}
+
+#if 0
 static int dw_write(uint64_t lba, uint64_t buf, unsigned int size)
 {
 #ifdef HOBOT_DW_MMC_DMA_MODE
@@ -499,6 +511,7 @@ static int dw_write(uint64_t lba, uint64_t buf, unsigned int size)
 	return 0;
 #endif /* HOBOT_DW_MMC_DMA_MODE */
 }
+#endif
 
 emmc_ops_t *config_dw_mmc_ops(dw_mmc_params_t * params)
 {

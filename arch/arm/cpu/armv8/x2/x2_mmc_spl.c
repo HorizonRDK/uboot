@@ -20,9 +20,9 @@
 
 static const emmc_ops_t *ops;
 static emmc_csd_t emmc_csd;
-unsigned int emmc_flags;
-unsigned int emmc_ocr_value;
-unsigned int emmc_cid_value;
+static unsigned int emmc_flags;
+static unsigned int emmc_ocr_value;
+static unsigned int emmc_cid_value;
 
 static int is_cmd23_enabled(void)
 {
@@ -72,8 +72,10 @@ static void emmc_set_ios(int clk, int bus_width)
 	int ret;
 
 	/* set IO speed & IO bus width */
-	if (emmc_csd.spec_vers == 4)
+	if (emmc_csd.spec_vers == 4) {
 		emmc_set_ext_csd(CMD_EXTCSD_BUS_WIDTH, bus_width);
+		emmc_set_ext_csd(CMD_EXTCSD_HS_TIMING, 0x1);
+	}
 	ret = ops->set_ios(clk, bus_width);
 	/* Ignore improbable errors in release builds */
 	(void)ret;
@@ -175,7 +177,7 @@ static unsigned int emmc_read_blks(uint64_t lba,
         /* size aligning 512 */
         size = ((size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE) * EMMC_BLOCK_SIZE;
 
-        flush_dcache_range(buf, size);
+	flush_dcache_range(buf, buf + size);
 	ret = ops->prepare(lba, buf, size);
 
 	if (is_cmd23_enabled()) {
@@ -230,22 +232,24 @@ static unsigned int emmc_write_blks(uint64_t lba,
 	int ret;
 
 	/* size aligning 512 */
+
 	size = ((size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE) * EMMC_BLOCK_SIZE;
 
-	flush_dcache_range(buf, size);
+	flush_dcache_range(buf, buf + size);
 	ret = ops->prepare(lba, buf, size);
 
 	if (is_cmd23_enabled()) {
-		memset(&cmd, 0, sizeof(emmc_cmd_t));
 		/* set block count */
+		memset(&cmd, 0, sizeof(emmc_cmd_t));
 		cmd.cmd_idx = EMMC_CMD23;
 		cmd.cmd_arg = (size + EMMC_BLOCK_SIZE) / EMMC_BLOCK_SIZE;
 		cmd.resp_type = EMMC_RESPONSE_R1;
 		ret = ops->send_cmd(&cmd);
 
 		memset(&cmd, 0, sizeof(emmc_cmd_t));
-		cmd.cmd_idx = EMMC_CMD18;
+		cmd.cmd_idx = EMMC_CMD25;
 	} else {
+		memset(&cmd, 0, sizeof(emmc_cmd_t));
 		if (size > EMMC_BLOCK_SIZE)
 			cmd.cmd_idx = EMMC_CMD25;
 		else
@@ -271,12 +275,14 @@ static unsigned int emmc_write_blks(uint64_t lba,
 		if (size > EMMC_BLOCK_SIZE) {
 			memset(&cmd, 0, sizeof(emmc_cmd_t));
 			cmd.cmd_idx = EMMC_CMD12;
-			cmd.resp_type = EMMC_RESPONSE_R1;
+			cmd.resp_type = EMMC_RESPONSE_R1B;
 			ret = ops->send_cmd(&cmd);
 		}
 	}
+
 	/* Ignore improbable errors in release builds */
 	(void)ret;
+
 	return size;
 }
 
@@ -521,7 +527,8 @@ void spl_emmc_init(unsigned int emmc_config)
 	unsigned int ref_div = 14;
 	unsigned int ph_div = 7;
 	unsigned int val = X2_EMMC_REF_DIV(ref_div) | X2_EMMC_PH_DIV(ph_div);
-#if 0
+	unsigned int sclk;
+
 	if (emmc_config & X2_EMMC_RE_CFG) {
 		val = (emmc_config & X2_EMMC_RE_DIV);
 		width = (emmc_config & X2_EMMC_RE_WIDTH) ? EMMC_BUS_WIDTH_4 :
@@ -529,8 +536,14 @@ void spl_emmc_init(unsigned int emmc_config)
 		ref_div = X2_EMMC_REF_DIV(val);
 		ph_div = X2_EMMC_PH_DIV(val);
 	}
-#endif
+
 	mclk = 1500000000 / (ref_div + 1) / (ph_div + 1);
+#ifdef CONFIG_X2_PM
+	sclk = 10000000;
+	width = EMMC_BUS_WIDTH_1;
+#else
+	sclk = mclk;
+#endif /* CONFIG_X2_PM */
 
 	/*
 	 * The divider will be updated
@@ -551,7 +564,7 @@ void spl_emmc_init(unsigned int emmc_config)
 			val = 4;
 			break;
 	}
-	printf("emmc: width = %d, mclk = %d\n", val, mclk);
+	printf("emmc: width = %d, mclk = %d, sclk = %d\n", val, mclk, sclk);
 
 	val = readl(GPIO_BASE + 0x30);
 	val &= ~0x3ffffff;
@@ -562,6 +575,7 @@ void spl_emmc_init(unsigned int emmc_config)
 	params.bus_width = width;
 	params.clk_rate = mclk;
 	params.sclk = mclk - 500000;
+	//?params.sclk = sclk;
 	params.flags = 0;
 
 	emmc_init(&params);
@@ -569,8 +583,12 @@ void spl_emmc_init(unsigned int emmc_config)
 	g_dev_ops.proc_start = NULL;
 	g_dev_ops.pre_read = emmc_pre_load;
 	g_dev_ops.read = emmc_read_blks;
+	g_dev_ops.erase = NULL;
 	g_dev_ops.post_read = NULL;
 	g_dev_ops.proc_end = emmc_load_image;
+#ifdef CONFIG_X2_PM
+	g_dev_ops.write = emmc_write_blks;
+#endif /* CONFIG_X2_PM */
 
 	return;
 }

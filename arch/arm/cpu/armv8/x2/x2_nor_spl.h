@@ -1,5 +1,5 @@
-#ifndef __HOBOT_NOR_FLASH_H__
-#define __HOBOT_NOR_FLASH_H__
+#ifndef __X2_NOR_SPL_H__
+#define __X2_NOR_SPL_H__
 
 #ifdef CONFIG_X2_NOR_BOOT
 
@@ -30,14 +30,16 @@ void x2_bootinfo_init(void);
 #define CMD_WRITE_ENABLE		0x06
 #define CMD_QUAD_PAGE_PROGRAM		0x32
 
+#define CMD_OP_EN4B		0xb7	/* Enter 4-byte mode */
+#define CMD_OP_EX4B		0xe9	/* Exit 4-byte mode */
+
 #define X2_QSPI_RE_FRQ          (1 << 3)
 #define X2_QSPI_RE_FRQ_SHIFT    (4)
 #define X2_QSPI_RE_MODE         (1 << 2)
 #define X2_QSPI_RE_MODE_MASK    (0x3)
 
 void spl_nor_init(unsigned int cfg);
-int spi_flash_read(u32 offset, size_t len, void *data);
 
 #endif
 
-#endif
+#endif /* __X2_NOR_SPL_H__ */

@@ -3,8 +3,19 @@
 
 #include <asm/arch/x2_reg.h>
 
+#define X2_PMU_SLEEP_PERIOD		(PMU_SYS_BASE + 0x0000)
+#define X2_PMU_SLEEP_CMD		(PMU_SYS_BASE + 0x0004)
+#define X2_PMU_WAKEUP_STA		(PMU_SYS_BASE + 0x0008)
+#define X2_PMU_OUTPUT_CTRL		(PMU_SYS_BASE + 0x000C)
+#define X2_PMU_VDD_CNN_CTRL		(PMU_SYS_BASE + 0x0010)
 #define X2_PMU_DDRSYS_CTRL		(PMU_SYS_BASE + 0x0014)
 #define X2_PMU_POWER_CTRL		(PMU_SYS_BASE + 0x0020)
+
+#define X2_PMU_W_SRC			(PMU_SYS_BASE + 0x0030)
+#define X2_PMU_W_SRC_MASK		(PMU_SYS_BASE + 0x0040)
+
+#define X2_PMU_SW_REG_00		(PMU_SYS_BASE + 0x0200)
+#define X2_PMU_SW_REG_01		(PMU_SYS_BASE + 0x0204)
 
 #endif /* __X2_PMU_H__ */
 

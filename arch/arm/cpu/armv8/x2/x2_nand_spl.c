@@ -92,7 +92,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 }
 
 static int spinand_write_reg_op(struct spinand_chip *spinand, uint8_t reg,
-				uint8_t val)
+	uint8_t val)
 {
 	struct spi_mem_op op = SPINAND_SET_FEATURE_OP(reg, spinand->scratchbuf);
 
@@ -103,8 +103,7 @@ static int spinand_write_reg_op(struct spinand_chip *spinand, uint8_t reg,
 static int spinand_read_reg_op(struct spinand_chip *spinand, uint8_t reg,
 			       uint8_t * val)
 {
-	struct spi_mem_op op = SPINAND_GET_FEATURE_OP(reg,
-						      spinand->scratchbuf);
+	struct spi_mem_op op = SPINAND_GET_FEATURE_OP(reg, spinand->scratchbuf);
 	int ret;
 
 	ret = spi_mem_exec_op(spinand->slave, &op);
@@ -171,9 +170,15 @@ out:
 	return status & STATUS_BUSY ? -ETIMEDOUT : 0;
 }
 
+static inline unsigned int spinand_pos_to_row(struct spinand_chip *nand,
+	const struct nand_pos *pos)
+{
+	return (pos->eraseblock << nand->memorg.eraseblock_addr_shift) | pos->page;
+}
+
 static void spinand_cache_op_adjust_colum(struct spinand_chip *spinand,
-                                           const struct nand_page_io_req *req,
-                                           uint16_t *column)
+	const struct nand_page_io_req *req,
+	uint16_t *column)
 {
 	unsigned int shift;
 
@@ -188,24 +193,21 @@ static void spinand_cache_op_adjust_colum(struct spinand_chip *spinand,
 
 
 static int spinand_read_from_cache_op(struct spinand_chip *spinand,
-				      const struct nand_page_io_req *req)
+	const struct nand_page_io_req *req)
 {
-	struct spi_mem_op op =
-	    SPINAND_PAGE_READ_FROM_CACHE_OP(0, 0, 1, NULL, 0);
-	struct nand_page_io_req adjreq = *req;
+	struct spi_mem_op op = SPINAND_PAGE_READ_FROM_CACHE_OP(0, 0, 1, NULL, 0);
 	unsigned int nbytes = 0;
 	void *buf = NULL;
 	uint16_t column = 0;
 	int ret;
 
-	if (req->datalen) {
-		adjreq.datalen = spinand->memorg.pagesize;
-		adjreq.dataoffs = 0;
-		buf = req->databuf.in;
-		nbytes = adjreq.datalen;
-	}
+	if (req->datalen)
+		return -1;
 
-	spinand_cache_op_adjust_colum(spinand, &adjreq, &column);
+	buf = req->databuf.in;
+	nbytes = req->datalen;
+
+	spinand_cache_op_adjust_colum(spinand, req, &column);
 	op.addr.val = column;
 
 	/*
@@ -229,8 +231,54 @@ static int spinand_read_from_cache_op(struct spinand_chip *spinand,
 	return 0;
 }
 
+static int spinand_write_enable_op(struct spinand_chip *spinand)
+{
+	struct spi_mem_op op = SPINAND_WR_EN_DIS_OP(true);
+
+	return spi_mem_exec_op(spinand->slave, &op);
+}
+
+static int spinand_write_to_cache_op(struct spinand_chip *spinand,
+	const struct nand_page_io_req *req)
+{
+	struct spi_mem_op op = SPINAND_PROG_LOAD(true, 0, NULL, 0);
+	unsigned int nbytes = 0;
+	const void *buf = NULL;
+	u16 column = 0;
+	int ret;
+
+	if (req->datalen == 0)
+		return 0;
+
+	buf = req->databuf.out;		
+	nbytes = req->datalen;
+
+	spinand_cache_op_adjust_colum(spinand, req, &column);
+	op.addr.val = column;
+
+	/*
+	 * Some controllers are limited in term of max TX data size. In this
+	 * case, split the operation into one LOAD CACHE and one or more
+	 * LOAD RANDOM CACHE.
+	 */
+	while (nbytes) {
+		op.data.buf.out = buf;
+		op.data.nbytes = nbytes;
+
+		ret = spi_mem_exec_op(spinand->slave, &op);
+		if (ret)
+			return ret;
+
+		buf += op.data.nbytes;
+		nbytes -= op.data.nbytes;
+		op.addr.val += op.data.nbytes;
+	}
+
+	return 0;
+}
+
 static int spinand_read_page(struct spinand_chip *spinand,
-			     uint32_t offset, void *data)
+	uint32_t offset, void *data)
 {
 	struct nand_page_io_req req;
 	uint8_t status;
@@ -288,6 +336,120 @@ size_t spinand_mtd_read(int offset, uint64_t data, size_t len)
 
 	return count;
 }
+
+#ifdef CONFIG_X2_PM
+static int spinand_program_op(struct spinand_chip *spinand,
+	const struct nand_page_io_req *req)
+{
+	unsigned int row = spinand_pos_to_row(spinand, &req->pos);
+	struct spi_mem_op op = SPINAND_PROG_EXEC_OP(row);
+
+	return spi_mem_exec_op(spinand->slave, &op);
+}
+
+static int spinand_write_page(struct spinand_chip *spinand,
+	uint32_t offset, void *data)
+{	
+	struct nand_page_io_req req;
+	uint8_t status;
+	int ret;
+
+	memset(&req, 0x0, sizeof(req));
+
+	req.pos.eraseblock =
+	    offset / (spinand->memorg.pages_per_eraseblock *
+		      spinand->memorg.pagesize);
+	req.pos.page = (offset %
+		(spinand->memorg.pages_per_eraseblock * spinand->memorg.pagesize)) /
+		spinand->memorg.pagesize;
+	req.databuf.out = data;
+	req.datalen = spinand->memorg.pagesize;
+	req.dataoffs = 0;
+
+	ret = spinand_write_enable_op(spinand);
+	if (ret)
+		return ret;
+
+	ret = spinand_write_to_cache_op(spinand, &req);
+	if (ret)
+		return ret;
+
+	ret = spinand_program_op(spinand, &req);
+	if (ret)
+		return ret;
+
+	ret = spinand_wait(spinand, &status);
+	if (!ret && (status & STATUS_PROG_FAILED))
+		ret = -EIO;
+
+	return ret;
+}
+
+uint32_t spinand_mtd_write(uint32_t offset, uintptr_t data, size_t len)
+{
+	struct spinand_chip *spinand = &g_nand_chip;
+	uint8_t *pbuf = (uint8_t *)data;
+	uint32_t addr = offset;
+	int ret = 0;
+	int count = 0;
+
+	while (len > 0) {
+		ret = spinand_write_page(spinand, addr, pbuf);
+		if (ret < 0) {
+			return ret;
+		}
+
+		addr += spinand->memorg.pagesize;
+		pbuf += spinand->memorg.pagesize;
+		len -= spinand->memorg.pagesize;
+		count += spinand->memorg.pagesize;
+	}
+
+	return count;
+}
+
+static int spinand_erase_op(struct spinand_chip *spinand,
+	const struct nand_pos *pos)
+{
+	unsigned int row = spinand_pos_to_row(spinand, pos);
+	struct spi_mem_op op = SPINAND_BLK_ERASE_OP(row);
+
+	return spi_mem_exec_op(spinand->slave, &op);
+}
+
+int spinand_mtd_erase(uint32_t offset, size_t len)
+{
+	struct spinand_chip *spinand = &g_nand_chip;
+	struct nand_pos pos;
+	uint8_t status;
+	int ret;
+
+	if (len == 0)
+		return 0;
+
+	memset(&pos, 0, sizeof(pos));
+
+	pos.eraseblock = offset / (spinand->memorg.pages_per_eraseblock * 
+		spinand->memorg.pagesize);
+	pos.page = (offset %
+		(spinand->memorg.pages_per_eraseblock * spinand->memorg.pagesize)) /
+		spinand->memorg.pagesize;
+
+	ret = spinand_write_enable_op(spinand);
+	if (ret)
+		return ret;
+
+	ret = spinand_erase_op(spinand, &pos);
+	if (ret)
+		return ret;
+
+	ret = spinand_wait(spinand, &status);
+	if (!ret && (status & STATUS_ERASE_FAILED))
+		ret = -EIO;
+
+	return ret;
+}
+#endif /* CONFIG_X2_PM */
 
 static int spinand_read_id_op(struct spinand_chip *spinand, uint8_t * buf)
 {
@@ -422,7 +584,7 @@ int spinand_probe(uint32_t spi_num, uint32_t page_flag, uint32_t id_dummy,
 	return 0;
 }
 
-static unsigned int nand_read_blks(int lba, uint64_t buf, size_t size)
+static uint32_t nand_read_blks(uint32_t lba, uint64_t buf, size_t size)
 {
 	return spinand_mtd_read(lba, buf, size);
 }
@@ -481,6 +643,11 @@ void spl_nand_init(void)
 	g_dev_ops.read = nand_read_blks;
 	g_dev_ops.post_read = NULL;
 	g_dev_ops.proc_end = nand_load_image;
+
+#ifdef CONFIG_X2_PM
+	g_dev_ops.write = spinand_mtd_write;
+	g_dev_ops.erase = spinand_mtd_erase;
+#endif /* CONFIG_X2_PM */
 
 	return;
 }

@@ -348,15 +348,216 @@ static unsigned int lpddr4_read_msg(void)
 	return (((cdd_chb_u32 & 0x7F) << 16) | ((cdd_cha_u32 >> 8) & 0x7F));
 }
 
-extern unsigned int g_ddr_rate;
-
-void ddr_init(struct dram_timing_info *dram_timing)
+#ifdef CONFIG_X2_PM
+static void lpddr4_enter_retention(void)
 {
-	unsigned int value, temp;
-	unsigned int cdd_cha, cdd_chb, cdd_ch;
-	unsigned int rd2wr_val;
-	unsigned int txdqsdly_coarse, txdqsdly_fine, trained_txdqsdly;
-	unsigned int tctrl_delay, t_wrdata_delay;
+	unsigned int val;
+
+	reg32_write(DDRC_PCTRL_0, 0x0);
+	reg32_write(DDRC_PCTRL_1, 0x0);
+	reg32_write(DDRC_PCTRL_2, 0x0);
+	reg32_write(DDRC_PCTRL_3, 0x0);
+	reg32_write(DDRC_PCTRL_4, 0x0);
+	reg32_write(DDRC_PCTRL_5, 0x0);
+
+	while (reg32_read(DDRC_PSTAT));
+
+	val = reg32_read(DDRC_DERATEEN) & 0xFFFFFFFE;
+	reg32_write(DDRC_DERATEEN, val);
+
+	reg32_write(DDRC_DBG1, 0x2);
+
+	while (!(reg32_read(DDRC_DBGCAM) & 0x60000000));
+
+	val = reg32_read(DDRC_DFILPCFG0) & 0xFFFEFEFE;
+	reg32_write(DDRC_DFILPCFG0, val);
+
+	val = reg32_read(DDRC_DFILPCFG1) & 0xFFFFFFFE;
+	reg32_write(DDRC_DFILPCFG1, val);
+
+	while ((reg32_read(DDRC_DFISTAT) & 0x2));
+
+	val = (reg32_read(DDRC_DFIPHYMSTR) & 0xFFFFFFFE);
+	reg32_write(DDRC_DFIPHYMSTR, val);
+
+	val = reg32_read(DDRC_PWRCTL) | 0x20;
+	reg32_write(DDRC_PWRCTL, val);
+
+	while ((reg32_read(DDRC_STAT) & 0x7) != 0x3)
+
+	reg32_write(DDRC_SWCTL, 0x0);
+
+	val = reg32_read(DDRC_DFIMISC) & 0xFFFFFFFE;
+	reg32_write(DDRC_DFIMISC, val);
+
+	reg32_write(DDRC_SWCTL, 0x1);
+
+	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
+
+	reg32_write(DDRC_SWCTL, 0x0);
+
+	val = reg32_read(DDRC_DFIMISC) | 0x1F20;
+	reg32_write(DDRC_DFIMISC, val);
+
+	reg32_write(DDRC_SWCTL, 0x1);
+
+	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
+
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
+	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x3);
+
+	while (!(reg32_read(DDRP_INITENG0_PHYINLP3) & 0x1));
+
+	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x2);
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
+
+	reg32_write(X2_PMU_DDRSYS_CTRL, 0x0);
+	reg32_write(X2_DDRSYS_CLKEN_CLR, 0x1);
+
+	return;
+}
+
+static int lpddr4_save_param(struct dram_timing_info *dram_timing)
+{
+	uint32_t *pcfg = (uint32_t *)X2_SRAM_LOAD_ADDR;
+	uint32_t *ptable = dram_timing->ddrphy_cali_table;
+	uint32_t cfg_size, wr_size = 0;
+	int i;
+
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
+	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x3);
+
+	for (i = 0; i < dram_timing->ddrphy_cali_num; i++) {
+		pcfg[i] = reg32_read(ptable[i]);
+		//printf("R:0x%x -> 0x%x\n", ptable[i], pcfg[i]);
+	}
+	cfg_size = dram_timing->ddrphy_cali_num * sizeof(unsigned int);
+	cfg_size = (cfg_size + 0x1ff) & ~0x1ff;
+
+	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x2);
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
+
+	if (g_dev_ops.erase) {
+		g_dev_ops.erase(g_binfo.ddrp_addr[0], cfg_size);
+	}
+
+	if (g_dev_ops.write) {
+		wr_size = g_dev_ops.write(g_binfo.ddrp_addr[0], (uintptr_t)pcfg, cfg_size);
+		reg32_write(X2_PMU_SW_REG_00, wr_size);
+
+		printf("Write params(0x%x) to Flash\n", wr_size);
+	}
+
+	return 0;
+}
+
+static int lpddr4_restore_param(struct dram_timing_info *dram_timing)
+{
+	uint32_t *pcfg = (uint32_t *)(X2_SRAM_LOAD_ADDR);
+	uint32_t *ptable = dram_timing->ddrphy_cali_table;
+	ssize_t cfg_size;
+	unsigned int rd_bytes;
+	int i;
+
+	if (!g_dev_ops.read) {
+		return -1;
+	}
+
+	cfg_size = reg32_read(X2_PMU_SW_REG_00);
+
+	rd_bytes = g_dev_ops.read(g_binfo.ddrp_addr[0], (uintptr_t)pcfg, cfg_size);
+
+	printf("Read params(0x%x) from Flash\n", rd_bytes);
+
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
+	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x3);
+
+	for (i = 0; i < dram_timing->ddrphy_cali_num; i++) {
+		reg32_write(ptable[i], pcfg[i]);
+		//printf("W:0x%x <- 0x%x\n", ptable[i], pcfg[i]);
+	}
+
+	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x2);
+	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
+
+	return 0;
+}
+
+static inline void disable_cnn_core(void)
+{
+	u32 reg;
+
+	/* Disable clock of CNN */
+	writel(0x33, X2_CNNSYS_CLKEN_CLR);
+	while (!((reg = readl(X2_CNNSYS_CLKOFF_STA)) & 0xF));
+	udelay(5);
+
+	reg = readl(X2_PMU_VDD_CNN_CTRL) | 0x22;
+	writel(reg, X2_PMU_VDD_CNN_CTRL);
+	udelay(5);
+
+	writel(0x3, X2_SYSC_CNNSYS_SW_RSTEN);
+	udelay(5);
+
+	reg = readl(X2_PMU_VDD_CNN_CTRL) & ~0x11;
+	writel(reg, X2_PMU_VDD_CNN_CTRL);
+
+	printf("Disable cnn cores ...\n");
+}
+
+static inline void enable_cnn_core(void)
+{
+	u32 reg;
+
+	reg = readl(X2_PMU_VDD_CNN_CTRL) | 0x11;
+	writel(reg, X2_PMU_VDD_CNN_CTRL);
+	mdelay(2);
+
+	reg = readl(X2_PMU_VDD_CNN_CTRL) & ~0x22;
+	writel(reg, X2_PMU_VDD_CNN_CTRL);
+	udelay(5);
+
+	writel(0x0, X2_SYSC_CNNSYS_SW_RSTEN);
+	udelay(5);
+
+	writel(0x33, X2_CNNSYS_CLKEN_SET);
+	udelay(5);
+
+	printf("Enable cnn cores ...\n");
+}
+
+static inline void do_suspend(void)
+{
+	u32 reg = readl(0xA6003070);
+	/* Set wakeup_in pin to func0 */
+	reg &= ~0xC000;
+	writel(reg, 0xA6003070);
+
+#if 0
+	/* Config gpio06 to func02 to capture signals. */
+	reg = (readl(0xA6003060)) & ~0xFFFF;
+	reg |= 0xAAAA;
+	writel(reg, 0xA6003060);
+
+	writel(0x80000155, 0xA6003150);
+	writel(0x100, 0xA6003154);
+#endif /* #if 0 */
+
+	writel(0x80000000, X2_PMU_SLEEP_PERIOD);
+	writel(0xFE, X2_PMU_W_SRC_MASK);
+
+	writel(0x0, X2_PMU_OUTPUT_CTRL);
+
+	printf("Enter suspend ...\n");
+	writel(0x1, X2_PMU_SLEEP_CMD);
+
+	wfi();
+}
+#endif /* CONFIG_X2_PM */
+
+static inline void lpddr4_cfg_fw(struct dram_timing_info *dram_timing,
+	unsigned int wake_src)
+{
 	unsigned int fw_src_laddr = 0;
 	unsigned int fw_src_len;
 	unsigned int rd_byte;
@@ -364,44 +565,9 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	unsigned int mcu_sram;
 	unsigned int min_len;
 
-	dram_pll_init(MHZ(g_ddr_rate));
-
-	reg32_write(X2_PMU_DDRSYS_CTRL, 0x1);
-	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0xfffffffe);
-
-	reg32_write(DDRC_PHY_DFI1_ENABLE, 0x1);
-
-	reg32_write(DDRC_DBG1, 0x1);
-	reg32_write(DDRC_PWRCTL, 0x1);
-
-	while ((reg32_read(DDRC_STAT) & 0x7));
-
-	/*step2 Configure uMCTL2's registers */
-	lpddr4_cfg_umctl2(dram_timing->ddrc_cfg, dram_timing->ddrc_cfg_num);
-
-	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0x0);
-
-	reg32_write(DDRC_DBG1, 0x0);
-#ifdef CONFIG_SUPPORT_PALLADIUM
-	reg32_write(DDRC_PWRCTL, 0x0);
-#else
-	reg32_write(DDRC_PWRCTL, 0x120);
-#endif /* CONFIG_SUPPORT_PALLADIUM */
-	reg32_write(DDRC_SWCTL, 0x0);
-
-	/* DFIMISC.dfi_init_compelete_en to 0 */
-	value = reg32_read(DDRC_DFIMISC) & ~(1 << 0);
-	reg32_write(DDRC_DFIMISC, value);
-
-	/* DFIMISC.dfi_frequency */
-	value = reg32_read(DDRC_DFIMISC) | (1 << 12);
-	reg32_write(DDRC_DFIMISC, value);
-
-	reg32_write(DDRC_SWCTL, 0x1);
-
-	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
-
-	lpddr4_cfg_phy(dram_timing);
+	if (wake_src > 0) {
+		return;
+	}
 
 #ifndef CONFIG_SUPPORT_PALLADIUM
 	if (g_dev_ops.proc_start) {
@@ -477,13 +643,84 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	}
 #endif /* CONFIG_SUPPORT_PALLADIUM */
 
-	cdd_ch = lpddr4_read_msg();
+	return;
+}
+
+extern unsigned int g_ddr_rate;
+
+void ddr_init(struct dram_timing_info *dram_timing)
+{
+	unsigned int value, temp;
+	unsigned int cdd_cha, cdd_chb, cdd_ch = 0;
+	unsigned int rd2wr_val;
+	unsigned int txdqsdly_coarse, txdqsdly_fine, trained_txdqsdly;
+	unsigned int tctrl_delay, t_wrdata_delay;
+	unsigned int wk_sta;
+
+	dram_pll_init(MHZ(g_ddr_rate));
+
+	reg32_write(X2_PMU_DDRSYS_CTRL, 0x1);
+	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0xfffffffe);
+
+	reg32_write(DDRC_PHY_DFI1_ENABLE, 0x1);
+
+	reg32_write(DDRC_DBG1, 0x1);
+	reg32_write(DDRC_PWRCTL, 0x1);
+
+	while ((reg32_read(DDRC_STAT) & 0x7));
+
+	/*step2 Configure uMCTL2's registers */
+	lpddr4_cfg_umctl2(dram_timing->ddrc_cfg, dram_timing->ddrc_cfg_num);
+
+	reg32_write(X2_SYSC_DDRSYS_SW_RSTEN, 0x0);
+
+	reg32_write(DDRC_DBG1, 0x0);
+#ifdef CONFIG_SUPPORT_PALLADIUM
+	reg32_write(DDRC_PWRCTL, 0x0);
+#else
+	reg32_write(DDRC_PWRCTL, 0x120);
+#endif /* CONFIG_SUPPORT_PALLADIUM */
+	reg32_write(DDRC_SWCTL, 0x0);
+
+	/* DFIMISC.dfi_init_compelete_en to 0 */
+	value = reg32_read(DDRC_DFIMISC) & ~(1 << 0);
+	reg32_write(DDRC_DFIMISC, value);
+
+	/* DFIMISC.dfi_frequency */
+	value = reg32_read(DDRC_DFIMISC) | (1 << 12);
+	reg32_write(DDRC_DFIMISC, value);
+
+	reg32_write(DDRC_SWCTL, 0x1);
+
+	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
+
+	lpddr4_cfg_phy(dram_timing);
+
+	wk_sta = readl(X2_PMU_WAKEUP_STA);
+	printf("wake sta = 0x%x, src = 0x%x\n", wk_sta, readl(X2_PMU_W_SRC));
+
+	lpddr4_cfg_fw(dram_timing, wk_sta);
+
+	if (wk_sta == 0) {
+		cdd_ch = lpddr4_read_msg();
+	} else {
+#ifdef CONFIG_X2_PM
+		printf("Exit from suspend ...\n");
+		lpddr4_restore_param(dram_timing);
+
+		enable_cnn_core();
+
+		printf("End of restore ...\n");
+#endif /* CONFIG_X2_PM */
+	}
 
 	lpddr4_cfg_pie(dram_timing->ddrphy_pie, dram_timing->ddrphy_pie_num);
 
-	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
-	reg32_write(DDRP_MASTER0_PPTTRAINSETUP_P0, 0x6a);
-	reg32_write(DDRP_MASTER0_PMIENABLE, 0x1);
+	if (wk_sta == 0) {
+		reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
+		reg32_write(DDRP_MASTER0_PPTTRAINSETUP_P0, 0x6a);
+		reg32_write(DDRP_MASTER0_PMIENABLE, 0x1);
+	}
 
 	reg32_write(DDRC_SWCTL, 0x0);
 
@@ -501,39 +738,41 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	value = reg32_read(DDRC_DFIMISC) & ~0x20;
 	reg32_write(DDRC_DFIMISC, value);
 
+	if (wk_sta == 0) {
 #ifndef CONFIG_SUPPORT_PALLADIUM
-	reg32_write(DDRC_DBG1, 0x1);
+		reg32_write(DDRC_DBG1, 0x1);
 
-	cdd_cha = cdd_ch & 0xFFFF;
-	cdd_chb = (cdd_ch >> 16) & 0xFFFF;
+		cdd_cha = cdd_ch & 0xFFFF;
+		cdd_chb = (cdd_ch >> 16) & 0xFFFF;
 
-	temp = reg32_read(DDRC_DRAMTMG2);
-	rd2wr_val = (temp & 0x3F00) >> 8;
-	value = ((max(cdd_cha, cdd_chb) + 1) >> 1) + rd2wr_val;
-	reg32_write(DDRC_DRAMTMG2, (value <<8) | (temp & 0xFFFFFC0FF));
+		temp = reg32_read(DDRC_DRAMTMG2);
+		rd2wr_val = (temp & 0x3F00) >> 8;
+		value = ((max(cdd_cha, cdd_chb) + 1) >> 1) + rd2wr_val;
+		reg32_write(DDRC_DRAMTMG2, (value <<8) | (temp & 0xFFFFFC0FF));
 
-	temp = reg32_read(DDRP_DBYTE0_TXDQSDLYTG0_U1_P0);
-	txdqsdly_coarse = (temp & 0x3C0) >> 6;
-	txdqsdly_fine = temp & 0x1F;
+		temp = reg32_read(DDRP_DBYTE0_TXDQSDLYTG0_U1_P0);
+		txdqsdly_coarse = (temp & 0x3C0) >> 6;
+		txdqsdly_fine = temp & 0x1F;
 
-	trained_txdqsdly = ((txdqsdly_coarse << 5) + txdqsdly_fine + 0x3F) >> 6;
+		trained_txdqsdly = ((txdqsdly_coarse << 5) +
+			txdqsdly_fine + 0x3F) >> 6;
 
-	temp = reg32_read(DDRC_DFITMG0);
-	tctrl_delay = (temp & 0x1F000000) >> 24;
+		temp = reg32_read(DDRC_DFITMG0);
+		tctrl_delay = (temp & 0x1F000000) >> 24;
 
-	if (((temp & 0x8000) >> 15) == 1) {
-		t_wrdata_delay = (tctrl_delay << 1) + 6 + 8 + trained_txdqsdly + 0x1;
-	} else {
-		t_wrdata_delay = (tctrl_delay << 1) + 6 + 8 + trained_txdqsdly;
-	}
+		t_wrdata_delay = (tctrl_delay << 1) + 14 + trained_txdqsdly;
+		if (((temp & 0x8000) >> 15) == 1) {
+			t_wrdata_delay += 0x1;
+		}
 
-	temp = reg32_read(DDRC_DFITMG1);
-	value = ((t_wrdata_delay + 1) >>1 ) << 16;
-	value |= (temp & 0xFFE0FFFF);
-	reg32_write(DDRC_DFITMG1, value);
+		temp = reg32_read(DDRC_DFITMG1);
+		value = ((t_wrdata_delay + 1) >>1 ) << 16;
+		value |= (temp & 0xFFE0FFFF);
+		reg32_write(DDRC_DFITMG1, value);
 
-	reg32_write(DDRC_DBG1, 0x0);
+		reg32_write(DDRC_DBG1, 0x0);
 #endif /* CONFIG_SUPPORT_PALLADIUM */
+	}
 
 	value = reg32_read(DDRC_DFIMISC) | 0x1;
 	reg32_write(DDRC_DFIMISC, value);
@@ -559,10 +798,23 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_PCTRL_4, 0x1);
 	reg32_write(DDRC_PCTRL_5, 0x1);
 
+	if (wk_sta == 0) {
 #ifndef CONFIG_SUPPORT_PALLADIUM
-	if (g_dev_ops.proc_end) {
-		g_dev_ops.proc_end(&g_binfo);
-	}
+		if (g_dev_ops.proc_end) {
+			g_dev_ops.proc_end(&g_binfo);
+		}
 #endif /* CONFIG_SUPPORT_PALLADIUM */
+
+#ifdef CONFIG_X2_PM
+		lpddr4_save_param(dram_timing);
+
+		disable_cnn_core();
+
+		printf("Enter self-refresh ...\n");
+		lpddr4_enter_retention();
+
+		do_suspend();
+#endif /* CONFIG_X2_PM */
+	}
 }
 

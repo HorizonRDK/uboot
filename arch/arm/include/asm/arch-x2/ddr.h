@@ -358,6 +358,10 @@ struct dram_timing_info {
 	/* ddr phy PIE */
 	struct dram_cfg_param *ddrphy_pie;
 	unsigned int ddrphy_pie_num;
+
+	unsigned int *ddrphy_cali_table;
+	unsigned int ddrphy_cali_num;
+
 	/* initialized drate table */
 	unsigned int fsp_table[4];
 };

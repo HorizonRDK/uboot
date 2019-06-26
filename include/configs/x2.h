@@ -31,7 +31,7 @@
 #define X2_SRAM_LOAD_ADDR	(0x8000B000)
 #define X2_SRAM_LOAD_MAX	(0x4000)
 #else
-#define CONFIG_SPL_MAX_SIZE    0x6800
+#define CONFIG_SPL_MAX_SIZE    0x6E00
 
 #define X2_SRAM_LOAD_ADDR	(0x80007D00)
 #define X2_SRAM_LOAD_MAX	(0x8000)
@@ -48,7 +48,8 @@
 #define SPL_LOAD_DTB_ADDR		0x10000000
 
 /* #define CONFIG_X2_LPDDR4_3200	(3200) */
-/* #define CONFIG_X2_LPDDR4_2666	(2666) */
+#define CONFIG_X2_LPDDR4_2666	(2666)
+/* #define CONFIG_X2_LPDDR4_2400	(2400)*/
 /* #define CONFIG_X2_LPDDR4_2133	(2133) */
 
 /* The option for palladium */
@@ -57,6 +58,8 @@
 /* The option for som board */
 /* #define CONFIG_X2_SOM_BOARD */
 /* #define CONFIG_X2_MONO_BOARD */
+
+/* #define CONFIG_X2_PM */
 
 #else
 
