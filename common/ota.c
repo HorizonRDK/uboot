@@ -331,11 +331,11 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	return ret;
 }
 
-void ota_update_failed_output(char *boot_reason)
+void ota_update_failed_output(char *boot_reason, char *partition)
 {
 	printf("*************************************************\n");
 	printf("Error: update %s faild! \n", boot_reason);
-	printf("	   into uboot backup partition! \n");
+	printf("	   into %s backup partition! \n", partition);
 	printf("*************************************************\n");
 }
 
@@ -451,7 +451,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
 			VEEPROM_UPDATE_FLAG_SIZE);
 
-		ota_update_failed_output(boot_reason);
+		ota_update_failed_output(boot_reason, partition);
 	}
 
 	if (boot_flag == 1) {

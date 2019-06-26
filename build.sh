@@ -59,12 +59,19 @@ function choose()
     if [ "$board" = "x2som" ];then
         echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
     elif [ "$board" = "x2svb" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
     elif [ "$board" = "j2mono" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
+        echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
+    elif [ "$board" = "j2quad" ];then
+        echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+        echo "#define CONFIG_X2_QUAD_BOARD" >> $tmp
     else
         echo "Unknown BOARD_TYPE value: $board"
         exit 1
@@ -143,7 +150,7 @@ function all()
 
 function usage()
 {
-    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono> ] [ -d 3200|2666]"
+    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono|quad> ] [ -d 3200|2666]"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, ap"
     echo "  -b  board type "
@@ -163,6 +170,8 @@ elif [ "$board" == "x2svb" ];then
     board_type="svb"
 elif [ "$board" = "j2mono" ];then
     board_type="mono"
+elif [ "$board" = "j2quad" ];then
+    board_type="quad"
 fi
 
 while getopts "b:m:o:d:h:" opt

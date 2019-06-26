@@ -420,9 +420,24 @@ static bool ota_spl_update_check(void) {
 	uboot_status = (partstatus >> 1) & 0x1;
 	boot_flag = uboot_status;
 
-	if ((strcmp(boot_reason, "uboot") == 0) ||
-		(strcmp(boot_reason, "all") == 0)) {
+	if (strcmp(boot_reason, "normal") == 0)  {
+		/*
+		 * During normal startup, use backup partitions
+		 * if 10 consecutive startup failures occur
+		 */
+		veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+		count = count - 1;
+		veeprom_write(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
 
+		if (count <= 0) {
+			printf("Error: Failed times more than 10, using backup partitions\n");
+			boot_flag = uboot_status^1;
+		}
+	} else if ((strcmp(boot_reason, "recovery") == 0)) {
+		/* using ubootbak partition entry recovery mode */
+		boot_flag = uboot_status^1;
+	} else if((strcmp(boot_reason, "uboot") == 0) ||
+		(strcmp(boot_reason, "all") == 0) ) {
 		flash_success = (up_flag >> 2) & 0x1;
 		first_try = (up_flag >> 1) & 0x1;
 		app_success = up_flag & 0x1;
@@ -444,21 +459,6 @@ static bool ota_spl_update_check(void) {
 				VEEPROM_UPDATE_FLAG_SIZE);
 
 			ota_update_failed_output(boot_reason);
-		}
-	}
-
-	if (strcmp(boot_reason, "normal") == 0)  {
-		/*
-		 * During normal startup, use backup partitions
-		 * if 10 consecutive startup failures occur
-		 */
-		veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
-		count = count - 1;
-		veeprom_write(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
-
-		if (count <= 0) {
-			printf("Error: Failed times more than 10, using backup partitions\n");
-			boot_flag = uboot_status^1;
 		}
 	}
 

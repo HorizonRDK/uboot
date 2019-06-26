@@ -129,12 +129,12 @@ void wait_start(void)
 
 static unsigned int x2_board_id[] = {
 	0x100, 0x200, 0x201, 0x102, 0x103, 0x101, 0x202, 0x203,
-	0x301, 0x302, 0x303, 0x304
+	0x300, 0x301, 0x302, 0x303, 0x304
 };
 
 static unsigned int x2_gpio_id[] = {
 	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0xff,
-	0x34, 0x36, 0x35, 0x37
+	0xff, 0x34, 0x36, 0x35, 0x37
 };
 
 unsigned int x2_gpio_get(void)
@@ -233,36 +233,44 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	return s;
 }
 
-static bool check_dual_partition(void)
+ static void environmet_init(void)
 {
-	bool dual_partition = 0;
+	char mmcroot[64] = "/dev/mmcblk0p4\0";
+	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
+	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage};";
+
+	char rootfs[32] = "system";
+	char kernel[32] = "kernel";
 	char upmode[16] = { 0 };
+	unsigned int part_id;
+	char boot_reason[64] = { 0 };
+	char *s;
+
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+		VEEPROM_RESET_REASON_SIZE);
 
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
 
-	/* When upmode is AB, support update status checking */
-	if (strcmp(upmode, "AB") == 0)
-		dual_partition = 1;
+	/* into recovery mode */
+	if (strcmp(boot_reason, "recovery") == 0)  {
+		/* env bootfile set*/
+		s = "recovery.gz\0";
+		env_set("bootfile", s);
 
-	return dual_partition;
-}
+		/* load recovery Image file */
+		part_id = get_partition_id(kernel);
 
- static void environmet_init(void)
-{
-	char mmcroot[64] = "/dev/mmcblk0p4\0";
-	char mmcload[128] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
-	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage}\0";
+		mmcload[26] = hex_to_char(part_id);
+		tmp[15] = mmcload[26];
+		strcat(mmcload, tmp);
 
-	char rootfs[32] = "system";
-	char kernel[32] = "kernel";
-	unsigned int part_id;
-	bool dual_partition;
-
-	dual_partition = check_dual_partition();
+		env_set("mmcload", mmcload);
+		return;
+	}
 
 	/* init mmcroot environment */
-	if (dual_partition == 1)
+	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
 		part_id = ota_uboot_update_check(rootfs);
 	else
 		part_id = get_partition_id(rootfs);
@@ -271,7 +279,7 @@ static bool check_dual_partition(void)
 	env_set("mmcroot", mmcroot);
 
 	/* init mmcload environment */
-	if (dual_partition == 1)
+	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
 		part_id = ota_uboot_update_check(kernel);
 	else
 		part_id = get_partition_id(kernel);
@@ -530,9 +538,11 @@ void main_loop(void)
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))
 		cli_secure_boot_cmd(s);
+
 #if defined(CONFIG_J2_LED)
 	j2_led_init();
 #endif
+
 	autoboot_command(s);
 
 	cli_loop();

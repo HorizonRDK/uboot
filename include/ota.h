@@ -24,7 +24,7 @@ int ota_update_image(char *name, char *addr, unsigned int bytes);
 int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
         char *const argv[]);
 
-void ota_update_failed_output(char *boot_reason);
+void ota_update_failed_output(char *boot_reason, char *partition);
 
 void ota_get_update_status(char *up_flag, char *partstatus,
         char *boot_reason);
