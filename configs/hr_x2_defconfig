@@ -1088,7 +1088,7 @@ CONFIG_X2_QSPI=y
 # CONFIG_BCM2835_WDT is not set
 # CONFIG_ULP_WATCHDOG is not set
 # CONFIG_WDT is not set
-# CONFIG_X2_BIFSD is not set
+CONFIG_X2_BIFSD=y
 # CONFIG_PHYS_TO_BUS is not set
 
 #
