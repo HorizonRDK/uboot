@@ -254,6 +254,8 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 
 	/* into recovery mode */
 	if (strcmp(boot_reason, "recovery") == 0)  {
+		env_set("bootdelay", "0");
+
 		/* env bootfile set*/
 		s = "recovery.gz\0";
 		env_set("bootfile", s);
