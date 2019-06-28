@@ -68,7 +68,7 @@ static void x2_uart_init(struct x2_uart_regs *regs)
 
 static int x2_uart_putc(struct x2_uart_regs *regs, const char c)
 {
-	if (!(readl(&regs->lsr_reg) & X2_LSR_TXRDY))
+	if (!(readl(&regs->lsr_reg) & X2_LSR_TX_EMPTY))
 		return -EAGAIN;
 
 	writel(c, &regs->tdr_reg);
