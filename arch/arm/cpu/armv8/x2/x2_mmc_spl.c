@@ -236,6 +236,8 @@ static unsigned int emmc_write_blks(uint64_t lba,
 	size = ((size + EMMC_BLOCK_SIZE - 1) / EMMC_BLOCK_SIZE) * EMMC_BLOCK_SIZE;
 
 	flush_dcache_range(buf, buf + size);
+
+	size = (size + EMMC_BLOCK_MASK) & ~EMMC_BLOCK_MASK;
 	ret = ops->prepare(lba, buf, size);
 
 	if (is_cmd23_enabled()) {

@@ -420,6 +420,8 @@ static void lpddr4_enter_retention(void)
 static int lpddr4_save_param(struct dram_timing_info *dram_timing)
 {
 	uint32_t *pcfg = (uint32_t *)X2_SRAM_LOAD_ADDR;
+	uint32_t *pcfg32_data = pcfg;
+	uint16_t *pcfg16_data = (uint16_t *)(X2_SRAM_LOAD_ADDR + 8);
 	uint32_t *ptable = dram_timing->ddrphy_cali_table;
 	uint32_t cfg_size, wr_size = 0;
 	int i;
@@ -427,12 +429,13 @@ static int lpddr4_save_param(struct dram_timing_info *dram_timing)
 	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
 	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x3);
 
-	for (i = 0; i < dram_timing->ddrphy_cali_num; i++) {
-		pcfg[i] = reg32_read(ptable[i]);
-		//printf("R:0x%x -> 0x%x\n", ptable[i], pcfg[i]);
+	pcfg32_data[0] = reg32_read(ptable[0]);
+	pcfg32_data[1] = reg32_read(ptable[1]);
+	for (i = 2; i < dram_timing->ddrphy_cali_num; i++) {
+		pcfg16_data[i - 2] = (uint16_t)(reg32_read(ptable[i]) & 0xFFFF);
+		//printf("R:0x%x -> 0x%x\n", ptable[i], pcfg16_data[i - 2]);
 	}
-	cfg_size = dram_timing->ddrphy_cali_num * sizeof(unsigned int);
-	cfg_size = (cfg_size + 0x1ff) & ~0x1ff;
+	cfg_size = (dram_timing->ddrphy_cali_num - 2 )* sizeof(uint16_t) + 8;
 
 	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x2);
 	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x1);
@@ -454,8 +457,10 @@ static int lpddr4_save_param(struct dram_timing_info *dram_timing)
 static int lpddr4_restore_param(struct dram_timing_info *dram_timing)
 {
 	uint32_t *pcfg = (uint32_t *)(X2_SRAM_LOAD_ADDR);
+	uint32_t *pcfg32_data = pcfg;
+	uint16_t *pcfg16_data = (uint16_t *)(X2_SRAM_LOAD_ADDR + 8);
 	uint32_t *ptable = dram_timing->ddrphy_cali_table;
-	ssize_t cfg_size;
+	uint32_t cfg_size;
 	unsigned int rd_bytes;
 	int i;
 
@@ -472,9 +477,11 @@ static int lpddr4_restore_param(struct dram_timing_info *dram_timing)
 	reg32_write(DDRP_APBONLY0_MICROCONTMUXSEL, 0x0);
 	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x3);
 
-	for (i = 0; i < dram_timing->ddrphy_cali_num; i++) {
-		reg32_write(ptable[i], pcfg[i]);
-		//printf("W:0x%x <- 0x%x\n", ptable[i], pcfg[i]);
+	reg32_write(ptable[0], pcfg32_data[0]);
+	reg32_write(ptable[1], pcfg32_data[1]);
+	for (i = 2; i < dram_timing->ddrphy_cali_num; i++) {
+		reg32_write(ptable[i], pcfg16_data[i - 2]);
+		//printf("W:0x%x <- 0x%x\n", ptable[i], pcfg16_data[i - 2]);
 	}
 
 	reg32_write(DDRP_DRTUB0_UCCLKHCLKENABLES, 0x2);
@@ -526,12 +533,22 @@ static inline void enable_cnn_core(void)
 	printf("Enable cnn cores ...\n");
 }
 
+static void do_core1_idle(void)
+{
+	wfi();
+}
+
 static inline void do_suspend(void)
 {
+	void (*core1_func)(void) = &do_core1_idle;
 	u32 reg = readl(0xA6003070);
 	/* Set wakeup_in pin to func0 */
 	reg &= ~0xC000;
 	writel(reg, 0xA6003070);
+
+	/* Notify core1 to wfi */
+	writeq((uintptr_t)core1_func, CPU_RELEASE_ADDR);
+	asm volatile ("sev");
 
 #if 0
 	/* Config gpio06 to func02 to capture signals. */
@@ -546,9 +563,10 @@ static inline void do_suspend(void)
 	writel(0x80000000, X2_PMU_SLEEP_PERIOD);
 	writel(0xFE, X2_PMU_W_SRC_MASK);
 
+	printf("Enter suspend ...\n");
+
 	writel(0x0, X2_PMU_OUTPUT_CTRL);
 
-	printf("Enter suspend ...\n");
 	writel(0x1, X2_PMU_SLEEP_CMD);
 
 	wfi();
