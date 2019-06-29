@@ -271,6 +271,10 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		return;
 	}
 
+	/* if uboot update failed, into recovery mode */
+	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
+		ota_check_update_success_flag();
+
 	/* init mmcroot environment */
 	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
 		part_id = ota_uboot_update_check(rootfs);

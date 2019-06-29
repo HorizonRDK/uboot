@@ -415,11 +415,47 @@ bool ota_all_update(char up_flag, bool part_status)
 	return boot_flag;
 }
 
+static void ota_recovery_mode_set(char *partition)
+{
+	char *s = NULL;
+	char boot_reason[16] = "recovery";
+	printf("Error: OTA update %s failed, into recovery mode ... \n", partition);
+
+	veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+				VEEPROM_RESET_REASON_SIZE);
+
+	/* env bootfile set*/
+	s = "recovery.gz\0";
+	env_set("bootfile", s);
+}
+
+void ota_check_update_success_flag(void)
+{
+	char boot_reason[64] = { 0 };
+	bool update_success;
+	char up_flag, partstatus;
+	char upmode[16] = { 0 };
+
+	ota_get_update_status(&up_flag, &partstatus, boot_reason);
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	update_success = (up_flag >> 3) & 0x1;
+	if ((update_success == 0) && (strcmp(upmode, "golden") == 0))
+		/* when update uboot failed in golden mode, into recovery system */
+		ota_recovery_mode_set(boot_reason);
+}
+
 unsigned int ota_uboot_update_check(char *partition) {
 	char boot_reason[64] = { 0 };
 	char up_flag, partstatus;
 	bool boot_bak, part_status;
 	bool boot_flag;
+	char upmode[16] = { 0 };
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
 
 	ota_get_update_status(&up_flag, &partstatus, boot_reason);
 
@@ -451,11 +487,16 @@ unsigned int ota_uboot_update_check(char *partition) {
 		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
 			VEEPROM_UPDATE_FLAG_SIZE);
 
-		ota_update_failed_output(boot_reason, partition);
+		if (strcmp(upmode, "golden") == 0)
+			/* when update kernel or system failed in golden mode, into recovery system */
+			ota_recovery_mode_set(boot_reason);
+		else
+			ota_update_failed_output(boot_reason, partition);
 	}
 
 	if (boot_flag == 1) {
 		strcat(partition, "bak");
 	}
+
 	return get_partition_id(partition);
 }
