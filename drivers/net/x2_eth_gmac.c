@@ -605,11 +605,16 @@ static int eqos_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, duplex, speed;
+	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
-    duplex = (eqos->is_88e6321) ? 1 : eqos->phy->duplex;
-    speed = (eqos->is_88e6321) ? SPEED_1000 : eqos->phy->speed;
+	if (boot_info->board_id == QUAD_BOARD_ID) {
+		eqos->phy->duplex = 1;
+		eqos->phy->speed = SPEED_1000;	
+	}
+	duplex = (eqos->is_88e6321) ? 1 : eqos->phy->duplex;
+	speed = (eqos->is_88e6321) ? SPEED_1000 : eqos->phy->speed;
 
     if (duplex)
         ret = eqos_set_full_duplex(dev);
@@ -712,6 +717,7 @@ static int eqos_start(struct udevice *dev)
     const void *blob = gd->fdt_blob;
     int node = dev_of_offset(dev);
     int phy_addr = 0;
+	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -746,33 +752,35 @@ static int eqos_start(struct udevice *dev)
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
 
-    if (!eqos->is_88e6321) {
-    eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
-    if (!eqos->phy) {
-        pr_err("phy_connect() failed");
-        goto err_stop_resets;
-    }
+	if (boot_info->board_id != QUAD_BOARD_ID) {
+		if (!eqos->is_88e6321) {
+			eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
+			if (!eqos->phy) {
+				pr_err("phy_connect() failed");
+				goto err_stop_resets;
+			}
 
-    fprintf(stdout, "Phy name:%s\n",eqos->phy->drv->name);
-    fprintf(stdout, "Phy uid:%x\n",eqos->phy->drv->uid);
+			fprintf(stdout, "Phy name:%s\n",eqos->phy->drv->name);
+			fprintf(stdout, "Phy uid:%x\n",eqos->phy->drv->uid);
 
-    ret = phy_config(eqos->phy);
-    if (ret < 0) {
-        pr_err("phy_config() failed: %d", ret);
-        goto err_shutdown_phy;
-    }
+			ret = phy_config(eqos->phy);
+			if (ret < 0) {
+				pr_err("phy_config() failed: %d", ret);
+				goto err_shutdown_phy;
+			}
 
-    ret = phy_startup(eqos->phy);
-    if (ret < 0) {
-        pr_err("phy_startup() failed: %d", ret);
-        goto err_shutdown_phy;
-    }
+			ret = phy_startup(eqos->phy);
+			if (ret < 0) {
+				pr_err("phy_startup() failed: %d", ret);
+				goto err_shutdown_phy;
+			}
 
-    if (!eqos->phy->link) {
-        pr_err("No link");
-        goto err_shutdown_phy;
-    }
-    }
+			if (!eqos->phy->link) {
+				pr_err("No link");
+				goto err_shutdown_phy;
+			}
+		}
+	}
 
 
     ret = eqos_adjust_link(dev);
@@ -803,18 +811,17 @@ static int eqos_start(struct udevice *dev)
                  EQOS_MAC_HW_FEATURE1_TXFIFOSIZE_MASK;
     rx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_SHIFT) &
                  EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
+	if (boot_info->board_id != QUAD_BOARD_ID) {
+		if (eqos->is_88e6321 ) {
+			/*set for mac for mavell*/
+			val |= ((1 << 28) | (1 << 5) | ( 1 << 1));
+			writel(val, &eqos->mac_regs->hw_feature1);
 
-    if (eqos->is_88e6321 ) {
-        /*set for mac for mavell*/
-        val |= ((1 << 28) | (1 << 5) | ( 1 << 1));
-        writel(val, &eqos->mac_regs->hw_feature1);
-
-        val = readl(&eqos->mac_regs->unused_0e0[0]);
-        val |= (( 1 << 12) | (1 << 9));
-        writel(val, &eqos->mac_regs->unused_0e0[0]);
-
-
-    }
+			val = readl(&eqos->mac_regs->unused_0e0[0]);
+			val |= (( 1 << 12) | (1 << 9));
+			writel(val, &eqos->mac_regs->unused_0e0[0]);
+		}
+	}
     /*
      * r/tx_fifo_sz is encoded as log2(n / 128). Undo that by shifting.
      * r/tqs is encoded as (n / 256) - 1.

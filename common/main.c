@@ -22,6 +22,7 @@
 #include <memalign.h>
 #include <ota.h>
 #include <j2-led.h>
+#include <configs/x2_config.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -510,6 +511,43 @@ static void prepare_autoreset(void)
 }
 #endif
 
+#if defined(CONFIG_X2_QUAD_BOARD)
+/* GPIO PIN MUX */
+#define PIN_MUX_BASE    0xA6003000
+#define GPIO1_CFG (PIN_MUX_BASE + 0x10)
+
+#define SWITCH_PORT_RESET_GPIO	22
+
+/*sja1105 needs reset the certain net port when link state change,
+or the network won't work properly*/
+static int reboot_notify_to_mcu(void)
+{
+	int ret;
+	unsigned int reg_val;
+
+	/*set gpio1[7] GPIO function*/
+	reg_val = readl(GPIO1_CFG);
+	reg_val |= 0xc000;
+	writel(reg_val, GPIO1_CFG);
+
+	ret = gpio_request(SWITCH_PORT_RESET_GPIO, "switch_port_rst_gpio");
+	if (ret && ret != -EBUSY) {
+		printf("%s: requesting pin %u failed\n", __func__, SWITCH_PORT_RESET_GPIO);
+		return -1;
+	}
+	
+	ret |= gpio_direction_output(SWITCH_PORT_RESET_GPIO, 1);
+	udelay(2000);
+	ret |= gpio_set_value(SWITCH_PORT_RESET_GPIO, 0);
+	mdelay(10);
+	ret |= gpio_set_value(SWITCH_PORT_RESET_GPIO, 1);
+
+	gpio_free(SWITCH_PORT_RESET_GPIO);
+
+	return ret;
+}
+#endif
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
@@ -544,11 +582,12 @@ void main_loop(void)
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))
 		cli_secure_boot_cmd(s);
-
+#if defined(CONFIG_X2_QUAD_BOARD)
 #if defined(CONFIG_J2_LED)
 	j2_led_init();
 #endif
-
+	reboot_notify_to_mcu();
+#endif
 	autoboot_command(s);
 
 	cli_loop();
