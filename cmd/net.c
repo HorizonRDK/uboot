@@ -51,7 +51,7 @@ static int do_tftpput(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 
 U_BOOT_CMD(
-	tftpput,	4,	1,	do_tftpput,
+	tput,	4,	1,	do_tftpput,
 	"TFTP put command, for uploading files to a server",
 	"Address Size [[hostIPaddr:]filename]"
 );
