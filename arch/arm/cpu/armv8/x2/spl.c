@@ -13,6 +13,7 @@
 #include <asm/io.h>
 #include <asm/spl.h>
 #include <asm/arch/x2_dev.h>
+#include <veeprom.h>
 
 #include "x2_info.h"
 #include "x2_mmc_spl.h"
@@ -50,9 +51,9 @@ void spl_dram_init(void)
 
 void board_init_f(ulong dummy)
 {
-	if ((g_x2ver & 0xFF) == 0) {
-		switch_peri_pll();
-	}
+	char pllswitch[16] = { 0 };
+	
+	 
 
 	icache_enable();
 
@@ -69,6 +70,17 @@ void board_init_f(ulong dummy)
 #elif defined(CONFIG_X2_NAND_BOOT)
 	spl_nand_init();
 #endif
+
+	veeprom_read(VEEPROM_PERI_PLL_OFFSET, pllswitch,VEEPROM_PERI_PLL_SIZE);
+	
+	if ((g_x2ver & 0xFF) == 0) {
+			
+			if (strcmp(pllswitch, "disable_peri_pll") == 0)
+				{}
+			else
+				switch_peri_pll();
+		}
+
 
 	spl_dram_init();
 
