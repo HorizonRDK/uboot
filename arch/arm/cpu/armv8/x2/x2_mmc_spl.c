@@ -525,10 +525,10 @@ void spl_emmc_init(unsigned int emmc_config)
 {
 	dw_mmc_params_t params;
 	unsigned int mclk;
-	unsigned int width = EMMC_BUS_WIDTH_1;
-	unsigned int ref_div = 14;
+	unsigned int width = EMMC_BUS_WIDTH_4;
+	unsigned int ref_div = 3;
 	unsigned int ph_div = 7;
-	unsigned int val = X2_EMMC_REF_DIV(ref_div) | X2_EMMC_PH_DIV(ph_div);
+	unsigned int val = (ph_div << 4 | ref_div);
 	unsigned int sclk;
 
 	if (emmc_config & X2_EMMC_RE_CFG) {
