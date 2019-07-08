@@ -49,6 +49,7 @@
 #define J2_SVB_BOARD_ID		0x200
 #define X2_SOM_3V3_ID		0x103
 #define QUAD_BOARD_ID		0x300
+#define J2_MM_BOARD_ID		0x400
 
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 

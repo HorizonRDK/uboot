@@ -87,12 +87,12 @@ struct dram_cfg_param lpddr4_ddrc_som[] = {
 
 static unsigned int x2_board_id[] = {
 	0x100, 0x200, 0x201, 0x102, 0x103, 0x101, 0x202, 0x203,
-	0x300, 0x301, 0x302, 0x303, 0x304
+	0x300, 0x301, 0x302, 0x303, 0x304, 0x400
 };
 
 static unsigned int x2_gpio_id[] = {
 	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0xff,
-	0xff, 0x34, 0x36, 0x35, 0x37
+	0xff, 0x34, 0x36, 0x35, 0x37, 0xff
 };
 #endif
 
@@ -193,16 +193,23 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 		}
 	}
 
-	/* svb board */
-	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
-		return;
+	switch (board_id) {
+	case X2_SVB_BOARD_ID:
+	case J2_SVB_BOARD_ID:
+		ddrp_cfg = NULL;
+		size = 0;
+		break;
 
-	if (board_id == X2_MONO_BOARD_ID || board_id == QUAD_BOARD_ID) {
+	case X2_MONO_BOARD_ID:
+	case QUAD_BOARD_ID:
 		ddrp_cfg = lpddr4_ddrc_mono;
 		size = ARRAY_SIZE(lpddr4_ddrc_mono);
-	} else {
+		break;
+
+	default:
 		ddrp_cfg = lpddr4_ddrc_som;
 		size = ARRAY_SIZE(lpddr4_ddrc_som);
+		break;
 	}
 
 	for (i = 0; i < size; i++) {

@@ -83,14 +83,21 @@ static void system_sdram_size_init(void)
 		}
 	}
 
-	/* svb board */
-	if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
-		return;
+	switch (board_id) {
+	case X2_SVB_BOARD_ID:
+	case J2_SVB_BOARD_ID:
+	case J2_SOM_BOARD_ID:
+	case X2_MONO_BOARD_ID:
+	case J2_SOM_DEV_ID:
+	case QUAD_BOARD_ID:
+	case J2_MM_BOARD_ID:
+		sys_sdram_size = 0x80000000; /* 2G */
+		break;
 
-	/* sdram size set */
-	if (board_id != J2_SOM_BOARD_ID && board_id != X2_MONO_BOARD_ID
-                && board_id != J2_SOM_DEV_ID && board_id != QUAD_BOARD_ID)
-		sys_sdram_size = 0x40000000;
+	default:
+		sys_sdram_size = 0x40000000; /* 1G */
+		break;
+	}
 }
 
 static void x2_mem_map_init(void)

@@ -122,6 +122,7 @@ const struct spi_flash_info spi_flash_ids[] = {
 	{"gd25lq128d", INFO(0xC86018, 0x0, 64 * 1024, 256, RD_FULL | WR_QPP | SECT_4K)},
 	{"gd25lq256d", INFO(0xc86019, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K)},
 	{"w25q256jw", INFO(0xef6019, 0x0, 64 * 1024, 512, RD_FULL | WR_QPP | SECT_4K)},
+	{"is25wp512", INFO(0x9d701a, 0x0, 64 * 1024,   1024, RD_FULL | WR_QPP) },
 	{},			/* Empty entry to terminate the list */
 };
 
