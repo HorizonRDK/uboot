@@ -51,9 +51,9 @@ void spl_dram_init(void)
 
 void board_init_f(ulong dummy)
 {
-	char pllswitch[16] = { 0 };
-	
-	 
+#if defined(CONFIG_X2_MMC_BOOT)
+	char pllswitch[VEEPROM_PERI_PLL_SIZE] = { 0 };
+#endif
 
 	icache_enable();
 
@@ -71,16 +71,17 @@ void board_init_f(ulong dummy)
 	spl_nand_init();
 #endif
 
+#if defined(CONFIG_X2_MMC_BOOT)
 	veeprom_read(VEEPROM_PERI_PLL_OFFSET, pllswitch,VEEPROM_PERI_PLL_SIZE);
-	
+
 	if ((g_x2ver & 0xFF) == 0) {
-			
+
 			if (strcmp(pllswitch, "disable_peri_pll") == 0)
 				{}
 			else
 				switch_peri_pll();
 		}
-
+#endif
 
 	spl_dram_init();
 
