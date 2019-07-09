@@ -548,6 +548,14 @@ static int reboot_notify_to_mcu(void)
 }
 #endif
 
+static void add_sendid(void)
+{
+	char *tmp = NULL;
+	tmp = env_get("mmcload");
+	strcat(tmp, "send_id");
+	env_set("mmcload", tmp);
+}
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
@@ -575,6 +583,7 @@ void main_loop(void)
 		board_dtb_init();
 
 	environmet_init();
+	add_sendid();
 #ifdef X2_AUTORESET
 	prepare_autoreset();
 #endif

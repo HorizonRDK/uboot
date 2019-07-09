@@ -754,6 +754,11 @@ config CMD_FUSE_EX
 	  which control the behaviour of the device. The command uses the
 	  fuse_ex_...() API.
 
+config CMD_SEND_ID
+	bool "send_id - support for transfer board_id by dtb to kernel"
+	help
+	  enable send_id cmd.
+
 config CMD_GPIO
 	bool "gpio"
 	help
