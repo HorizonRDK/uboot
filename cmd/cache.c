@@ -53,6 +53,7 @@ void __weak flush_dcache_all(void)
 
 static int do_dcache(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
+	ulong start, length;
 	switch (argc) {
 	case 2:			/* on / off */
 		switch (parse_argv(argv[1])) {
@@ -67,6 +68,12 @@ static int do_dcache(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			break;
 		}
 		break;
+	case 4:
+		start = simple_strtoul(argv[2], NULL, 16);
+		length = simple_strtoul(argv[3], NULL, 16);
+		printf("invalidate dcache 0x%lx~0x%lx\n", start, start + length);
+		invalidate_dcache_range(start, start + length);
+		return 0;
 	case 1:			/* get status */
 		printf("Data (writethrough) Cache is %s\n",
 			dcache_status() ? "ON" : "OFF");
@@ -85,6 +92,8 @@ static int parse_argv(const char *s)
 		return 1;
 	else if (strcmp(s, "off") == 0)
 		return 0;
+	else if (strcmp(s, "invalidate") == 0)
+		return 3;
 
 	return -1;
 }
@@ -98,8 +107,8 @@ U_BOOT_CMD(
 );
 
 U_BOOT_CMD(
-	dcache,   2,   1,     do_dcache,
+	dcache,   4,   1,     do_dcache,
 	"enable or disable data cache",
-	"[on, off, flush]\n"
+	"[on, off, flush, invalidate start length]\n"
 	"    - enable, disable, or flush data (writethrough) cache"
 );
