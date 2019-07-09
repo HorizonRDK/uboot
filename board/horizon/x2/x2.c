@@ -90,10 +90,11 @@ static void system_sdram_size_init(void)
 	case X2_MONO_BOARD_ID:
 	case J2_SOM_DEV_ID:
 	case QUAD_BOARD_ID:
-	case J2_MM_BOARD_ID:
 		sys_sdram_size = 0x80000000; /* 2G */
 		break;
-
+	case J2_MM_BOARD_ID:
+		sys_sdram_size = 0x40000000; /* 1G */
+		break;
 	default:
 		sys_sdram_size = 0x40000000; /* 1G */
 		break;
