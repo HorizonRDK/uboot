@@ -611,7 +611,7 @@ static int eqos_adjust_link(struct udevice *dev)
 
 	if (boot_info->board_id == QUAD_BOARD_ID) {
 		eqos->phy->duplex = 1;
-		eqos->phy->speed = SPEED_1000;	
+		eqos->phy->speed = SPEED_1000;
 	}
 	duplex = (eqos->is_88e6321) ? 1 : eqos->phy->duplex;
 	speed = (eqos->is_88e6321) ? SPEED_1000 : eqos->phy->speed;
@@ -1314,7 +1314,8 @@ static int eqos_probe(struct udevice *dev)
          eqos->is_88e6321 =  1;
     else if (type == 0xfff0 &&
             (boot_info->board_id == J2_SOM_BOARD_ID ||
-             boot_info->board_id == J2_SOM_DEV_ID))
+             boot_info->board_id == J2_SOM_DEV_ID ||
+             boot_info->board_id == J2_SOM_SK_ID))
          eqos->is_88e6321 =  2;
     else
          eqos->is_88e6321 =  0;
