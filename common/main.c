@@ -220,8 +220,13 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 				strcat(cmd, string);
 				run_command_list(cmd, -1, 0);
 
+				/* set bootargs */
+				tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+					  "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
+				env_set("bootargs", tmp);
+
 				/* set bootcmd */
-				tmp = "run unzipimage;ion_modify ${ion_size};run ddrboot;";
+				tmp = "send_id;run unzipimage;ion_modify ${ion_size};run ddrboot;";
 				env_set("bootcmd", tmp);
 			}
 			break;
