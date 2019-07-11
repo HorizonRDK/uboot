@@ -605,14 +605,9 @@ static int eqos_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, duplex, speed;
-	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
-	if (boot_info->board_id == QUAD_BOARD_ID) {
-		eqos->phy->duplex = 1;
-		eqos->phy->speed = SPEED_1000;
-	}
 	duplex = (eqos->is_88e6321) ? 1 : eqos->phy->duplex;
 	speed = (eqos->is_88e6321) ? SPEED_1000 : eqos->phy->speed;
 
@@ -717,7 +712,6 @@ static int eqos_start(struct udevice *dev)
     const void *blob = gd->fdt_blob;
     int node = dev_of_offset(dev);
     int phy_addr = 0;
-	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -752,14 +746,11 @@ static int eqos_start(struct udevice *dev)
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
 
-	if (boot_info->board_id != QUAD_BOARD_ID) {
-		if (!eqos->is_88e6321) {
-			eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
-			if (!eqos->phy) {
-				pr_err("phy_connect() failed");
-				goto err_stop_resets;
-			}
-
+	if (!eqos->is_88e6321) {
+		eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
+		if (!eqos->phy || eqos->phy->drv->uid == 0xffffffff) {
+			eqos->is_88e6321 = 2;
+		} else {
 			fprintf(stdout, "Phy name:%s\n",eqos->phy->drv->name);
 			fprintf(stdout, "Phy uid:%x\n",eqos->phy->drv->uid);
 
@@ -781,7 +772,6 @@ static int eqos_start(struct udevice *dev)
 			}
 		}
 	}
-
 
     ret = eqos_adjust_link(dev);
     if (ret < 0) {
@@ -811,16 +801,14 @@ static int eqos_start(struct udevice *dev)
                  EQOS_MAC_HW_FEATURE1_TXFIFOSIZE_MASK;
     rx_fifo_sz = (val >> EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_SHIFT) &
                  EQOS_MAC_HW_FEATURE1_RXFIFOSIZE_MASK;
-	if (boot_info->board_id != QUAD_BOARD_ID) {
-		if (eqos->is_88e6321 ) {
-			/*set for mac for mavell*/
-			val |= ((1 << 28) | (1 << 5) | ( 1 << 1));
-			writel(val, &eqos->mac_regs->hw_feature1);
+	if (eqos->is_88e6321) {
+		/*set for mac for mavell*/
+		val |= ((1 << 28) | (1 << 5) | ( 1 << 1));
+		writel(val, &eqos->mac_regs->hw_feature1);
 
-			val = readl(&eqos->mac_regs->unused_0e0[0]);
-			val |= (( 1 << 12) | (1 << 9));
-			writel(val, &eqos->mac_regs->unused_0e0[0]);
-		}
+		val = readl(&eqos->mac_regs->unused_0e0[0]);
+		val |= (( 1 << 12) | (1 << 9));
+		writel(val, &eqos->mac_regs->unused_0e0[0]);
 	}
     /*
      * r/tx_fifo_sz is encoded as log2(n / 128). Undo that by shifting.
@@ -1262,7 +1250,6 @@ static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, type;
-    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) 0x10000000;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -1312,11 +1299,6 @@ static int eqos_probe(struct udevice *dev)
     type = get_product_id(eqos->mii, 0x12, 0);
     if (type == 0x3100)
          eqos->is_88e6321 =  1;
-    else if (type == 0xfff0 &&
-            (boot_info->board_id == J2_SOM_BOARD_ID ||
-             boot_info->board_id == J2_SOM_DEV_ID ||
-             boot_info->board_id == J2_SOM_SK_ID))
-         eqos->is_88e6321 =  2;
     else
          eqos->is_88e6321 =  0;
 
