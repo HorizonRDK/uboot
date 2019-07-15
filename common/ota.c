@@ -34,6 +34,19 @@
 
 static int curr_device = 0;
 
+int get_emmc_size(uint64_t *size)
+{
+	struct mmc *mmc = NULL;
+
+	mmc = init_mmc_device(curr_device, false);
+	if (!mmc)
+		return CMD_RET_FAILURE;
+
+	*size = mmc->capacity;
+	return CMD_RET_SUCCESS;
+}
+
+
 char *printf_efiname(gpt_entry *pte)
 {
 	static char name[PARTNAME_SZ + 1];
@@ -273,25 +286,43 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 	int ret;
 	unsigned int part_size;
 
-	start_lba = (unsigned int)get_patition_start_lba(name);
-	end_lba = (unsigned int)get_patition_end_lba(name);
-	part_size = end_lba - start_lba + 1;
-	if (start_lba == CMD_RET_FAILURE) {
-		return CMD_RET_FAILURE;
-	}
+	if (strcmp(name, "gpt-main") == 0) {
+		printf("in gpt-main\n");
+		if (bytes != 34) {
+			printf("Error: gpt-main size(%x) is not equal to 0x%x\n", bytes*512, 34*512);
+			return CMD_RET_FAILURE;
+		}
+		sprintf(command, "%s %s 0 %x", command, addr, 34);
+	} else if (strcmp(name, "gpt-backup") == 0) {
+		printf("in gpt-backup\n");
+		if (bytes != 33) {
+			printf("Error: gpt-backup size(%x) is not equal to 0x%x\n", bytes*512, 33*512);
+			return CMD_RET_FAILURE;
+		}
+		end_lba = (unsigned int)get_patition_end_lba("userdata");
+		uint32_to_char(end_lba+1, lba_size);
+		sprintf(command, "%s %s %s %x", command, addr, lba_size, 33);
+	} else {
+		start_lba = (unsigned int)get_patition_start_lba(name);
+		end_lba = (unsigned int)get_patition_end_lba(name);
+		part_size = end_lba - start_lba + 1;
+		if (start_lba == CMD_RET_FAILURE) {
+			return CMD_RET_FAILURE;
+		}
 
-	if (bytes > part_size) {
-		printf("Error: image more than partiton size %02x \n", part_size * 512);
-		return CMD_RET_FAILURE;
-	}
+		if (bytes > part_size) {
+			printf("Error: image more than partiton size %02x \n", part_size * 512);
+			return CMD_RET_FAILURE;
+		}
 
-	uint32_to_char(bytes, partiton_size);
-	uint32_to_char(start_lba, lba_size);
-	strcat(command, addr);
-	strcat(command, " ");
-	strcat(command, lba_size);
-	strcat(command, " ");
-	strcat(command, partiton_size);
+		uint32_to_char(bytes, partiton_size);
+		uint32_to_char(start_lba, lba_size);
+		strcat(command, addr);
+		strcat(command, " ");
+		strcat(command, lba_size);
+		strcat(command, " ");
+		strcat(command, partiton_size);
+	}
 
 	printf("command : %s \n", command);
 	ret = run_command_list(command, -1, 0);

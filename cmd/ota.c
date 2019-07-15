@@ -47,5 +47,6 @@ int do_ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 U_BOOT_CMD(otawrite, 4, 0, do_ota_write,
 	   "write binary file to gpt partiton",
 	   "<partition name> <ddr addr> <image size> \n"
-	   "    - partiton name : [uboot | system | kernel | app]\n"
-	   "    - image size: bytes size  [Example: 0x8000]");
+	   "    - partiton name : [gpt-main | uboot | system | kernel | app | gpt-backup]\n"
+	   "    - image size: bytes size  [Example: 0x8000]"
+);
