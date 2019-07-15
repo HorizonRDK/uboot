@@ -184,5 +184,7 @@
 
 #define NETCONSOLE_CONFIG_VALID	(0x55)
 
+#define CONFIG_UDP_CHECKSUM
+
 #endif /* __X2_H__ */
 
