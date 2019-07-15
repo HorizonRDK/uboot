@@ -18,6 +18,12 @@ config MMC_WRITE
 	help
 	  Enable write access to MMC and SD Cards
 
+config SUPPORT_EMMC_BOOT
+	bool "support emmc boot"
+	depends on MMC
+	default y
+	help
+	  Support emmc boot configure
 config MMC_BROKEN_CD
 	bool "Poll for broken card detection case"
 	help

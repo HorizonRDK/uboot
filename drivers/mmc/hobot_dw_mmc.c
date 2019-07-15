@@ -244,7 +244,7 @@ static int hobot_dwmmc_probe(struct udevice *dev)
     {
         printf("mmc_init fail\n");
     }
-
+	mmc_set_rst_n_function(host->mmc, 0x01);
     return ret;
 }
 
