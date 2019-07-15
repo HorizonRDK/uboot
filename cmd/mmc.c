@@ -42,7 +42,8 @@ static void print_mmcinfo(struct mmc *mmc)
 
 	printf("High Capacity: %s\n", mmc->high_capacity ? "Yes" : "No");
 	puts("Capacity: ");
-	print_size(mmc->capacity, "\n");
+	print_size(mmc->capacity, "");
+	printf("(%llu sectors)\n", mmc->capacity / 512);
 
 	printf("Bus Width: %d-bit%s\n", mmc->bus_width,
 			mmc->ddr_mode ? " DDR" : "");

@@ -801,6 +801,83 @@ static int do_rename_gpt_parts(struct blk_desc *dev_desc, char *subcomm,
 	free(partitions_list);
 	return ret;
 }
+
+static int do_extend_last_partition(struct blk_desc *dev_desc)
+{
+	struct disk_part *last;
+	disk_partition_t *new_partitions = NULL;
+	char disk_guid[UUID_STR_LEN + 1];
+	char *partitions_list, *str_disk_guid;
+	u8 part_count = 0;
+	int partlistlen, ret, numparts = 0;
+
+	ret = get_disk_guid(dev_desc, disk_guid);
+	if (ret < 0)
+		return ret;
+	/*
+	 * Allocates disk_partitions, requiring matching call to del_gpt_info()
+	 * if successful.
+	 */
+	numparts = get_gpt_info(dev_desc);
+	if (numparts <= 0)
+		return numparts ? numparts : -ENODEV;
+
+	partlistlen = calc_parts_list_len(numparts);
+	partitions_list = malloc(partlistlen);
+	if (!partitions_list) {
+		del_gpt_info();
+		return -ENOMEM;
+	}
+
+	last = list_last_entry(&disk_partitions, struct disk_part, list);
+	last->gpt_part_info.size = dev_desc->lba - last->gpt_part_info.start - 33;
+	debug("size:%lu, lba:%lu, start:%lu\n", last->gpt_part_info.size, dev_desc->lba, last->gpt_part_info.start);
+
+	memset(partitions_list, '\0', partlistlen);
+
+	ret = create_gpt_partitions_list(numparts, disk_guid, partitions_list);
+	if (ret < 0) {
+		free(partitions_list);
+		return ret;
+	}
+
+	debug("NEW partitions_list is with %u chars\n", (unsigned)strlen(partitions_list));
+	debug("%s\n", partitions_list);
+
+	ret = set_gpt_info(dev_desc, partitions_list, &str_disk_guid,
+					   &new_partitions, &part_count);
+	/*
+	 * Even though valid pointers are here passed into set_gpt_info(),
+	 * it mallocs again, and there's no way to tell which failed.
+	 */
+	if (ret < 0) {
+		del_gpt_info();
+		free(partitions_list);
+		if (ret == -ENOMEM)
+			set_gpt_cleanup(&str_disk_guid, &new_partitions);
+		else
+			goto out;
+	}
+
+	debug("Writing new partition table\n");
+	ret = gpt_restore_no_mbr(dev_desc, disk_guid, new_partitions, numparts);
+	if (ret < 0) {
+		printf("Writing new partition table failed\n");
+		goto out;
+	}
+
+	debug("Reading back new partition table\n");
+	/*
+	 * Empty the existing disk_partitions list, as otherwise the memory in
+	 * the original list is unreachable.
+	 */
+	del_gpt_info();
+out:
+	free(new_partitions);
+	free(partitions_list);
+	return ret;
+}
+
 #endif
 
 /**
@@ -853,6 +930,8 @@ static int do_gpt(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	} else if ((strcmp(argv[1], "swap") == 0) ||
 		   (strcmp(argv[1], "rename") == 0)) {
 		ret = do_rename_gpt_parts(blk_dev_desc, argv[1], argv[4], argv[5]);
+	} else if (strcmp(argv[1], "extend") == 0) {
+		ret = do_extend_last_partition(blk_dev_desc);
 #endif
 	} else {
 		return CMD_RET_USAGE;
@@ -895,5 +974,7 @@ U_BOOT_CMD(gpt, CONFIG_SYS_MAXARGS, 1, do_gpt,
 	" Example usage:\n"
 	" gpt swap mmc 0 foo bar\n"
 	" gpt rename mmc 0 3 foo\n"
+	"gpt extend <interface> <dev>\n"
+	"    - extend last partition size to maximum size\n"
 #endif
 );

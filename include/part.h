@@ -351,6 +351,8 @@ int gpt_fill_header(struct blk_desc *dev_desc, gpt_header *gpt_h,
  */
 int gpt_restore(struct blk_desc *dev_desc, char *str_disk_guid,
 		disk_partition_t *partitions, const int parts_count);
+int gpt_restore_no_mbr(struct blk_desc *dev_desc, char *str_disk_guid,
+		disk_partition_t *partitions, const int parts_count);
 
 /**
  * is_valid_gpt_buf() - Ensure that the Primary GPT information is valid
