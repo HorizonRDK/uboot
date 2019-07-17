@@ -31,6 +31,10 @@
 #include <mmc.h>
 #include <veeprom.h>
 #include <ota.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+#include "../include/configs/x2.h"
+
+static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
 static int curr_device = 0;
 
@@ -284,19 +288,21 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 	char lba_size[64] = { 0 };
 	char partiton_size[64] = { 0 };
 	int ret;
+	unsigned int sector = (bytes + 511)/512;
 	unsigned int part_size;
+	void *realaddr;
 
 	if (strcmp(name, "gpt-main") == 0) {
 		printf("in gpt-main\n");
-		if (bytes != 34) {
-			printf("Error: gpt-main size(%x) is not equal to 0x%x\n", bytes*512, 34*512);
+		if (bytes != 34*512) {
+			printf("Error: gpt-main size(%x) is not equal to 0x%x\n", bytes, 34*512);
 			return CMD_RET_FAILURE;
 		}
 		sprintf(command, "%s %s 0 %x", command, addr, 34);
 	} else if (strcmp(name, "gpt-backup") == 0) {
 		printf("in gpt-backup\n");
-		if (bytes != 33) {
-			printf("Error: gpt-backup size(%x) is not equal to 0x%x\n", bytes*512, 33*512);
+		if (bytes != 33*512) {
+			printf("Error: gpt-backup size(%x) is not equal to 0x%x\n", bytes, 33*512);
 			return CMD_RET_FAILURE;
 		}
 		end_lba = (unsigned int)get_patition_end_lba("userdata");
@@ -310,25 +316,30 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 			return CMD_RET_FAILURE;
 		}
 
-		if (bytes > part_size) {
+		if (sector > part_size) {
 			printf("Error: image more than partiton size %02x \n", part_size * 512);
 			return CMD_RET_FAILURE;
 		}
 
-		uint32_to_char(bytes, partiton_size);
+		uint32_to_char(sector, partiton_size);
 		uint32_to_char(start_lba, lba_size);
 		strcat(command, addr);
 		strcat(command, " ");
 		strcat(command, lba_size);
 		strcat(command, " ");
 		strcat(command, partiton_size);
+
+		if (strcmp(name, "sbl") == 0) {
+			realaddr = (void *)simple_strtoul(addr, NULL, 16);
+			bootinfo_update_spl(realaddr, bytes);
+		}
 	}
 
-	printf("command : %s \n", command);
+	debug("command : %s \n", command);
 	ret = run_command_list(command, -1, 0);
 
 	if (ret == 0)
-		printf("ota update image success!\n");
+		printf("ota update %s success!\n", name);
 
 	return ret;
 }
@@ -351,8 +362,6 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	bytes = simple_strtoul(argv[3], &ep, 16);
 	if (ep == argv[3] || *ep != '\0')
 			return CMD_RET_USAGE;
-
-	bytes = (bytes + 511)/512;
 
 	/* update image */
 	ret = ota_update_image(partition_name, argv[2], bytes);
@@ -531,3 +540,65 @@ unsigned int ota_uboot_update_check(char *partition) {
 
 	return get_partition_id(partition);
 }
+
+uint32_t x2_do_cksum(const uint8_t *buff, uint32_t len)
+{
+	uint32_t result = 0;
+	uint32_t i = 0;
+
+	for (i=0; i<len; i++) {
+		result += buff[i];
+	}
+    
+	return result;
+}
+
+static void write_bootinfo()
+{
+	int ret;
+	char cmd[256] = {0};
+
+	sprintf(cmd, "mmc write 0x%x 0 0x1", X2_BOOTINFO_ADDR);
+	ret = run_command_list(cmd, -1, 0);
+	debug("cmd:%s, ret:%d\n", cmd, ret);
+
+	if (ret == 0)
+		printf("write bootinfo success!\n");
+}
+
+static void bootinfo_cs_spl(char * addr, unsigned int size, struct x2_info_hdr * pinfo)
+{
+	unsigned int csum;
+
+	csum = x2_do_cksum((unsigned char *)addr, size);
+	pinfo->boot_csum = csum;
+	debug("---------, addr:%p, size:%u, 0x%x\n", addr, size, size);
+	debug("boot_csum: 0x%x\n", csum);
+	debug("---------\n");
+}
+static void bootinfo_cs_all(struct x2_info_hdr * pinfo)
+{
+	unsigned int csum;
+
+	pinfo->info_csum = 0;
+	csum = x2_do_cksum((unsigned char *)pinfo, sizeof(*pinfo));
+	pinfo->info_csum = csum;
+	debug("info_csum: 0x%x\n", csum);
+}
+static void bootinfo_update_spl(char * addr, unsigned int spl_size)
+{
+	struct x2_info_hdr *pinfo;
+	unsigned int max_size = 0x6e00; /* CONFIG_SPL_MAX_SIZE in spl */
+
+	debug("spl_size:%u, 0x%x\n", spl_size, spl_size);
+	pinfo = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
+	if (spl_size >= max_size)
+		pinfo->boot_size = max_size;
+	else
+		pinfo->boot_size = spl_size;
+
+	bootinfo_cs_spl(addr, spl_size, pinfo);
+	bootinfo_cs_all(pinfo);
+	write_bootinfo();
+}
+
