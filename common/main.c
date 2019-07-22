@@ -28,6 +28,7 @@
 
 extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
+extern unsigned int sys_sdram_size;
 
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
@@ -241,7 +242,6 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 
  static void environmet_init(void)
 {
-	char mmcroot[64] = "/dev/mmcblk0p4\0";
 	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
 	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage};";
 
@@ -287,8 +287,11 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	else
 		part_id = get_partition_id(rootfs);
 
-	mmcroot[13] = hex_to_char(part_id);
-	env_set("mmcroot", mmcroot);
+	/* init bootargs */
+	s = env_get("bootargs");
+	s[70] = hex_to_char(part_id);
+
+	env_set("bootargs", s);
 
 	/* init mmcload environment */
 	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
@@ -301,6 +304,15 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	strcat(mmcload, tmp);
 
 	env_set("mmcload", mmcload);
+
+	/* int mem size environment */
+	memset(tmp, 0, sizeof(tmp));
+	s = env_get("mem_size");
+
+	if (s == NULL) {
+		uint32_to_char(sys_sdram_size, tmp);
+		env_set("mem_size", tmp);
+	}
 }
 
 static void board_dtb_init(void)
@@ -560,6 +572,95 @@ static void add_sendid(void)
 	strcat(tmp, "send_id");
 	env_set("mmcload", tmp);
 }
+
+static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
+	int argc, char * const argv[])
+{
+	char mem_size[64] = { 0 };
+	const char *path;
+	int  nodeoffset;
+	char *prop;
+	static char data[1024] __aligned(4);
+	void *ptmp;
+	int  len;
+	void *fdt;
+	phys_addr_t fdt_paddr;
+	u64 mem_start, old_size;
+	u32 size;
+	char *s = NULL;
+	int ret;
+
+	if (argc > 1) {
+		s = argv[1];
+		env_set("mem_size", s);
+	} else {
+		s = env_get("mem_size");
+		if (s == NULL) {
+			uint32_to_char(sys_sdram_size, mem_size);
+			env_set("mem_size", mem_size);
+			s = mem_size;
+		}
+	}
+
+	if (s) {
+		size = (u32)simple_strtoul(s, NULL, 16);
+		if (size == 0)
+			return 0;
+	} else {
+		return 0;
+	}
+
+	s = env_get("fdt_addr");
+	if (s) {
+		fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
+		fdt = map_sysmem(fdt_paddr, 0);
+	} else {
+		printf("Can't get fdt_addr !!!");
+		return 0;
+	}
+
+	path = "/memory";
+	prop = "reg";
+
+	nodeoffset = fdt_path_offset (fdt, path);
+	if (nodeoffset < 0) {
+		/*
+			* Not found or something else bad happened.
+			*/
+		printf ("libfdt fdt_path_offset() returned %s\n",
+			fdt_strerror(nodeoffset));
+		return 1;
+	}
+
+	ptmp = (char *)fdt_getprop(fdt, nodeoffset, prop, &len);
+	if (len > 1024) {
+		printf("prop (%d) doesn't fit in scratchpad!\n",
+				len);
+		return 1;
+	}
+
+	if (!ptmp)
+		return 0;
+
+	fdt_get_reg(fdt, ptmp, &mem_start, &old_size);
+	len = fdt_pack_reg(fdt, data, mem_start, size);
+
+	ret = fdt_setprop(fdt, nodeoffset, prop, data, len);
+	if (ret < 0) {
+		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	printf("Set Mem Size to %dM\n", size / 0x100000);
+	return 0;
+}
+
+U_BOOT_CMD(
+	mem_modify,	2,	0,	do_set_dts_memsize,
+	"Change DDR Mem Size(Mbyte)",
+	"-mem_modify 0x40000000"
+);
+
 
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)

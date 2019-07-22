@@ -73,7 +73,8 @@ static int find_fdt(unsigned long fdt_addr)
 	return 0;
 }
 
-static int do_set_boardid(int argc, char *const argv[])
+static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
+	int argc, char *const argv[])
 {
 	int  nodeoffset;	/* node offset from libfdt */
 	static char data[SCRATCHPAD] __aligned(4);/* property storage */
