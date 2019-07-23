@@ -228,7 +228,7 @@ static void new_transfer(void)
 static int load_block(unsigned block, uchar *dst, unsigned len)
 {
 	/* We may want to get the final block from the previous set */
-	ulong offset = ((int)block - 1) * len + tftp_block_wrap_offset;
+	ulong offset = ((long)block - 1) * len + (long)tftp_block_wrap_offset;
 	ulong tosend = len;
 
 	tosend = min(net_boot_file_size - offset, tosend);
@@ -499,6 +499,7 @@ static void tftp_handler(uchar *pkt, unsigned dest, struct in_addr sip,
 				int block = ntohs(*s);
 				int ack_ok = (tftp_cur_block == block);
 
+				tftp_prev_block = tftp_cur_block;
 				tftp_cur_block = (unsigned short)(block + 1);
 				update_block_number();
 				if (ack_ok)
