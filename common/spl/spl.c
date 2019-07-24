@@ -503,6 +503,11 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 
 	bootcount_inc();
 
+#if defined(X2_SWINFO_BOOT_OFFSET)
+	extern int x2_swinfo_boot_spl_check(void);
+	x2_swinfo_boot_spl_check();
+#endif
+
 	memset(&spl_image, '\0', sizeof(spl_image));
 #ifdef CONFIG_SYS_SPL_ARGS_ADDR
 	spl_image.arg = (void *)CONFIG_SYS_SPL_ARGS_ADDR;

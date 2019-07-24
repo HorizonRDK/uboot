@@ -13,6 +13,7 @@
 #include <asm/io.h>
 #include <asm/spl.h>
 #include <asm/arch/x2_dev.h>
+#include <asm/arch/x2_pmu.h>
 #include <veeprom.h>
 
 #include "x2_info.h"
@@ -163,3 +164,31 @@ int board_fit_config_name_match(const char *name)
 	return 0;
 }
 #endif /* CONFIG_SPL_LOAD_FIT */
+
+#if defined(X2_SWINFO_BOOT_OFFSET)
+int x2_swinfo_boot_spl_check(void)
+{
+	uint32_t s_magic, s_boot;
+	void *s_addr;
+
+	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
+	if (s_magic == X2_SWINFO_MEM_MAGIC)
+		s_addr = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_BOOT_OFFSET);
+	else
+		s_addr = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_BOOT_OFFSET);
+	s_boot = readl(s_addr) & 0xF;
+	if (s_boot == X2_SWINFO_BOOT_SPLONCE ||
+		s_boot == X2_SWINFO_BOOT_SPLWAIT) {
+		puts("hang for swinfo boot: ");
+		if (s_boot == X2_SWINFO_BOOT_SPLONCE) {
+			puts("splonce\n");
+			writel(s_boot & (~0xF), s_addr);
+		} else {
+			puts("splwait\n");
+		}
+		hang();
+	}
+
+	return 0;
+}
+#endif
