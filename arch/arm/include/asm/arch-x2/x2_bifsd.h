@@ -39,7 +39,7 @@
 /* File Includes                                                             */
 /*****************************************************************************/
 #include <asm/io.h>
-#include <configs/x2_fpga.h>
+#include <configs/x2.h>
 #include <asm/system.h>
 #include <asm/arch/x2_reg.h>
 /*****************************************************************************/

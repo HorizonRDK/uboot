@@ -23,12 +23,14 @@
 #include <ota.h>
 #include <j2-led.h>
 #include <configs/x2_config.h>
+#include <spi_flash.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
 extern unsigned int sys_sdram_size;
+extern struct spi_flash *nor_flash;
 
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
@@ -181,8 +183,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 {
 	char *s = NULL, *tmp = NULL;
 	int i = 0;
-	char string[20] = { 0 };
-	char cmd[256] = { 0 };
+	unsigned long dtb_addr = 0x4000000;
 
 	int count = config->dtb_number;
 	if (count > 16) {
@@ -201,33 +202,18 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 				}
 
 				/* load dtb file */
-				uint32_to_char(config->dtb[i].dtb_addr, string);
-				strcat(cmd, "sf read 0x4000000 ");
-				strcat(cmd, string);
-
-				uint32_to_char(config->dtb[i].dtb_size, string);
-				strcat(cmd, " ");
-				strcat(cmd, string);
-				run_command_list(cmd, -1, 0);
-
-				/* load Image */
-				uint32_to_char(config->Image_addr, string);
-				memset(cmd, 0, 256);
-				strcat(cmd, "sf read 0x20000000 ");
-				strcat(cmd, string);
-
-				uint32_to_char(config->Image_size, string);
-				strcat(cmd, " ");
-				strcat(cmd, string);
-				run_command_list(cmd, -1, 0);
+				if (nor_flash != NULL)
+					spi_flash_read(nor_flash, config->dtb[i].dtb_addr,
+					config->dtb[i].dtb_size, (void *)dtb_addr);
 
 				/* set bootargs */
 				tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
-					  "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
+					"root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
 				env_set("bootargs", tmp);
 
 				/* set bootcmd */
-				tmp = "send_id;run unzipimage;ion_modify ${ion_size};run ddrboot;";
+				tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
+					"mem_modify ${mem_size};run ddrboot;";
 				env_set("bootcmd", tmp);
 			}
 			break;
@@ -240,7 +226,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	return s;
 }
 
- static void environmet_init(void)
+ static void x2_mmc_env_init(void)
 {
 	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
 	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage};";
@@ -248,7 +234,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
 	char upmode[16] = { 0 };
-	unsigned int part_id;
+	unsigned int rootfs_id, kernel_id;
 	char boot_reason[64] = { 0 };
 	char *s;
 
@@ -258,54 +244,48 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
 
-	/* into recovery mode */
-	if (strcmp(boot_reason, "recovery") == 0)  {
-		env_set("bootdelay", "0");
+	if (((strcmp(upmode, "AB") != 0) && (strcmp(upmode, "golden") != 0))
+		|| (strcmp(boot_reason, "normal") == 0)) {
+		/* normal boot: disable OTA or boot_reason='normal' */
+		printf("uboot: normal boot \n");
 
-		/* env bootfile set*/
-		s = "recovery.gz\0";
-		env_set("bootfile", s);
+		/* get rootfs and kernel partition id */
+		rootfs_id = get_partition_id(rootfs);
+		kernel_id = get_partition_id(kernel);
+	} else {
+		/* enable OTA: check upflag and boot_reason */
+		/* check boot_reason */
+		if (strcmp(boot_reason, "recovery") == 0)  {
+			env_set("bootdelay", "0");
 
-		/* load recovery Image file */
-		part_id = get_partition_id(kernel);
+			/* set environment bootfile */
+			s = "recovery.gz\0";
+			env_set("bootfile", s);
 
-		mmcload[26] = hex_to_char(part_id);
-		tmp[15] = mmcload[26];
-		strcat(mmcload, tmp);
+			/* get rootfs and kernel partition id */
+			rootfs_id = get_partition_id(rootfs);
+			kernel_id = get_partition_id(kernel);
+		} else {
+			/* check update_success flag */
+			ota_check_update_success_flag();
 
-		env_set("mmcload", mmcload);
-		return;
+			/* get rootfs and kernel partition id */
+			rootfs_id = ota_uboot_update_check(rootfs);
+			kernel_id = ota_uboot_update_check(kernel);
+		}
 	}
-
-	/* if uboot update failed, into recovery mode */
-	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
-		ota_check_update_success_flag();
-
-	/* init mmcroot environment */
-	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
-		part_id = ota_uboot_update_check(rootfs);
-	else
-		part_id = get_partition_id(rootfs);
-
 	/* init bootargs */
 	s = env_get("bootargs");
-	s[70] = hex_to_char(part_id);
-
+	s[70] = hex_to_char(rootfs_id);
 	env_set("bootargs", s);
 
-	/* init mmcload environment */
-	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0))
-		part_id = ota_uboot_update_check(kernel);
-	else
-		part_id = get_partition_id(kernel);
-
-	mmcload[26] = hex_to_char(part_id);
+	/* init env mmcload */
+	mmcload[26] = hex_to_char(kernel_id);
 	tmp[15] = mmcload[26];
 	strcat(mmcload, tmp);
-
 	env_set("mmcload", mmcload);
 
-	/* int mem size environment */
+	/* int  env mem_size */
 	memset(tmp, 0, sizeof(tmp));
 	s = env_get("mem_size");
 
@@ -315,17 +295,56 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	}
 }
 
-static void board_dtb_init(void)
+static void x2_nor_env_init(struct x2_kernel_hdr *config)
+{
+	char upmode[16] = { 0 };
+	char boot_reason[64] = { 0 };
+	char rootfs[32] = "system";
+	char kernel[32] = "kernel";
+
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+		VEEPROM_RESET_REASON_SIZE);
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	if (((strcmp(upmode, "golden") != 0))
+		|| (strcmp(boot_reason, "normal") == 0)) {
+		/* normal boot: disable OTA or boot_reason='normal' */
+		printf("uboot: normal boot \n");
+
+		/* load Image.gz */
+		if (nor_flash != NULL)
+			spi_flash_read(nor_flash, config->Image_addr, config->Image_size,
+			(void *)KERNEL_ADDR);
+	} else {
+		/* enable OTA: check upflag and boot_reason */
+		/* check boot_reason */
+		if (strcmp(boot_reason, "recovery") == 0)  {
+
+			/* load recovery.gz */
+			ota_recovery_mode_set(config->Recovery_addr, config->Recovery_size);
+		} else {
+			/* check update_success flag */
+			ota_check_update_success_flag();
+
+			/* get rootfs and kernel partition id */
+			ota_uboot_update_check(rootfs);
+			ota_uboot_update_check(kernel);
+
+			/* load Image.gz */
+			if (nor_flash != NULL)
+				spi_flash_read(nor_flash, config->Image_addr,
+				config->Image_size, (void *)KERNEL_ADDR);
+		}
+	}
+}
+
+static void x2_dtb_mapping_load(void)
 {
 	int rcode = 0;
-	char command[256] = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
-	char *s = NULL;
-	unsigned int board_id;
-	unsigned int gpio_id;
-	struct x2_info_hdr *x2_board_type;
-	struct x2_kernel_hdr *x2_kernel_conf;
 	char partname[] = "kernel";
-
+	char command[256] = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
 	int kernel_id = get_partition_id(partname);
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
@@ -339,11 +358,22 @@ static void board_dtb_init(void)
 		}
 	} else {
 		/* load dtb-mapping.conf */
-		s = "sf probe\0";
-		run_command_list(s, -1, 0);
-		s = "sf read 0x10001000 0x194400 0x400\0";
-		run_command_list(s, -1, 0);
+		if (nor_flash != NULL)
+			spi_flash_read(nor_flash, DTB_MAPPING_ADDR, DTB_MAPPING_SIZE,
+			(void *)X2_DTB_CONFIG_ADDR);
 	}
+}
+
+static void x2_env_and_boardid_init(void)
+{
+	unsigned int board_id;
+	unsigned int gpio_id;
+	struct x2_info_hdr *x2_board_type;
+	struct x2_kernel_hdr *x2_kernel_conf;
+	char *s = NULL;
+
+	/* load config dtb_mapping */
+	x2_dtb_mapping_load();
 
 	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
 	x2_kernel_conf = (struct x2_kernel_hdr *) X2_DTB_CONFIG_ADDR;
@@ -354,7 +384,6 @@ static void board_dtb_init(void)
 	board_id = x2_board_type->board_id;
 
 	if (board_id == X2_GPIO_MODE) {
-
 		board_id = x2_gpio_to_borad_id(gpio_id);
 
 		if (board_id == 0xff) {
@@ -372,21 +401,22 @@ static void board_dtb_init(void)
 	}
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
+		/* init mmcroot and mmcload */
+		x2_mmc_env_init();
+
 		/* svb board */
 		if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
 			return;
+	} else {
+		/* init nor env */
+		x2_nor_env_init(x2_kernel_conf);
 	}
 
 	printf("final/board_id = %02x\n", board_id);
 	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
 
-	if (x2_src_boot == PIN_2ND_EMMC || x2_src_boot == PIN_2ND_SF) {
-		printf("fdtimage = %s\n", s);
-
-		env_set("fdtimage", s);
-	}
-
-	return;
+	printf("fdtimage = %s\n", s);
+	env_set("fdtimage", s);
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
@@ -565,14 +595,6 @@ static int reboot_notify_to_mcu(void)
 }
 #endif
 
-static void add_sendid(void)
-{
-	char *tmp = NULL;
-	tmp = env_get("mmcload");
-	strcat(tmp, "send_id");
-	env_set("mmcload", tmp);
-}
-
 static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
 {
@@ -625,8 +647,8 @@ static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
 	nodeoffset = fdt_path_offset (fdt, path);
 	if (nodeoffset < 0) {
 		/*
-			* Not found or something else bad happened.
-			*/
+		 * Not found or something else bad happened.
+		 */
 		printf ("libfdt fdt_path_offset() returned %s\n",
 			fdt_strerror(nodeoffset));
 		return 1;
@@ -661,7 +683,6 @@ U_BOOT_CMD(
 	"-mem_modify 0x40000000"
 );
 
-
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
@@ -677,8 +698,6 @@ void main_loop(void)
 #endif /* CONFIG_VERSION_VARIABLE */
 
 	cli_init();
-	veeprom_init();
-
 	run_preboot_environment_command();
 
 #if defined(CONFIG_UPDATE_TFTP)
@@ -686,10 +705,8 @@ void main_loop(void)
 #endif /* CONFIG_UPDATE_TFTP */
 
 	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
-		board_dtb_init();
+		x2_env_and_boardid_init();
 
-	environmet_init();
-	add_sendid();
 #ifdef X2_AUTORESET
 	prepare_autoreset();
 #endif

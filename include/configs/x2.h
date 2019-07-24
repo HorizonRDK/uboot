@@ -149,8 +149,8 @@
 #include <config_distro_bootcmd.h>
 
 #define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "
-#define CONFIG_BOOTCOMMAND "run mmcload;run unzipimage;ion_modify ${ion_size};"\
-		"mem_modify ${mem_size};run ddrboot;"
+#define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
+		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
 
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS

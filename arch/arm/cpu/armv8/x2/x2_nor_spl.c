@@ -2,6 +2,7 @@
 #include <asm/arch/x2_dev.h>
 #include <asm/arch/x2_pinmux.h>
 #include <spi.h>
+#include <veeprom.h>
 #include "x2_nor_spl.h"
 #include "x2_spi_spl.h"
 #include "x2_info.h"
@@ -27,6 +28,9 @@
 #define STATUS_QEB_WINSPAN		BIT(1)
 #define STATUS_QEB_MXIC			BIT(6)
 #define STATUS_PEC			BIT(7)
+
+#define NOR_PAGE_SIZE	(512)
+#define NOR_SECTOR_SIZE	(64*1024)
 
 /* Dual SPI flash memories - see SPI_COMM_DUAL_... */
 enum spi_dual_flash {
@@ -319,7 +323,7 @@ int spi_flash_read(u32 offset, void *data, size_t len)
 	return ret;
 }
 
-#ifdef CONFIG_X2_PM
+//#ifdef CONFIG_X2_PM
 static int spi_flash_write_common(struct spi_flash *flash, const u8 * cmd,
 	size_t cmd_len, const void *buf, size_t buf_len)
 {
@@ -419,7 +423,7 @@ static int spi_flash_erase(u32 offset, size_t len)
 
 	return ret;
 }
-#endif /* CONFIG_X2_PM */
+//#endif /* CONFIG_X2_PM */
 
 static int spi_flash_scan(struct spi_flash *flash)
 {
@@ -604,15 +608,172 @@ static void nor_pre_load(struct x2_info_hdr *pinfo,
 	return;
 }
 
+static unsigned int nor_start_sector = NOR_VEEPROM_START_SECTOR;
+static char nor_buffer[128];
+
+int nor_veeprom_read(int offset, char *buf, int size)
+{
+	uint64_t sector_left = 0;
+	uint64_t sector_right = 0;
+	uint64_t cur_sector = 0;
+	uint64_t offset_inner = 0;
+	uint64_t remain_inner = 0;
+
+	sector_left = nor_start_sector + (offset / NOR_PAGE_SIZE);
+	sector_right = nor_start_sector + ((offset + size - 1) / NOR_PAGE_SIZE);
+
+	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
+		int operate_count = 0;
+		memset(nor_buffer, 0, sizeof(nor_buffer));
+
+		spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
+			sizeof(nor_buffer));
+		flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
+
+		offset_inner = offset - (cur_sector - nor_start_sector) * NOR_PAGE_SIZE;
+		remain_inner = NOR_PAGE_SIZE - offset_inner;
+		operate_count = (remain_inner >= size ? size : remain_inner);
+		size -= operate_count;
+		offset += operate_count;
+		memcpy(buf, nor_buffer + offset_inner, operate_count);
+		buf += operate_count;
+	}
+
+	return 0;
+}
+
+int nor_veeprom_write(int offset, const char *buf, int size)
+{
+	uint64_t sector_left = 0;
+	uint64_t sector_right = 0;
+	uint64_t cur_sector = 0;
+	uint64_t offset_inner = 0;
+	uint64_t remain_inner = 0;
+
+	sector_left = nor_start_sector + (offset / NOR_PAGE_SIZE);
+	sector_right = nor_start_sector + ((offset + size - 1) / NOR_PAGE_SIZE);
+
+	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
+		int operate_count = 0;
+		memset(nor_buffer, 0, sizeof(nor_buffer));
+
+		/* read nor flash */
+		spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
+			sizeof(nor_buffer));
+		flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
+
+		offset_inner = offset - (cur_sector - nor_start_sector) * NOR_PAGE_SIZE;
+		remain_inner = NOR_PAGE_SIZE - offset_inner;
+		operate_count = (remain_inner >= size ? size : remain_inner);
+		size -= operate_count;
+		offset += operate_count;
+
+		memcpy(nor_buffer + offset_inner, buf, operate_count);
+		buf += operate_count;
+
+		/* erase nor flash */
+		spi_flash_erase(cur_sector * NOR_PAGE_SIZE, NOR_SECTOR_SIZE);
+
+		/* write nor flash */
+		spi_flash_write(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
+			sizeof(nor_buffer));
+	}
+
+	return 0;
+}
+
+static void ota_nor_get_update_status(char* up_flag, char* partstatus,
+	char* boot_reason)
+{
+	nor_veeprom_read(VEEPROM_UPDATE_FLAG_OFFSET, up_flag,
+			VEEPROM_UPDATE_FLAG_SIZE);
+
+	nor_veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, partstatus,
+			VEEPROM_ABMODE_STATUS_SIZE);
+
+	nor_veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+			VEEPROM_RESET_REASON_SIZE);
+}
+
+static bool ota_nor_spl_update_check(void) {
+	char boot_reason[64] = { 0 };
+	char up_flag, partstatus, count;
+	bool flash_success, first_try, app_success;
+	bool uboot_bak = 0;
+	bool uboot_status = 0;
+	int boot_flag = 0;
+
+	ota_nor_get_update_status(&up_flag, &partstatus, boot_reason);
+	printf("boot reason: %s \n", boot_reason);
+	printf("partstatus = %d \n", partstatus);
+	printf("up_flag: %d\n", up_flag);
+
+	uboot_status = (partstatus >> 1) & 0x1;
+	boot_flag = uboot_status;
+
+	if (strcmp(boot_reason, "normal") == 0)  {
+		/*
+		 * During normal startup, use backup partitions
+		 * if 10 consecutive startup failures occur
+		 */
+		nor_veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+		count = count - 1;
+		nor_veeprom_write(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+
+		if (count <= 0) {
+			printf("Error: Failed times more than 10, using backup partitions\n");
+			boot_flag = uboot_status^1;
+		}
+	} else if ((strcmp(boot_reason, "recovery") == 0)) {
+		/* using ubootbak partition entry recovery mode */
+		boot_flag = uboot_status^1;
+	} else if((strcmp(boot_reason, "uboot") == 0) ||
+		(strcmp(boot_reason, "all") == 0) ) {
+		flash_success = (up_flag >> 2) & 0x1;
+		first_try = (up_flag >> 1) & 0x1;
+		app_success = up_flag & 0x1;
+		uboot_bak = uboot_status^1;
+
+		if (flash_success == 0)
+			boot_flag = uboot_bak;
+		else if (first_try == 1) {
+			up_flag = up_flag & 0xd;
+			nor_veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+					VEEPROM_UPDATE_FLAG_SIZE);
+		} else if(app_success == 0) {
+				boot_flag = uboot_bak;
+		}
+
+		if (boot_flag == uboot_bak) {
+			up_flag = up_flag & 0x7;
+			nor_veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
+				VEEPROM_UPDATE_FLAG_SIZE);
+
+			printf("Error: update %s faild! \n", boot_reason);
+		}
+	}
+
+	return boot_flag;
+}
+
 static void nor_load_image(struct x2_info_hdr *pinfo)
 {
 	unsigned int src_addr;
 	unsigned int src_len;
 	unsigned int dest_addr;
 	__maybe_unused unsigned int read_bytes;
+	bool boot_flag = 0;
+	char upmode[16] = { 0 };
 
-	src_addr = pinfo->other_img[0].img_addr;
-	src_len = pinfo->other_img[0].img_size;
+	nor_veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	/* When upmode is AB, support update status checking */
+	if ((strcmp(upmode, "golden") == 0))
+		boot_flag = ota_nor_spl_update_check();
+
+	src_addr = pinfo->other_img[boot_flag].img_addr;
+	src_len = pinfo->other_img[boot_flag].img_size;
 	dest_addr = pinfo->other_laddr;
 
 	read_bytes = nor_read_blks((int)src_addr, dest_addr, src_len);
@@ -633,12 +794,14 @@ void x2_bootinfo_init(void)
 	nor_read_blks((int)src_addr, dest_addr, src_len);
 }
 
+#ifdef CONFIG_X2_PM
 static int x2_get_dev_mode(void)
 {
 	uint32_t reg = readl(X2_GPIO_BASE +X2_STRAP_PIN_REG);
 
 	return !!(PIN_DEV_MODE_SEL(reg));
 }
+#endif
 
 void spl_nor_init(unsigned int recfg)
 {

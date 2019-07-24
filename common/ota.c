@@ -31,12 +31,15 @@
 #include <mmc.h>
 #include <veeprom.h>
 #include <ota.h>
+#include <spi_flash.h>
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 #include "../include/configs/x2.h"
 
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
 static int curr_device = 0;
+extern unsigned int x2_src_boot;
+extern struct spi_flash *nor_flash;
 
 int get_emmc_size(uint64_t *size)
 {
@@ -401,11 +404,16 @@ void ota_update_set_bootdelay(char *boot_reason)
 
 int ota_normal_boot(bool boot_flag, char *partition)
 {
-	if (boot_flag == 1) {
-		strcat(partition, "bak");
+	if (x2_src_boot == PIN_2ND_SF) {
+		return 0;
+	} else {
+		if (boot_flag == 1) {
+			strcat(partition, "bak");
+		}
+		return get_partition_id(partition);
 	}
-	return get_partition_id(partition);
 }
+
 
 bool ota_kernel_or_system_update(char up_flag, bool part_status)
 {
@@ -455,18 +463,25 @@ bool ota_all_update(char up_flag, bool part_status)
 	return boot_flag;
 }
 
-static void ota_recovery_mode_set(char *partition)
+void ota_recovery_mode_set(unsigned int addr, unsigned int size)
 {
 	char *s = NULL;
 	char boot_reason[16] = "recovery";
-	printf("Error: OTA update %s failed, into recovery mode ... \n", partition);
 
 	veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 				VEEPROM_RESET_REASON_SIZE);
 
-	/* env bootfile set*/
-	s = "recovery.gz\0";
-	env_set("bootfile", s);
+	env_set("bootdelay", "0");
+
+	if (x2_src_boot == PIN_2ND_SF) {
+		/* load recovery.gz */
+		if (nor_flash != NULL)
+			spi_flash_read(nor_flash, addr, size, (void *)KERNEL_ADDR);
+	} else {
+		/* env bootfile set*/
+		s = "recovery.gz\0";
+		env_set("bootfile", s);
+	}
 }
 
 void ota_check_update_success_flag(void)
@@ -484,7 +499,7 @@ void ota_check_update_success_flag(void)
 	update_success = (up_flag >> 3) & 0x1;
 	if ((update_success == 0) && (strcmp(upmode, "golden") == 0))
 		/* when update uboot failed in golden mode, into recovery system */
-		ota_recovery_mode_set(boot_reason);
+		ota_recovery_mode_set(0, 0);
 }
 
 unsigned int ota_uboot_update_check(char *partition) {
@@ -529,16 +544,19 @@ unsigned int ota_uboot_update_check(char *partition) {
 
 		if (strcmp(upmode, "golden") == 0)
 			/* when update kernel or system failed in golden mode, into recovery system */
-			ota_recovery_mode_set(boot_reason);
+			ota_recovery_mode_set(0, 0);
 		else
 			ota_update_failed_output(boot_reason, partition);
 	}
 
-	if (boot_flag == 1) {
-		strcat(partition, "bak");
-	}
+	if (x2_src_boot == PIN_2ND_SF) {
+		return 0;
+	} else {
+		if (boot_flag == 1)
+			strcat(partition, "bak");
 
-	return get_partition_id(partition);
+		return get_partition_id(partition);
+	}
 }
 
 uint32_t x2_do_cksum(const uint8_t *buff, uint32_t len)
@@ -553,7 +571,7 @@ uint32_t x2_do_cksum(const uint8_t *buff, uint32_t len)
 	return result;
 }
 
-static void write_bootinfo()
+static void write_bootinfo(void)
 {
 	int ret;
 	char cmd[256] = {0};

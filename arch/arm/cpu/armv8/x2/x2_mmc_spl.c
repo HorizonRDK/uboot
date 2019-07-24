@@ -413,7 +413,7 @@ static void ota_get_update_status(char* up_flag, char* partstatus,
 }
 
 static bool ota_spl_update_check(void) {
-	char boot_reason[64];
+	char boot_reason[64] = { 0 } ;
 	char up_flag, partstatus, count;
 	bool flash_success, first_try, app_success;
 	bool uboot_bak = 0;

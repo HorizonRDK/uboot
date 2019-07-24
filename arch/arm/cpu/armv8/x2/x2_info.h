@@ -30,8 +30,11 @@
 #define PIN_2ND_AP			0x2
 #define PIN_2ND_UART		0x3
 
-#define X2_BOOTINFO_ADDR	(0x10000000)
-#define X2_DTB_CONFIG_ADDR	(0x10001000)
+#define X2_BOOTINFO_ADDR	0x10000000
+#define X2_DTB_CONFIG_ADDR	0x10001000
+#define KERNEL_ADDR			0x20000000
+#define DTB_MAPPING_ADDR	0x140000
+#define DTB_MAPPING_SIZE	0x400
 
 #define X2_BOARD_SVB 0
 #define X2_BOARD_SOM 1
@@ -110,11 +113,13 @@ struct x2_dtb_hdr {
 struct x2_kernel_hdr {
 	unsigned int Image_addr;		/* Address in storage */
 	unsigned int Image_size;
+	unsigned int Recovery_addr;		/* Address in storage */
+	unsigned int Recovery_size;
 	unsigned int dtb_number;
 
 	struct x2_dtb_hdr dtb[16];
 
-	unsigned int reserved[61];
+	unsigned int reserved[59];
 };
 
 #endif /* __X2_INFO_H__ */

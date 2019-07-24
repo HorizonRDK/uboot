@@ -52,6 +52,8 @@
 #ifdef CONFIG_X2_BIFSD
 #include <asm/arch/x2_bifsd.h>
 #endif
+#include <veeprom.h>
+
 DECLARE_GLOBAL_DATA_PTR;
 extern int boot_stage_mark(int stage);
 
@@ -771,6 +773,7 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 #ifdef CONFIG_MMC
 	initr_mmc,
+	veeprom_init,
 #endif
 	initr_env,
 #ifdef CONFIG_SYS_BOOTPARAMS_LEN

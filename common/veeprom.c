@@ -1,31 +1,137 @@
 #include <common.h>
 #include <command.h>
 #include <mmc.h>
+#include <spi.h>
+#include <spi_flash.h>
 #include <veeprom.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 #define SECTOR_SIZE (512)
 #define BUFFER_SIZE SECTOR_SIZE
+#define FLAG_RW 1
+#define FLAG_RO 0
 
 static unsigned int start_sector;
 static unsigned int end_sector;
 static char buffer[BUFFER_SIZE];
 static int curr_device = -1;
+extern unsigned int x2_src_boot;
 
-/* init mmc device and return device pointer */
+struct spi_flash *nor_flash = NULL;
+struct mmc *emmc = NULL;
+
+/* init nor flash device  */
+static void init_nor_device(void)
+{
+	unsigned int bus = CONFIG_SF_DEFAULT_BUS;
+	unsigned int cs = CONFIG_SF_DEFAULT_CS;
+	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
+	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
+	struct spi_flash *new;
+
+	if (nor_flash)
+		return;
+	/* spi_flash_free(nor_flash); */
+
+	new = spi_flash_probe(bus, cs, speed, mode);
+	nor_flash = new;
+
+	if (!new) {
+		printf("Failed to initialize SPI flash at %u:%u\n", bus, cs);
+	}
+}
+
 struct mmc *init_mmc_device(int dev, bool force_init)
 {
-	struct mmc *mmc = NULL;
-
+	struct mmc *mmc;
 	mmc = find_mmc_device(dev);
-	if (!mmc)
+	if (!mmc) {
+		printf("no mmc device at slot %x\n", dev);
 		return NULL;
+	}
 
 	if (force_init)
 		mmc->has_init = 0;
 	if (mmc_init(mmc))
 		return NULL;
-
 	return mmc;
+}
+
+static int dw_init(int flag)
+{
+	int ret = 0;
+
+	if (x2_src_boot == PIN_2ND_SF) {
+		init_nor_device();
+		if (!nor_flash) {
+			printf("Failed to initialize SPI flash\n");
+			ret = -1;
+		}
+	} else {
+		/* check the status of device */
+		emmc = init_mmc_device(curr_device, false);
+		if (!emmc) {
+			printf("Error: no mmc device at slot %d\n", curr_device);
+			ret = -1;
+		}
+
+		if (flag == FLAG_RW) {
+			if (mmc_getwp(emmc) == 1) {
+				printf("Error: card is write protected!\n");
+				ret = -1;
+			}
+		}
+	}
+
+	return ret;
+}
+
+static int dw_read(unsigned int cur_sector)
+{
+	int ret = 0;
+
+	if (x2_src_boot == PIN_2ND_SF) {
+		ret = spi_flash_read(nor_flash, cur_sector * 512, SECTOR_SIZE, buffer);
+		if (ret != 0) {
+			printf("Error: read nor flash fail\n");
+			return -1;
+		}
+	} else {
+		ret = blk_dread(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
+		if (ret != 1) {
+			printf("Error: read sector %d fail\n", cur_sector);
+			return -1;
+		}
+	}
+
+	return ret;
+}
+
+static int dw_write(unsigned int cur_sector)
+{
+	int ret = 0;
+
+	if (x2_src_boot == PIN_2ND_SF) {
+		ret = spi_flash_erase(nor_flash, start_sector, 64 * 1024);
+		if (ret != 0) {
+			printf("Error: erase nor flash fail\n");
+			return -1;
+		}
+
+		ret = spi_flash_write(nor_flash, cur_sector * 512, SECTOR_SIZE, buffer);
+		if (ret != 0) {
+			printf("Error: read nor flash fail\n");
+			return -1;
+		}
+	} else {
+		ret = blk_dwrite(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
+		if (ret != 1) {
+			printf("Error: write sector %d fail\n", cur_sector);
+			return -1;
+		}
+	}
+
+	return ret;
 }
 
 /* check veeprom read/write offset and length */
@@ -43,18 +149,28 @@ static int is_parameter_valid(int offset, int size)
 /* init veeprom mmc blocks */
 int veeprom_init(void)
 {
-	/* set veeprom raw sectors */
-	start_sector = VEEPROM_START_SECTOR;
-	end_sector = VEEPROM_END_SECTOR;
-
-
-	/* set current mmc device number */
-	if (curr_device < 0) {
-		if (get_mmc_num() > 0) {
-			curr_device = 0;
-		} else {
-			printf("Error: No MMC device available\n");
+	if (x2_src_boot == PIN_2ND_SF) {
+		start_sector = NOR_VEEPROM_START_SECTOR;
+		end_sector = NOR_VEEPROM_END_SECTOR;
+		init_nor_device();
+		if (!nor_flash) {
+			printf("Failed to initialize SPI flash\n");
 			return -1;
+		}
+
+	} else {
+		/* set veeprom raw sectors */
+		start_sector = VEEPROM_START_SECTOR;
+		end_sector = VEEPROM_END_SECTOR;
+
+		/* set current mmc device number */
+		if (curr_device < 0) {
+			if (get_mmc_num() > 0) {
+				curr_device = 0;
+			} else {
+				printf("Error: No MMC device available\n");
+				return -1;
+			}
 		}
 	}
 
@@ -63,55 +179,52 @@ int veeprom_init(void)
 
 void veeprom_exit(void)
 {
-	curr_device = -1;
+	if (x2_src_boot == PIN_2ND_SF)
+		spi_flash_free(nor_flash);
+	else
+		curr_device = -1;
 }
 
 /* format veeprom mmc blocks, memset(0) */
 int veeprom_format(void)
 {
-	struct mmc *mmc = NULL;
+	int ret = 0;
+	int flag = FLAG_RW;
 	unsigned int cur_sector = 0;
-	unsigned int n = 0;
 
-	/* check the status of device */
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc) {
-		printf("Error: no mmc device at slot %d\n", curr_device);
-		return -1;
+	ret = dw_init(flag);
+	if (ret < 0) {
+		printf("Failed to initialize veeporm\n");
+		return ret;
 	}
 
-	if (mmc_getwp(mmc) == 1) {
-		printf("Error: card is write protected!\n");
-		return -1;
-	}
-
-	
 	/* format raw sectors */
 	memset(buffer, 0, sizeof(buffer));
 	for (cur_sector = start_sector; cur_sector <= end_sector; ++cur_sector) {
-		n = blk_dwrite(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
-		if (n != 1) {
-			printf("Error: write sector %d fail\n", cur_sector);
-			return -1;
+		ret = dw_write(cur_sector);
+		if (ret < 0) {
+			printf("Error: write veeporm faild\n");
+			return ret;
 		}
 	}
-	return 0;
 
+	return ret;
 }
+
 
 int veeprom_read(int offset, char *buf, int size)
 {
-	struct mmc *mmc = NULL;
 	int sector_left = 0;
 	int sector_right = 0;
 	int cur_sector = 0;
 	int offset_inner = 0;
 	int remain_inner = 0;
-	unsigned int n = 0;
+	int ret = 0;
+	int flag = FLAG_RO;
 
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc) {
-		printf("Error: no mmc device at slot %d\n", curr_device);
+	ret = dw_init(flag);
+	if (ret < 0) {
+		printf("Failed to initialize veeporm\n");
 		return -1;
 	}
 
@@ -127,11 +240,11 @@ int veeprom_read(int offset, char *buf, int size)
 		int operate_count = 0;
 		memset(buffer, 0, sizeof(buffer));
 
-		n = blk_dread(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
+		ret = dw_read(cur_sector);
 		flush_cache((ulong)buffer, 512);
-		if (n != 1) {
-			printf("Error: read sector %d fail\n", cur_sector);
-			return -1;
+		if (ret < 0) {
+			printf("Error: read veeporm faild\n");
+			return ret;
 		}
 
 		offset_inner = offset - (cur_sector - start_sector) * SECTOR_SIZE;
@@ -143,28 +256,23 @@ int veeprom_read(int offset, char *buf, int size)
 		buf += operate_count;
 	}
 
-	return 0;
+	return ret;
 }
 
 int veeprom_write(int offset, const char *buf, int size)
 {
-	struct mmc *mmc = NULL;
 	int sector_left = 0;
 	int sector_right = 0;
 	int cur_sector = 0;
 	int offset_inner = 0;
 	int remain_inner = 0;
-	unsigned int n = 0;
+	int ret = 0;
+	int flag = FLAG_RW;
 
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc) {
-		printf("Error: no mmc device at slot %d\n", curr_device);
-		return -1;
-	}
-
-	if (mmc_getwp(mmc) == 1) {
-		printf("Error: card is write protected!\n");
-		return -1;
+	ret = dw_init(flag);
+	if (ret < 0) {
+		printf("Failed to initialize veeporm\n");
+		return ret;
 	}
 
 	if (!is_parameter_valid(offset, size)) {
@@ -179,11 +287,11 @@ int veeprom_write(int offset, const char *buf, int size)
 		int operate_count = 0;
 		memset(buffer, 0, sizeof(buffer));
 
-		n = blk_dread(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
+		ret = dw_read(cur_sector);
 		flush_cache((ulong)buffer, 512);
-		if (n != 1) {
-			printf("Error: read sector %d fail\n", cur_sector);
-			return -1;
+		if (ret < 0) {
+			printf("Error: read veeporm faild\n");
+			return ret;
 		}
 
 		offset_inner = offset - (cur_sector - start_sector) * SECTOR_SIZE;
@@ -195,34 +303,29 @@ int veeprom_write(int offset, const char *buf, int size)
 		memcpy(buffer + offset_inner, buf, operate_count);
 		buf += operate_count;
 
-		n = blk_dwrite(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
-		if (n != 1) {
-			printf("Error: write sector %d fail\n", cur_sector);
-			return -1;
+		ret = dw_write(cur_sector);
+		if (ret < 0) {
+			printf("Error: write veeporm faild\n");
+			return ret;
 		}
 	}
 	
-	return 0;
+	return ret;
 }
 
 int veeprom_clear(int offset, int size)
 {
-	struct mmc *mmc = NULL;
 	int sector_left = 0;
 	int sector_right = 0;
 	int cur_sector = 0;
 	int offset_inner = 0;
 	int remain_inner = 0;
-	unsigned int n = 0;
+	int ret = 0;
+	int flag = FLAG_RW;
 
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc) {
-		printf("Error: no mmc device at slot %d\n", curr_device);
-		return -1;
-	}
-
-	if (mmc_getwp(mmc) == 1) {
-		printf("Error: card is write protected!\n");
+	ret = dw_init(flag);
+	if (ret < 0) {
+		printf("Failed to initialize veeporm\n");
 		return -1;
 	}
 
@@ -240,11 +343,11 @@ int veeprom_clear(int offset, int size)
 		int operate_count = 0;
 		memset(buffer, 0, sizeof(buffer));
 
-		n = blk_dread(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
+		ret = dw_read(cur_sector);
 		flush_cache((ulong)buffer, 512);
-		if (n != 1) {
-			printf("read sector %d fail\n", cur_sector);
-			return -1;
+		if (ret < 0) {
+			printf("Error: read veeporm faild\n");
+			return ret;
 		}
 
 		offset_inner = offset - (cur_sector - start_sector) * SECTOR_SIZE;
@@ -257,25 +360,26 @@ int veeprom_clear(int offset, int size)
 
 		memset(buffer + offset_inner, 0, operate_count);
 
-		n = blk_dwrite(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
-		if (n != 1) {
-			printf("write sector %d fail\n", cur_sector);
-			return -1;
+		ret = dw_write(cur_sector);
+		if (ret < 0) {
+			printf("Error: write veeporm faild\n");
+			return ret;
 		}
 	}
-	return 0;
+
+	return ret;
 }
 
 int veeprom_dump(void)
 {
-	struct mmc *mmc = NULL;
 	int cur_sector = 0;
-	unsigned int n = 0;
 	int i = 0;
+	int ret = 0;
+	int flag = FLAG_RO;
 
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc) {
-		printf("Error: no mmc device at slot %d\n", curr_device);
+	ret = dw_init(flag);
+	if (ret < 0) {
+		printf("Failed to initialize veeporm\n");
 		return -1;
 	}
 
@@ -283,11 +387,11 @@ int veeprom_dump(void)
 		printf("sector: %d\n", cur_sector);
 		memset(buffer, 0, sizeof(buffer));
 
-		n = blk_dread(mmc_get_blk_desc(mmc), cur_sector, 1, buffer);
+		ret = dw_read(cur_sector);
 		flush_cache((ulong)buffer, VEEPROM_MAX_SIZE);
-		if (n != 1) {
-			printf("read sector %d fail\n", cur_sector);
-			return -1;
+		if (ret < 0) {
+			printf("Error: read veeporm faild\n");
+			return ret;
 		}
 
 		for (i = 0; i < SECTOR_SIZE; ++i) {
