@@ -85,7 +85,9 @@
 
 #endif /* CONFIG_SPL_BUILD */
 
-#define CONFIG_SYS_TEXT_BASE	0x20000000		/* Offset is 512MB*/
+#define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
+#define CONFIG_SYS_TEXT_BASE		0x01d00000		/* Offset is 29MB*/
+#define X2_USABLE_RAM_TOP			0x02000000		/* Top is 32MB*/
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000
@@ -93,8 +95,6 @@
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
 #define CONFIG_SYS_SDRAM_SIZE		PHYS_SDRAM_1_SIZE
-
-#define CONFIG_SYS_INIT_SP_ADDR     (CONFIG_SYS_TEXT_BASE + SZ_8M)
 
 /* For memtest */
 #define CONFIG_SYS_MEMTEST_START    PHYS_SDRAM_1
@@ -125,7 +125,14 @@
 #define CONFIG_SYS_MAXARGS	64	/* max command args */
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_8M)
+#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_1M)
+
+#ifdef CONFIG_SYS_SKIP_RELOC
+#define SZ_66K				0x00010800 /* TBL table + board info + global data */
+#define CONFIG_SYS_INIT_SP_ADDR     (X2_USABLE_RAM_TOP - SZ_66K - CONFIG_SYS_MALLOC_LEN - CONFIG_ENV_SIZE)
+#else
+#define CONFIG_SYS_INIT_SP_ADDR     (CONFIG_SYS_TEXT_BASE + SZ_1M)
+#endif
 
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
 
