@@ -64,6 +64,7 @@ obj-$(CONFIG_CMD_FS_GENERIC) += fs.o
 obj-$(CONFIG_CMD_FUSE) += fuse.o
 obj-$(CONFIG_CMD_FUSE_EX) += fuse_ex.o
 obj-$(CONFIG_CMD_SEND_ID) += socinfo.o
+obj-$(CONFIG_CMD_SWINFO) += swinfo.o
 obj-$(CONFIG_CMD_GETTIME) += gettime.o
 obj-$(CONFIG_CMD_GPIO) += gpio.o
 obj-$(CONFIG_CMD_HVC) += smccc.o
