@@ -50,6 +50,7 @@
 #define J2_SVB_BOARD_ID		0x200
 #define X2_SOM_3V3_ID		0x103
 #define X2_SOM_ID		0x104
+#define X2_96BOARD_ID		0x105
 #define QUAD_BOARD_ID		0x300
 #define J2_MM_BOARD_ID		0x400
 
