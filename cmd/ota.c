@@ -44,9 +44,18 @@ int do_ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	return ota_write(cmdtp, flag, argc, argv);
 }
 
-U_BOOT_CMD(otawrite, 4, 0, do_ota_write,
+U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
 	   "write binary file to gpt partiton",
-	   "<partition name> <ddr addr> <image size> \n"
-	   "    - partiton name : [gpt-main | sbl | ddr | uboot | system | kernel | app | gpt-backup]\n"
-	   "    - image size: bytes size  [Example: 0x8000]"
+	   "<partition name> <ddr addr> <image size> [emmc|nor] \n"
+	   "    - emmc partition name: \n"
+	   "           [all | gpt-main | sbl | ddr | uboot | kernel | system | app | gpt-backup]\n"
+	   "    - nor partition name: \n"
+	   "           [all | uboot | kernel | system | app]\n"
+	   "    - image size: \n"
+	   "           bytes size  [Example: 0x8000]\n"
+	   "    - emmc|nor: \n"
+	   "          options, write emmc or nor partition\n"
+	   "          default: writing device depend on bootmode\n"
+	   "    - example:\n"
+	   "          otawrite uboot 0x4000000 0x100000\n"
 );

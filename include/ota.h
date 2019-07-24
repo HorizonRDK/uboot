@@ -7,11 +7,23 @@
 #ifndef __OTA_H_
 #define __OTA_H_	1
 
+#define NOR_SECTOR_SIZE (64*1024)
+
+#define NOR_UBOOT_ADDR 			(0x40000)
+#define NOR_UBOOT_MAX_SIZE 		(0x100000)
+#define NOR_KERNEL_ADDR 		(0x140000)
+#define NOR_KERNEL_MAX_SIZE 	(0xEC0000)
+#define NOR_ROOTFS_ADDR 		(0x1000000)
+#define NOR_ROOTFS_MAX_SIZE 	(0x1000000)
+#define NOR_APP_ADDR 			(0x2000000)
+#define NOR_APP_MAX_SIZE 		(0x2000000)
+
+
 char *printf_efiname(gpt_entry *pte);
 
-int get_patition_start_lba(char *partname);
+unsigned int get_patition_start_lba(char *partname);
 
-int get_patition_end_lba(char *partname);
+unsigned int get_patition_end_lba(char *partname);
 
 unsigned int hex_to_char(unsigned int temp);
 

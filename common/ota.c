@@ -124,7 +124,7 @@ int get_partition_id(char *partname)
 	return CMD_RET_FAILURE;
 }
 
-int get_patition_start_lba(char *partname)
+unsigned int get_patition_start_lba(char *partname)
 {
 	struct blk_desc *mmc_dev;
 	struct mmc *mmc;
@@ -132,6 +132,7 @@ int get_patition_start_lba(char *partname)
 	int i = 0;
 	gpt_entry *gpt_pte = NULL;
 	char *name;
+	unsigned int start_lba = 0;
 
 	mmc = init_mmc_device(curr_device, false);
 	if (!mmc)
@@ -160,26 +161,27 @@ int get_patition_start_lba(char *partname)
 			}
 		}
 
-	for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
-		/* Stop at the first non valid PTE */
-		if (!is_pte_valid(&gpt_pte[i]))
-			break;
+		for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
+			/* Stop at the first non valid PTE */
+			if (!is_pte_valid(&gpt_pte[i]))
+				break;
 
-		name = printf_efiname(&gpt_pte[i]);
-		if ( strcmp(name, partname) == 0 ) {
-			return gpt_pte[i].starting_lba;
+			name = printf_efiname(&gpt_pte[i]);
+			if ( strcmp(name, partname) == 0 ) {
+				start_lba = gpt_pte[i].starting_lba;
+				break;
+			}
 		}
-	}
 
-	/* Remember to free pte */
-	free(gpt_pte);
-		return 0;
+		/* Remember to free pte */
+		free(gpt_pte);
+		return start_lba;
 	}
 
 	return CMD_RET_FAILURE;
 }
 
-int get_patition_end_lba(char *partname)
+unsigned int get_patition_end_lba(char *partname)
 {
 	struct blk_desc *mmc_dev;
 	struct mmc *mmc;
@@ -187,6 +189,7 @@ int get_patition_end_lba(char *partname)
 	int i = 0;
 	gpt_entry *gpt_pte = NULL;
 	char *name;
+	unsigned int end_lba = 0;
 
 	mmc = init_mmc_device(curr_device, false);
 	if (!mmc)
@@ -215,20 +218,21 @@ int get_patition_end_lba(char *partname)
 			}
 		}
 
-	for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
-		/* Stop at the first non valid PTE */
-		if (!is_pte_valid(&gpt_pte[i]))
-			break;
+		for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
+			/* Stop at the first non valid PTE */
+			if (!is_pte_valid(&gpt_pte[i]))
+				break;
 
-		name = printf_efiname(&gpt_pte[i]);
-		if ( strcmp(name, partname) == 0 ) {
-			return gpt_pte[i].ending_lba;
+			name = printf_efiname(&gpt_pte[i]);
+			if ( strcmp(name, partname) == 0 ) {
+				end_lba = gpt_pte[i].ending_lba;
+				break;
+			}
 		}
-	}
 
-	/* Remember to free pte */
-	free(gpt_pte);
-		return 0;
+		/* Remember to free pte */
+		free(gpt_pte);
+		return end_lba;
 	}
 
 	return CMD_RET_FAILURE;
@@ -284,12 +288,78 @@ static unsigned int partition_status_flag(char *partition)
 	return flag;
 }
 
+static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
+{
+	unsigned int part_addr;
+	unsigned int part_size;
+	int ret;
+	unsigned int nor_addr = 0;
+	char command[256] = { 0 };
+	char *s;
+	unsigned int sector = (bytes + NOR_SECTOR_SIZE -1)/NOR_SECTOR_SIZE;
+
+	nor_addr = simple_strtoul(addr, 0, 16);
+
+	if (nor_addr%NOR_SECTOR_SIZE != 0) {
+		printf("error: addr %s not support ! \n", addr);
+		return CMD_RET_FAILURE;
+	}
+
+	if (strcmp(name, "uboot") == 0) {
+		part_addr = NOR_UBOOT_ADDR;
+		part_size = NOR_UBOOT_MAX_SIZE;
+	} else if (strcmp(name, "kernel") == 0) {
+		part_addr = NOR_KERNEL_ADDR;
+		part_size = NOR_KERNEL_MAX_SIZE;
+	} else if ((strcmp(name, "system") == 0)) {
+		part_addr = NOR_ROOTFS_ADDR;
+		part_size = NOR_ROOTFS_MAX_SIZE;
+	} else if ((strcmp(name, "app") == 0)) {
+		part_addr = NOR_APP_ADDR;
+		part_size = NOR_APP_MAX_SIZE;
+	} else if ((strcmp(name, "all") == 0)) {
+		part_addr = 0;
+		part_size = 0x4000000;
+	} else {
+		printf("error: partition %s not support! \n", name);
+		return CMD_RET_FAILURE;
+	}
+
+	if (bytes > part_size) {
+		printf("Error: image more than partiton size %02x \n", NOR_KERNEL_MAX_SIZE);
+		return CMD_RET_FAILURE;
+	}
+
+	s = "sf probe";
+	ret = run_command_list(s, -1, 0);
+	if (ret < 0) {
+		printf(" sf probe error \n");
+		return ret;
+	}
+
+	sprintf(command, "sf erase %x %x", part_addr, sector * NOR_SECTOR_SIZE);
+	ret = run_command_list(command, -1, 0);
+	if (ret < 0) {
+		printf(" sf erase error \n");
+		return ret;
+	}
+
+	sprintf(command, "sf write %s %x %x", addr, part_addr, bytes);
+	ret = run_command_list(command, -1, 0);
+	if (ret < 0) {
+		printf(" sf write error \n");
+		return ret;
+	}
+
+	return 0;
+}
+
 int ota_update_image(char *name, char *addr, unsigned int bytes)
 {
 	unsigned int start_lba, end_lba;
 	char command[256] = "mmc write ";
 	char lba_size[64] = { 0 };
-	char partiton_size[64] = { 0 };
+	char *s;
 	int ret;
 	unsigned int sector = (bytes + 511)/512;
 	unsigned int part_size;
@@ -311,11 +381,15 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 		end_lba = (unsigned int)get_patition_end_lba("userdata");
 		uint32_to_char(end_lba+1, lba_size);
 		sprintf(command, "%s %s %s %x", command, addr, lba_size, 33);
+	} else if (strcmp(name, "all") == 0){
+		printf("in all\n");
+
+		sprintf(command, "%s %s 0 %x", command, addr, sector);
 	} else {
 		start_lba = (unsigned int)get_patition_start_lba(name);
 		end_lba = (unsigned int)get_patition_end_lba(name);
 		part_size = end_lba - start_lba + 1;
-		if (start_lba == CMD_RET_FAILURE) {
+		if ((start_lba == CMD_RET_FAILURE) || (start_lba == end_lba)) {
 			return CMD_RET_FAILURE;
 		}
 
@@ -324,13 +398,7 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 			return CMD_RET_FAILURE;
 		}
 
-		uint32_to_char(sector, partiton_size);
-		uint32_to_char(start_lba, lba_size);
-		strcat(command, addr);
-		strcat(command, " ");
-		strcat(command, lba_size);
-		strcat(command, " ");
-		strcat(command, partiton_size);
+		sprintf(command, "%s %s %x %x", command, addr, start_lba, sector);
 
 		if (strcmp(name, "sbl") == 0) {
 			realaddr = (void *)simple_strtoul(addr, NULL, 16);
@@ -338,11 +406,16 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 		}
 	}
 
-	debug("command : %s \n", command);
+	printf("command : %s \n", command);
 	ret = run_command_list(command, -1, 0);
 
 	if (ret == 0)
 		printf("ota update %s success!\n", name);
+
+	if (strcmp(name, "all") == 0) {
+		s = "gpt extend mmc 0";
+		ret = run_command_list(s, -1, 0);
+	}
 
 	return ret;
 }
@@ -354,12 +427,25 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int bytes;
 	int ret;
 	char *ep;
+	unsigned int boot_mode;
 
-	if (argc != 4) {
+	if ((argc != 4) && (argc != 5)) {
 		printf("error: parameter number %d not support! \n", argc);
 		return CMD_RET_USAGE;
 	}
 
+	if (argc == 5) {
+		if (strcmp(argv[4],"emmc") == 0) {
+			boot_mode = PIN_2ND_EMMC;
+		} else if (strcmp(argv[4],"nor") == 0) {
+			boot_mode = PIN_2ND_SF;
+		} else {
+			printf("error: parameter %s not support! \n", argv[4]);
+			return CMD_RET_USAGE;
+		}
+	} else {
+		boot_mode = x2_src_boot;
+	}
 	partition_name = argv[1];
 
 	bytes = simple_strtoul(argv[3], &ep, 16);
@@ -367,7 +453,11 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 			return CMD_RET_USAGE;
 
 	/* update image */
-	ret = ota_update_image(partition_name, argv[2], bytes);
+	if (boot_mode == PIN_2ND_EMMC)
+		ret = ota_update_image(partition_name, argv[2], bytes);
+	else
+		ret = ota_nor_update_image(partition_name, argv[2], bytes);
+
 	if (ret == CMD_RET_FAILURE)
 		printf("Error: ota update image faild!\n");
 
