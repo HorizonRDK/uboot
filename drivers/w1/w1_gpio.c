@@ -1,5 +1,4 @@
 /*
-/*
  * w1-gpio - GPIO w1 bus master driver
  *
  * Copyright (C) 2007 Ville Syrjala <syrjala@sci.fi>
@@ -9,14 +8,15 @@
  * as published by the Free Software Foundation.
  */
 
-
+#include "stdio.h"
 #include "w1/w1_family.h"
 #include "w1/w1_int.h"
 #include "w1/w1_gpio.h"
-
+#include "linux/delay.h"
+#include "linux/string.h"
+#include "w1/x1_gpio.h"
 //#include "driver/timer.h"
 
-static int w1_timeout = 30000;
 int w1_max_slave_count = 1;            /* suppose only one slave device */
 int w1_max_slave_ttl = 10;
 
@@ -53,7 +53,10 @@ struct w1_gpio_platform_data  pdata;
 /* for the time delay may fix by wilbur */
 void udelay_mod(unsigned long usec)
 {
+	udelay(usec);
 }
+
+
 
 static struct w1_master *w1_alloc_dev(uint32_t id, int slave_count, struct w1_bus_master *bus_dev)
 
@@ -83,9 +86,8 @@ static struct w1_master *w1_alloc_dev(uint32_t id, int slave_count, struct w1_bu
  */
 struct w1_master *w1_add_master_device(struct w1_bus_master *master)
 {
-	struct w1_master *dev, *entry;
-	int retval = 0;
-	int id, found;
+	struct w1_master *dev;
+	int id;
 
 	/* validate minimum functionality */
 	if (!(master->touch_bit && master->reset_bus) &&
@@ -95,8 +97,9 @@ struct w1_master *w1_add_master_device(struct w1_bus_master *master)
 	}
 	/* Search for the first available id (starting at 1). */
 	id = 0;
-
         #if 0
+		struct *entry;
+		int found;
         do {
         ++id;
         found = 0;
@@ -232,12 +235,12 @@ int w1_slave_found(struct w1_master *dev, u64 rn)
         struct w1_slave *sl;
         struct w1_reg_num *tmp;
         int ret =0;
-        int i =0;
-        char * a;
+        //int i =0;
+        //char * a;
         //for (i=0; i<8;i++) {
         //printf("rn %x\n",*((char*)&rn+i));
         //}
-        u64 rn_le = rn;
+        //u64 rn_le = rn;
         tmp = (struct w1_reg_num *) &rn;
 
         //printf("fID %x,id %x,crc %x\n",tmp->family,tmp->id,tmp->crc);
@@ -263,8 +266,6 @@ int w1_slave_found(struct w1_master *dev, u64 rn)
 void w1_search_process_cb(struct w1_master *dev, u8 search_type,
 	w1_slave_found_callback cb)
 {
-	struct w1_slave *sl, *sln;
-
 	w1_search_devices(dev, search_type, cb);
 
 	if (dev->search_count > 0)
@@ -285,7 +286,7 @@ int w1_process(void *data)
 	 */
 	//const unsigned long jtime = msecs_to_jiffies(w1_timeout * 1000);
 	/* remainder if it woke up early */
-	unsigned long jremain = 0;
+	//unsigned long jremain = 0;
 
 	for (;;) {
 
@@ -371,7 +372,7 @@ static u8 w1_gpio_read_bit(void *data)
 {
         struct w1_gpio_platform_data *pdata = data;
 
-        return gpio_get_input_value(pdata->pin) ? 1 : 0;
+        return gpio_get_data(pdata->pin) ? 1 : 0;
 }
 
 /* this useful when write value 1/0 by wilbur */
@@ -386,7 +387,7 @@ static void w1_gpio_write_bit(void *data, u8 bit)
             udelay_mod(12);
 	} else {                                                            //write 0 use this
             master_write_bit_dir(data, 0);                                  //output
-            gpio_out_data(pdata->pin, 0);                                   // set 0
+            gpio_set_data(pdata->pin, 0);                                   // set 0
 
             udelay_mod(10);
             master_write_bit_dir(data, 1);                                  //input
@@ -403,7 +404,7 @@ static u8 w1_gpio_touch_bit(void *data, u8 bit)
 
         if (bit) {
             master_write_bit_dir(data, 0);         //output
-            gpio_out_data(pdata->pin, 0);          //set 0
+            gpio_set_data(pdata->pin, 0);          //set 0
             udelay_mod(1);
             master_write_bit_dir(data, 1);         //input
             udelay_mod(1);
@@ -424,7 +425,7 @@ static u8 w1_gpio_reset_bus(void *data)
         u8 result =0x0;
         struct w1_gpio_platform_data *pdata = data;
         master_write_bit_dir(data,0);                  //output
-        gpio_out_data(pdata->pin, 0);                  //set 0
+        gpio_set_data(pdata->pin, 0);                  //set 0
         udelay_mod(60);
 
         master_write_bit_dir(data,1);                  //input
@@ -439,14 +440,14 @@ static u8 w1_gpio_reset_bus(void *data)
 struct w1_master *w1_gpio_probe(struct w1_bus_master *bus_master, struct w1_gpio_platform_data *pdata)
 {
         struct w1_master        *master_total;
-
+		pdata->pin = 6; //gpio5(6)
+		pdata->is_open_drain = 0;
         bus_master->data = pdata;
         bus_master->reset_bus =w1_gpio_reset_bus;
         bus_master->touch_bit = w1_gpio_touch_bit;
-        sysc_pmux_gpio(pdata->pin);
-        gpio_set_direction(pdata->pin,0);
+		//int read_value = 0;
+		set_pin_function(pdata->pin);  //设置特定的pin为gpio模式,并且为输入模式;
         master_total = w1_add_master_device(bus_master);
-
         if (pdata->enable_external_pullup)
             pdata->enable_external_pullup(1);
 

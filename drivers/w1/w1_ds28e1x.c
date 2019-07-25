@@ -10,14 +10,13 @@
  * published by the Free Software Foundation.
  *
  */
-
+#include <stdio.h>
 #include <linux/string.h>
-
+#include "w1/w1_ds28e1x.h"
 #include "w1/w1.h"
 #include "w1/w1_int.h"
 #include "w1/w1_family.h"
 #include "w1/w1_ds28e1x_sha256.h"
-
 #define SANITY_DBGCHK 1
 
 //!TBD: add this definition in w1_family.h will be better
@@ -105,10 +104,7 @@ static u8 g_data_prd_secreal[32];//calculate from g_data_prd_secbase
 //!partial base&challenge data for development.
 //!for production g_data_partial_base should be different and keep confidental.
 //!partial_ch data can be dynamic by seed and RNG
-static u8 g_data_partial_base[32]={0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
-								0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF,
-								0x5F,0x37,0xF1,0x25,0x38,0x52,0x83,0x9E,
-								0x7B,0xC9,0xD4,0x00,0xBC,0x47,0x27,0x5B};
+
 static u8 g_data_partial_ch[32]={0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,
 								0x88,0x99,0xAA,0xBB,0xCC,0xDD,0xEE,0xFF,
 								0x5F,0x37,0xF1,0x25,0x38,0x52,0x83,0x9E,
@@ -185,9 +181,9 @@ static unsigned short docrc16(unsigned short data)
 //  Returns: TRUE - mac calculated
 //           FALSE - Failed to calculate
 //
-int calculate_write_authMAC256(int page, int segment, char *new_data, char *old_data, char *manid, char *mac)
+int calculate_write_authMAC256(int page, int segment, char *new_data, char *old_data, char *manid,unsigned char *mac)
 {
-	char mt[64];
+	unsigned char mt[64];
 
 	// calculate MAC
 	// clear
@@ -494,12 +490,12 @@ int w1_ds28e1x_write_authblock(struct w1_slave *sl, int page, int segment, uchar
 	// compute the mac
 	if (special_mode)
 	{
-		if (!calculate_write_authMAC256(page, segment, new_data, old_data, special_values, &buf[0]))
+		if (!calculate_write_authMAC256(page, segment, (char *)new_data, (char *)old_data, special_values, &buf[0]))
 			return -1;
 	}
 	else
 	{
-		if (!calculate_write_authMAC256(page, segment, new_data, old_data, manid, &buf[0]))
+		if (!calculate_write_authMAC256(page, segment, (char *)new_data, (char *)old_data, (char *)manid, &buf[0]))
 		return -1;
 	}
 
@@ -670,7 +666,6 @@ int w1_ds28e1x_write_authblockMAC(struct w1_slave *sl, int page, int segment, uc
 int w1_ds28e1x_read_memory(struct w1_slave *sl, int seg, int page, uchar *rdbuf, int length)
 {
 	uchar buf[256];
-	uchar tmp[64];
 	int cnt, i, offset;
 
 	cnt = 0;
@@ -1026,7 +1021,21 @@ int w1_ds28e1x_compute_secret(struct w1_slave *sl, int page_num, int lock)
 	else
 		return cs;
 }
-
+int returnCrossCheckresult(unsigned int wvalue)
+{
+	int i;
+	unsigned int x,w;
+	int odd_bit_sum = 0;
+	x = wvalue;
+	w = wvalue;
+	for (i= 0; i < 32; i = i +  2) {
+		odd_bit_sum += (x & 0x1);
+		x = x >> 2;
+	}
+	w = w >> 1;                //保证最高位是0，需要在应用层的里面将最高位设为芯片验证结果，0为验证通过，1为验证失败。
+	w = w | odd_bit_sum;
+    return w;
+}
 
 //--------------------------------------------------------------------------
 //  Do Compute Page MAC command and return MAC. Optionally do
@@ -1514,31 +1523,16 @@ unsigned int d_calculateCrossCheckValue(unsigned int cvalue)
     return w;
 }
 
-int returnCrossCheckresult(unsigned int wvalue)
-{
-	int i;
-	unsigned int x,w;
-	int odd_bit_sum = 0;
-	x = wvalue;
-	w = wvalue;
-	for (i= 0; i < 32; i = i +  2) {
-		odd_bit_sum += (x & 0x1);
-		x = x >> 2;
-	}
-	w = w >> 1;                //保证最高位是0，需要在应用层的里面将最高位设为芯片验证结果，0为验证通过，1为验证失败。
-	w = w | odd_bit_sum;
-    return w;
-}
+
 
 
 int w1_ds28e1x_write_read_key(struct w1_slave *sl, char *secret_buf, char *r_buf)
 {
 
-    int rslt,rt,i;
-    uchar buf[256], manid[2],master_data[32],master_secret[32];
+    int rslt,rt;
+    uchar master_data[32],master_secret[32];
     rt = 0;
     rslt = 0;
-    i = 0;
 
     if (secret_buf !=NULL) {
 
@@ -1554,7 +1548,7 @@ int w1_ds28e1x_write_read_key(struct w1_slave *sl, char *secret_buf, char *r_buf
         }
 
 		set_secret(master_secret);
-		set_romid(rom_no);
+		set_romid((unsigned char *)rom_no);
 
          /* Load the master secret */
         rslt = w1_ds28e1x_load_secret(sl, 0);
@@ -1648,7 +1642,7 @@ int w1_ds28e1x_verifymac(struct w1_slave *sl ,char*secret_buf,unsigned int cvalu
 	   memcpy(master_data, secret_buf, 32);
 	   memcpy(master_secret, &secret_buf[32], 32);
 	   set_secret(master_secret);
-	   set_romid(rom_no);
+	   set_romid((unsigned char *)rom_no);
 	}
 
 #endif
@@ -1696,9 +1690,7 @@ success:
 int w1_ds28e1x_setup_device(struct w1_slave *sl, char *secret_buf, char *binding)
 {
 	int rslt,rt;
-	uchar buf[256], challenge[32], manid[2];
-	uchar memimage[512];
-	uchar master_secret[32];
+	uchar buf[256], manid[2];
 
 	/* this write key and data function useless when in release version (fixed key and data) by wilbur  */
    #if  0
@@ -1767,8 +1759,7 @@ end:
 */
 int w1_ds28e1x_read_romid(struct w1_slave *sl, unsigned char *RomID)
 {
-    uchar buf[256];
-    int cnt, i, offset;
+    int  i;
     u8 crc8;
 
     //reset
@@ -1818,8 +1809,6 @@ void w1_ds28e1x_get_rom_id(char* rom_id) {
 
  */
 
-static int ret_val;
-static int signal=1;
 
 
 //static int w1_ds28e1x_get_buffer(struct w1_slave *sl, uchar *rdbuf, int retry_limit)
@@ -1862,7 +1851,7 @@ static int w1_ds28e1x_add_slave(struct w1_slave *sl)
 			ii++;
 	        }
 
-                if(0 == err)
+            if(err == 0)
 			skip_setup = 1;
 			err = w1_ds28e1x_verifymac(sl,NULL,0);
 			verification = err;

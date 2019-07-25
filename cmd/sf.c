@@ -17,6 +17,7 @@
 
 #include <asm/io.h>
 #include <dm/device-internal.h>
+#include <veeprom.h>
 
 #include "w1/aes.h"
 #include "w1/aes_locl.h"
@@ -30,7 +31,6 @@
 #include "w1/x1_gpio.h"
 
 static struct spi_flash *flash;
-
 /*
  * This function computes the length argument for the erase command.
  * The length on which the command is to operate can be given in two forms:
@@ -614,11 +614,12 @@ usage:
 #define  SN_TYPE          0x00000001
 #define  PACK_LEN         16
 #define  SECURE_KEY_LEN   1024    //
-#define  SN_LEN           1024    //
-#define SECURE_SNINFO_ADDR   0x1E20000    /* start from 30M +0x20000 for secure sn info */
+#define  SN_LEN           64    //
+#define  SN_OFFSET   66    /* veeprom // 0x4400 + 66*/
 #define SECURE_SN_LEN       (32)
 #define BOOT_ARG_DDR_ADDR    0xC800000    /* 200M ddr for save boot args */
 #define BOOT_ARGINFO_BLOCK   0x10000      /* min block 64K */
+static uint8_t sn_buf[SN_LEN];
 
 enum pack_index {
     HEADER_INDEX =0,
@@ -665,8 +666,6 @@ int w1_init_setup()
 
     memset(&bus_master,0x0,sizeof(struct w1_bus_master));
     memset(&pdata_sf,0x0,sizeof(struct w1_gpio_platform_data));
-    pdata_sf.pin = GPIO_PIN_GPIO30;              /* the gpio control DS28E1x */
-    pdata_sf.is_open_drain = 0;
     master_total = w1_gpio_probe(&bus_master, &pdata_sf);
 
     if (!master_total) {
@@ -696,7 +695,6 @@ int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
     uint32_t    i,header,type,d_length,crc,c_crc;
     uint8_t  package[SECURE_KEY_LEN] = {0};
     uint8_t  secure_key[SECURE_KEY_LEN] ={0};
-    uint8_t  board_sn[SN_LEN] = {0};
     uint8_t  result[SECURE_KEY_LEN] = {0};
     uint32_t *p_pack = package;
     uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
@@ -794,17 +792,18 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
     int ret = 0;
     unsigned int nor_addrw;
     uint32_t	i,header,type,d_length,crc,c_crc;
-    uint8_t  package[SECURE_KEY_LEN*2] = {0};
+    uint8_t  package[SN_LEN] = {0};
     //uint8_t  board_sn[SN_LEN] = {0};
     uint32_t *p_pack = package;
     unsigned long offset =0;
-    unsigned long *buf =(unsigned long *)BOOT_ARG_DDR_ADDR;
-
+    //unsigned long *buf =(unsigned long *)0x80000;
+	unsigned int sn_len = 0x0;
+	unsigned long *buf = &sn_buf[0];
+	memset(buf, 0, SN_LEN);	
     offset = simple_strtoul(argv[1], NULL, 16);    /* sn data addr in ddr*/
     memcpy(&package[0],(uint8_t *)offset,sizeof(package));
     //nor_addrw = nor_addr_width();
     flash =spi_flash_probe(bus, cs, speed,mode);
-
     if (!flash) {
         printf("burn_sn_initialize_spi_flash_error\n");
         printf("burn_sn_failed\n");
@@ -829,7 +828,7 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 
     if (d_length <= SN_LEN) {
        //memcpy(&board_sn[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
-        memcpy(buf,(uint8_t *)(p_pack + DATA_INDEX),d_length);
+        memcpy(buf + 1,(uint8_t *)(p_pack + DATA_INDEX),d_length);
     } else {
         printf("burn_sn_length_error,sn > 1k\n");
         printf("burn_sn_failed\n");
@@ -842,21 +841,38 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
         return 0;
     }
 
-	memcpy((uint32_t*)buf-1,&d_length,sizeof(uint32_t));
+	memcpy((uint32_t*)buf,&d_length,sizeof(uint32_t));
+	/*
 	ret = spi_flash_erase(flash,SECURE_SNINFO_ADDR,flash->sector_size);
 	if (ret !=0) {
 		printf("burn_sn_erase_flash_error\n");
 		printf("burn_sn_failed\n");
 		return 0;
 	}
-
-    ret = spi_flash_write(flash,SECURE_SNINFO_ADDR,flash->sector_size,(uint32_t*)buf-1);
+	*/
+    sn_len = *buf;
+	ret = veeprom_clear(SN_OFFSET, SN_LEN);
+	if (ret !=1) {  //ret = 1 for emmc , ret = 0 for norflash
+		printf("burn_sn_erase_flash_error\n");
+		printf("burn_sn_failed\n");
+		return 0;
+	}
+	ret = veeprom_write(SN_OFFSET, (const char *)buf, SN_LEN);
+	if (ret != 1) {
+		printf("burn_sn_write_flash_error\n");
+		printf("burn_sn_failed\n");
+		return 0;
+	}
+/*
+    ret = spi_flash_write(flash,SECURE_SNINFO_ADDR,flash->sector_size,(uint32_t*)buf);
+    printf("burn sn:%send\n",buf);
 
 	if (ret !=0) {
 		printf("burn_sn_write_flash_error\n");
 		printf("burn_sn_failed\n");
 		return 0;
 	}
+*/
     printf("burn_sn_succeeded\n");
 	return 0;
 }
@@ -871,11 +887,11 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
 	unsigned int sn_len = 0x0;
-	unsigned long f_offset = SECURE_SNINFO_ADDR;
+	unsigned long f_offset = SN_OFFSET;
     unsigned long len = BOOT_ARGINFO_BLOCK;
-    unsigned long *buf =(unsigned long *)BOOT_ARG_DDR_ADDR;
 	uint8_t  board_sn[SN_LEN] = {0};
-
+	unsigned long *buf = &sn_buf[0];
+	memset(buf, 0, SN_LEN);
 
     //nor_addrw = nor_addr_width();
     flash =spi_flash_probe(bus, cs, speed,mode);
@@ -884,19 +900,17 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
         printf("get sn Failed to initialize SPI flash\n");
         return -1;
     }
-	ret = spi_flash_read(flash, f_offset, flash->sector_size, buf);
+	//ret = spi_flash_read(flash, f_offset, flash->sector_size, buf);
 
-    sn_len = *buf;
-
-	//printf("do_get_sn %d\n",sn_len);
-
+	ret = veeprom_read(SN_OFFSET, (char *)buf, SN_LEN);
+	if (ret !=1) {
+		printf("read_sn_failed\n");
+		return 0;
+	}	
+	sn_len = *buf;
 	memcpy(&board_sn[0],(uint8_t *)(buf+1),sn_len);
-
-    //for(p_i =0;p_i<SN_LEN;p_i++) {
-    //for(p_i =0;p_i<32;p_i++) {   /* only read 64 byte */
-        //printf("%02x",board_sn[p_i]);
-    //}
-    printf("gsn:%send\n",board_sn);
+	
+    printf("len = %d, gsn:%send\n",sn_len, board_sn);
 }
 
 int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,

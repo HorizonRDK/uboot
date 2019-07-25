@@ -24,5 +24,6 @@ struct w1_gpio_platform_data {
         unsigned int ext_pullup_enable_pin;
         unsigned int pullup_duration;
 };
+void w1_ds28e1x_get_rom_id(char* rom_id);
 
 #endif /* _LINUX_W1_GPIO_H */
