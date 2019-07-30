@@ -609,75 +609,47 @@ static void nor_pre_load(struct x2_info_hdr *pinfo,
 }
 
 static unsigned int nor_start_sector = NOR_VEEPROM_START_SECTOR;
-static char nor_buffer[128];
+static char nor_buffer[64];
 
 int nor_veeprom_read(int offset, char *buf, int size)
 {
-	uint64_t sector_left = 0;
-	uint64_t sector_right = 0;
 	uint64_t cur_sector = 0;
-	uint64_t offset_inner = 0;
-	uint64_t remain_inner = 0;
 
-	sector_left = nor_start_sector + (offset / NOR_PAGE_SIZE);
-	sector_right = nor_start_sector + ((offset + size - 1) / NOR_PAGE_SIZE);
+	cur_sector = nor_start_sector + (offset / NOR_PAGE_SIZE);
 
-	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
-		int operate_count = 0;
-		memset(nor_buffer, 0, sizeof(nor_buffer));
+	memset(nor_buffer, 0, sizeof(nor_buffer));
 
-		spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
-			sizeof(nor_buffer));
-		flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
+	spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
+		sizeof(nor_buffer));
+	flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
 
-		offset_inner = offset - (cur_sector - nor_start_sector) * NOR_PAGE_SIZE;
-		remain_inner = NOR_PAGE_SIZE - offset_inner;
-		operate_count = (remain_inner >= size ? size : remain_inner);
-		size -= operate_count;
-		offset += operate_count;
-		memcpy(buf, nor_buffer + offset_inner, operate_count);
-		buf += operate_count;
-	}
+	memcpy(buf, nor_buffer + offset, size);
 
 	return 0;
 }
 
 int nor_veeprom_write(int offset, const char *buf, int size)
 {
-	uint64_t sector_left = 0;
-	uint64_t sector_right = 0;
 	uint64_t cur_sector = 0;
-	uint64_t offset_inner = 0;
-	uint64_t remain_inner = 0;
 
-	sector_left = nor_start_sector + (offset / NOR_PAGE_SIZE);
-	sector_right = nor_start_sector + ((offset + size - 1) / NOR_PAGE_SIZE);
+	cur_sector = nor_start_sector + (offset / NOR_PAGE_SIZE);
+	int operate_count = 0;
+	memset(nor_buffer, 0, sizeof(nor_buffer));
 
-	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
-		int operate_count = 0;
-		memset(nor_buffer, 0, sizeof(nor_buffer));
+	/* read nor flash */
+	spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
+		sizeof(nor_buffer));
+	flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
 
-		/* read nor flash */
-		spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
-			sizeof(nor_buffer));
-		flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
+	memcpy(nor_buffer + offset, buf, size);
+	buf += operate_count;
 
-		offset_inner = offset - (cur_sector - nor_start_sector) * NOR_PAGE_SIZE;
-		remain_inner = NOR_PAGE_SIZE - offset_inner;
-		operate_count = (remain_inner >= size ? size : remain_inner);
-		size -= operate_count;
-		offset += operate_count;
+	/* erase nor flash */
+	spi_flash_erase(cur_sector * NOR_PAGE_SIZE, NOR_SECTOR_SIZE);
 
-		memcpy(nor_buffer + offset_inner, buf, operate_count);
-		buf += operate_count;
-
-		/* erase nor flash */
-		spi_flash_erase(cur_sector * NOR_PAGE_SIZE, NOR_SECTOR_SIZE);
-
-		/* write nor flash */
-		spi_flash_write(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
-			sizeof(nor_buffer));
-	}
+	/* write nor flash */
+	spi_flash_write(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
+		sizeof(nor_buffer));
 
 	return 0;
 }
@@ -705,8 +677,6 @@ static bool ota_nor_spl_update_check(void) {
 
 	ota_nor_get_update_status(&up_flag, &partstatus, boot_reason);
 	printf("boot reason: %s \n", boot_reason);
-	printf("partstatus = %d \n", partstatus);
-	printf("up_flag: %d\n", up_flag);
 
 	uboot_status = (partstatus >> 1) & 0x1;
 	boot_flag = uboot_status;

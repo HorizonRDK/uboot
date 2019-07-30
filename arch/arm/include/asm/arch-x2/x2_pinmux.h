@@ -9,12 +9,6 @@
 #define STRAP_PIN_MASK	0xFFFF
 #define PIN_1STBOOT_SEL(x)		((x) & 0x1)
 
-#define PIN_2NDBOOT_SEL(x)		(((x) >> 1) & 0x3)
-#define PIN_2ND_EMMC		0x0
-#define PIN_2ND_SF			0x1
-#define PIN_2ND_AP			0x2
-#define PIN_2ND_UART		0x3
-
 #define PIN_SF_TYPE_SEL(x)		(((x) >> 3) & 0x1)
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 

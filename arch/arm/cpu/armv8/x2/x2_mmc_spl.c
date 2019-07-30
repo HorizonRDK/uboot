@@ -289,103 +289,48 @@ static unsigned int emmc_write_blks(uint64_t lba,
 }
 
 static unsigned int start_sector = VEEPROM_START_SECTOR;
-static unsigned int end_sector = VEEPROM_END_SECTOR;
 static char buffer[512];
-
-/* check veeprom read/write offset and length */
-static int is_parameter_valid(int offset, int size)
-{
-	int offset_left = 0;
-	int offset_right = (end_sector - start_sector + 1) * EMMC_BLOCK_SIZE;
-
-	if (offset < offset_left || offset > offset_right - 1 || offset + size > offset_right)
-		return 0;
-
-	return 1;
-}
 
 int veeprom_read(int offset, char *buf, int size)
 {
-	uint64_t sector_left = 0;
-	uint64_t sector_right = 0;
 	uint64_t cur_sector = 0;
-	uint64_t offset_inner = 0;
-	uint64_t remain_inner = 0;
 	uint64_t n = 0;
 
-	if (!is_parameter_valid(offset, size)) {
-		printf("Error: parameters invalid\n");
+	cur_sector = start_sector + (offset / EMMC_BLOCK_SIZE);
+	memset(buffer, 0, sizeof(buffer));
+
+	n = emmc_read_blks(cur_sector * 512, (uint64_t) buffer, 0x200);
+	flush_cache((ulong)buffer, 512);
+	if (n != 0x200) {
+		printf("Error: read sector %lld fail\n", cur_sector);
 		return -1;
 	}
 
-	sector_left = start_sector + (offset / EMMC_BLOCK_SIZE);
-	sector_right = start_sector + ((offset + size - 1) / EMMC_BLOCK_SIZE);
-
-	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
-		int operate_count = 0;
-		memset(buffer, 0, sizeof(buffer));
-
-		n = emmc_read_blks(cur_sector * 512, (uint64_t) buffer, 0x200);
-		flush_cache((ulong)buffer, 512);
-		if (n != 0x200) {
-			printf("Error: read sector %lld fail\n", cur_sector);
-			return -1;
-		}
-
-		offset_inner = offset - (cur_sector - start_sector) * EMMC_BLOCK_SIZE;
-		remain_inner = EMMC_BLOCK_SIZE - offset_inner;
-		operate_count = (remain_inner >= size ? size : remain_inner);
-		size -= operate_count;
-		offset += operate_count;
-		memcpy(buf, buffer + offset_inner, operate_count);
-		buf += operate_count;
-	}
-
+	memcpy(buf, buffer + offset, size);
 	return 0;
 }
 
 int veeprom_write(int offset, const char *buf, int size)
 {
-	uint64_t sector_left = 0;
-	uint64_t sector_right = 0;
 	uint64_t cur_sector = 0;
-	uint64_t offset_inner = 0;
-	uint64_t remain_inner = 0;
 	uint64_t n = 0;
 
-	if (!is_parameter_valid(offset, size)) {
-		printf("Error: parameters invalid\n");
+	cur_sector = start_sector + (offset / EMMC_BLOCK_SIZE);
+	memset(buffer, 0, sizeof(buffer));
+
+	n = emmc_read_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
+	flush_cache((ulong)buffer, 512);
+	if (n != 0x200) {
+		printf("Error: read sector %lld fail\n", cur_sector);
 		return -1;
 	}
 
-	sector_left = start_sector + (offset / EMMC_BLOCK_SIZE);
-	sector_right = start_sector + ((offset + size - 1) / EMMC_BLOCK_SIZE);
+	memcpy(buffer + offset, buf, size);
 
-	for (cur_sector = sector_left; cur_sector <= sector_right; ++cur_sector) {
-		int operate_count = 0;
-		memset(buffer, 0, sizeof(buffer));
-
-		n = emmc_read_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
-		flush_cache((ulong)buffer, 512);
-		if (n != 0x200) {
-			printf("Error: read sector %lld fail\n", cur_sector);
-			return -1;
-		}
-
-		offset_inner = offset - (cur_sector - start_sector) * EMMC_BLOCK_SIZE;
-		remain_inner = EMMC_BLOCK_SIZE - offset_inner;
-		operate_count = (remain_inner >= size ? size : remain_inner);
-		size -= operate_count;
-		offset += operate_count;
-
-		memcpy(buffer + offset_inner, buf, operate_count);
-		buf += operate_count;
-
-		n = emmc_write_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
-		if (n != 0x200) {
-			printf("Error: write sector %lld fail\n", cur_sector);
-			return -1;
-		}
+	n = emmc_write_blks(cur_sector * 512, (uint64_t)buffer, 0x200);
+	if (n != 0x200) {
+		printf("Error: write sector %lld fail\n", cur_sector);
+		return -1;
 	}
 
 	return 0;
@@ -395,7 +340,6 @@ static void ota_update_failed_output(char* boot_reason)
 {
 	printf("*************************************************\n");
 	printf("Error: update %s faild! \n", boot_reason);
-	printf("	   into uboot backup partition! \n");
 	printf("*************************************************\n");
 }
 
@@ -422,8 +366,6 @@ static bool ota_spl_update_check(void) {
 
 	ota_get_update_status(&up_flag, &partstatus, boot_reason);
 	printf("boot reason: %s\n", boot_reason);
-	printf("partstatus = %d \n", partstatus);
-	printf("up_flag: %d\n", up_flag);
 
 	uboot_status = (partstatus >> 1) & 0x1;
 	boot_flag = uboot_status;
