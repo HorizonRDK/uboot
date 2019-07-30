@@ -288,7 +288,6 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	/* int  env mem_size */
 	memset(tmp, 0, sizeof(tmp));
 	s = env_get("mem_size");
-
 	if (s == NULL) {
 		uint32_to_char(sys_sdram_size, tmp);
 		env_set("mem_size", tmp);
@@ -598,82 +597,26 @@ static int reboot_notify_to_mcu(void)
 static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
 {
-	char mem_size[64] = { 0 };
-	const char *path;
-	int  nodeoffset;
-	char *prop;
-	static char data[1024] __aligned(4);
-	void *ptmp;
-	int  len;
-	void *fdt;
-	phys_addr_t fdt_paddr;
-	u64 mem_start, old_size;
 	u32 size;
+	char cmd[256] = { 0 };
 	char *s = NULL;
-	int ret;
 
-	if (argc > 1) {
+	if (argc > 1)
 		s = argv[1];
-		env_set("mem_size", s);
-	} else {
-		s = env_get("mem_size");
-		if (s == NULL) {
-			uint32_to_char(sys_sdram_size, mem_size);
-			env_set("mem_size", mem_size);
-			s = mem_size;
-		}
-	}
 
 	if (s) {
 		size = (u32)simple_strtoul(s, NULL, 16);
-		if (size == 0)
+		if ((size == 0) || (size == sys_sdram_size))
 			return 0;
 	} else {
 		return 0;
 	}
 
-	s = env_get("fdt_addr");
-	if (s) {
-		fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
-		fdt = map_sysmem(fdt_paddr, 0);
-	} else {
-		printf("Can't get fdt_addr !!!");
-		return 0;
-	}
+	s = env_get("bootargs");
 
-	path = "/memory";
-	prop = "reg";
+	sprintf(cmd, "%s mem=%dM", s, size / 0x100000);
+	env_set("bootargs", cmd);
 
-	nodeoffset = fdt_path_offset (fdt, path);
-	if (nodeoffset < 0) {
-		/*
-		 * Not found or something else bad happened.
-		 */
-		printf ("libfdt fdt_path_offset() returned %s\n",
-			fdt_strerror(nodeoffset));
-		return 1;
-	}
-
-	ptmp = (char *)fdt_getprop(fdt, nodeoffset, prop, &len);
-	if (len > 1024) {
-		printf("prop (%d) doesn't fit in scratchpad!\n",
-				len);
-		return 1;
-	}
-
-	if (!ptmp)
-		return 0;
-
-	fdt_get_reg(fdt, ptmp, &mem_start, &old_size);
-	len = fdt_pack_reg(fdt, data, mem_start, size);
-
-	ret = fdt_setprop(fdt, nodeoffset, prop, data, len);
-	if (ret < 0) {
-		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
-		return 1;
-	}
-
-	printf("Set Mem Size to %dM\n", size / 0x100000);
 	return 0;
 }
 
