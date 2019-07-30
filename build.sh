@@ -60,18 +60,27 @@ function choose()
         echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
     elif [ "$board" = "x2svb" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
     elif [ "$board" = "j2mono" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
     elif [ "$board" = "j2quad" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "#define CONFIG_X2_QUAD_BOARD" >> $tmp
+        echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
+    elif [ "$board" = "j2sk" ];then
+        echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
+        echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
+        echo "#define CONFIG_X2_SK_BOARD" >> $tmp
     else
         echo "Unknown BOARD_TYPE value: $board"
         exit 1
@@ -150,7 +159,7 @@ function all()
 
 function usage()
 {
-    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono|quad> ] [ -d 3200|2666]"
+    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666]"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, ap"
     echo "  -b  board type "
@@ -172,6 +181,8 @@ elif [ "$board" = "j2mono" ];then
     board_type="mono"
 elif [ "$board" = "j2quad" ];then
     board_type="quad"
+elif [ "$board" = "j2sk" ];then
+    board_type="sk"
 fi
 
 while getopts "b:m:o:d:h:" opt
@@ -179,7 +190,11 @@ do
     case $opt in
         b)
             export board_type="$OPTARG"
-            board="x2$board_type"
+            if [ $board_type = "mono" ] || [ $board_type = "quad" ] || [ $board_type = "sk" ]; then
+                board="j2$board_type"
+            else
+                board="x2$board_type"
+            fi
             ;;
         o)
             arg="$OPTARG"

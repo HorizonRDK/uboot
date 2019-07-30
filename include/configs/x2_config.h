@@ -10,4 +10,5 @@
 #define CONFIG_X2_SOM_BOARD
 /* #define CONFIG_X2_MONO_BOARD */
 /* #define CONFIG_X2_QUAD_BOARD */
+/* #define CONFIG_X2_SK_BOARD */
 #endif /* __X2_CONFIG_H__ */
