@@ -56,27 +56,27 @@ function choose()
     fi
 
     echo "" >> $tmp
-    if [ "$board" = "x2som" ];then
+    if [ "$board" = "som" ];then
         echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    elif [ "$board" = "x2svb" ];then
+    elif [ "$board" = "svb" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    elif [ "$board" = "j2mono" ];then
+    elif [ "$board" = "mono" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    elif [ "$board" = "j2quad" ];then
+    elif [ "$board" = "quad" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "#define CONFIG_X2_QUAD_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    elif [ "$board" = "j2sk" ];then
+    elif [ "$board" = "sk" ];then
         echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
@@ -122,34 +122,34 @@ function all()
     if $all_boot_mode ;then
         bootmode="emmc"
         build
-        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
         cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="nor"
         build
-        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
         cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="uart"
         build
-        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
         cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="ap"
         build
-        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
         cpfiles $splname "$prefix/"
         cd ../
     else
         build
-        splname="spl-${board_type}-$bootmode-${ddr_frequency}.bin"
+        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
         cpfiles $splname "$prefix/"
         cd ../
@@ -173,28 +173,12 @@ board=$BOARD_TYPE
 bootmode=$BOOT_MODE
 ddr_frequency=$DDR_FREQ
 all_boot_mode=false
-if [ "$board" = "x2som" ];then
-    board_type="som"
-elif [ "$board" == "x2svb" ];then
-    board_type="svb"
-elif [ "$board" = "j2mono" ];then
-    board_type="mono"
-elif [ "$board" = "j2quad" ];then
-    board_type="quad"
-elif [ "$board" = "j2sk" ];then
-    board_type="sk"
-fi
 
 while getopts "b:m:o:d:h:" opt
 do
     case $opt in
         b)
-            export board_type="$OPTARG"
-            if [ $board_type = "mono" ] || [ $board_type = "quad" ] || [ $board_type = "sk" ]; then
-                board="j2$board_type"
-            else
-                board="x2$board_type"
-            fi
+            export board="$OPTARG"
             ;;
         o)
             arg="$OPTARG"
