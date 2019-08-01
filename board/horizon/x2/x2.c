@@ -63,7 +63,7 @@ static void system_sdram_size_init(void)
 {
 	unsigned int board_id = 0;
 	unsigned int gpio_id = 0;
-	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) 0x10000000;
+	struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
 	board_id = boot_info->board_id;
 

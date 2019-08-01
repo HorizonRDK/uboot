@@ -87,17 +87,18 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	char *prop_boot = "boot_mode";
 	unsigned int board_id;
 	struct x2_info_hdr *x2_board_type;
-	unsigned long dtb_addr = 0x4000000;
-	
+	unsigned long dtb_addr;
+
 	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
 	board_id = x2_board_type ->board_id;
-	
+
+	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
 	ret = find_fdt(dtb_addr);
 	if(1 == ret){
 		printf("find_fdt error\n");
 		return 1;
 	}
-	
+
 	nodeoffset = fdt_path_offset (x2_dtb, pathp);
 	if (nodeoffset < 0) {
 		/*

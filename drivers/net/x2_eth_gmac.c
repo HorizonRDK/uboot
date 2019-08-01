@@ -464,7 +464,7 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret;
     unsigned int reg_val;
-    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) 0x10000000;
+    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
     if (boot_info->board_id == X2_MONO_BOARD_ID){
 		/* GPIO4   7 */

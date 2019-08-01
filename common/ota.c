@@ -557,6 +557,7 @@ void ota_recovery_mode_set(unsigned int addr, unsigned int size)
 {
 	char *s = NULL;
 	char boot_reason[16] = "recovery";
+	ulong gz_addr;
 
 	veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 				VEEPROM_RESET_REASON_SIZE);
@@ -565,8 +566,10 @@ void ota_recovery_mode_set(unsigned int addr, unsigned int size)
 
 	if (x2_src_boot == PIN_2ND_SF) {
 		/* load recovery.gz */
-		if (nor_flash != NULL)
-			spi_flash_read(nor_flash, addr, size, (void *)KERNEL_ADDR);
+		if (nor_flash != NULL) {
+			gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+			spi_flash_read(nor_flash, addr, size, (void *)gz_addr);
+		}
 	} else {
 		/* env bootfile set*/
 		s = "recovery.gz\0";
@@ -657,7 +660,7 @@ uint32_t x2_do_cksum(const uint8_t *buff, uint32_t len)
 	for (i=0; i<len; i++) {
 		result += buff[i];
 	}
-    
+
 	return result;
 }
 

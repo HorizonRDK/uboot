@@ -144,6 +144,10 @@
 #define CONFIG_SYS_INIT_SP_ADDR     (CONFIG_SYS_TEXT_BASE + SZ_1M)
 #endif
 
+#define KERNEL_ADDR			0x80000
+#define FDT_ADDR			0x4000000
+#define GZ_ADDR				0x20000000
+
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
 
 /* Serial setup */
@@ -172,9 +176,9 @@
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS \
-    "kernel_addr=0x80000\0" \
-    "fdt_addr=0x4000000\0" \
-    "gz_addr=0x20000000\0" \
+    "kernel_addr=" __stringify(KERNEL_ADDR) "\0" \
+    "fdt_addr=" __stringify(FDT_ADDR) "\0" \
+    "gz_addr=" __stringify(GZ_ADDR) "\0" \
     "bootfile=Image.gz\0" \
     "fdtimage=hobot-x2-soc.dtb\0" \
     "bootargs=" CONFIG_BOOTARGS \

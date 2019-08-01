@@ -183,7 +183,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 {
 	char *s = NULL, *tmp = NULL;
 	int i = 0;
-	unsigned long dtb_addr = 0x4000000;
+	unsigned long dtb_addr;
 
 	int count = config->dtb_number;
 	if (count > 16) {
@@ -191,6 +191,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		return NULL;
 	}
 
+	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
 	for (i = 0; i < count; i++) {
 		if (board_id == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
@@ -300,6 +301,7 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 	char boot_reason[64] = { 0 };
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
+	ulong gz_addr;
 
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
@@ -307,6 +309,7 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
 
+	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
 	if (((strcmp(upmode, "golden") != 0))
 		|| (strcmp(boot_reason, "normal") == 0)) {
 		/* normal boot: disable OTA or boot_reason='normal' */
@@ -315,7 +318,7 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 		/* load Image.gz */
 		if (nor_flash != NULL)
 			spi_flash_read(nor_flash, config->Image_addr, config->Image_size,
-			(void *)KERNEL_ADDR);
+			(void *)gz_addr);
 	} else {
 		/* enable OTA: check upflag and boot_reason */
 		/* check boot_reason */
@@ -334,7 +337,7 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 			/* load Image.gz */
 			if (nor_flash != NULL)
 				spi_flash_read(nor_flash, config->Image_addr,
-				config->Image_size, (void *)KERNEL_ADDR);
+				config->Image_size, (void *)gz_addr);
 		}
 	}
 }
@@ -343,12 +346,12 @@ static void x2_dtb_mapping_load(void)
 {
 	int rcode = 0;
 	char partname[] = "kernel";
-	char command[256] = "ext4load mmc 0:3 0x10001000 dtb-mapping.conf\0";
-	int kernel_id = get_partition_id(partname);
+	char command[256];
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
 		/* load dtb-mapping.conf */
-		command[15] = hex_to_char(kernel_id);
+		sprintf(command,"ext4load mmc 0:%d 0x%x dtb-mapping.conf",
+			get_partition_id(partname), X2_DTB_CONFIG_ADDR);
 		printf("command is %s\n", command);
 		rcode = run_command_list(command, -1, 0);
 		if (rcode != 0) {
