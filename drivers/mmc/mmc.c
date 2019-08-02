@@ -2418,8 +2418,8 @@ static int mmc_startup(struct mmc *mmc)
 #endif
 	}
 
-        mmc->tran_speed = 12000000;
-        mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
+        // mmc->tran_speed = 12000000;
+        // mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
 
 	/* fill in device description */
 	bdesc = mmc_get_blk_desc(mmc);
