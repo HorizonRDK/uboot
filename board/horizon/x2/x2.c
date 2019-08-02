@@ -101,6 +101,12 @@ static void system_sdram_size_init(void)
 		sys_sdram_size = 0x40000000; /* 1G */
 		break;
 	}
+
+	//START4[prj_j2quad]
+	//QUAD alike board force setting src as emmc even for nor+eMMC case
+	if (board_id==QUAD_BOARD_ID)
+		x2_src_boot = PIN_2ND_EMMC;
+	//END4[prj_j2quad]
 }
 
 static void x2_mem_map_init(void)

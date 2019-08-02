@@ -32,6 +32,15 @@ extern unsigned int x2_src_boot;
 extern unsigned int sys_sdram_size;
 extern struct spi_flash *nor_flash;
 
+int x2j2_get_boardid(void)
+{
+	int board_id;
+	struct x2_info_hdr *x2_board_type;
+
+	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
+	board_id = x2_board_type ->board_id;
+	return board_id;
+}
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
  */
@@ -560,7 +569,8 @@ static void prepare_autoreset(void)
 }
 #endif
 
-#if defined(CONFIG_X2_QUAD_BOARD)
+//START4[prj_j2quad]
+//#if defined(CONFIG_X2_QUAD_BOARD)
 /* GPIO PIN MUX */
 #define PIN_MUX_BASE    0xA6003000
 #define GPIO1_CFG (PIN_MUX_BASE + 0x10)
@@ -595,7 +605,8 @@ static int reboot_notify_to_mcu(void)
 
 	return ret;
 }
-#endif
+//#endif
+//END4[prj_j2quad]
 
 static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
@@ -660,12 +671,18 @@ void main_loop(void)
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))
 		cli_secure_boot_cmd(s);
-#if defined(CONFIG_X2_QUAD_BOARD)
+
+//START4[prj_j2quad]
+//#if defined(CONFIG_X2_QUAD_BOARD)
+	if (x2j2_get_boardid()==QUAD_BOARD_ID){
 #if defined(CONFIG_J2_LED)
-	j2_led_init();
+		j2_led_init();
 #endif
-	reboot_notify_to_mcu();
-#endif
+		reboot_notify_to_mcu();
+		printf("=>j2quad<=");
+	}
+//#endif
+//END4[prj_j2quad]
 	autoboot_command(s);
 
 	cli_loop();
