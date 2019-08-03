@@ -243,7 +243,7 @@ static int netboot_common(enum proto_t proto, cmd_tbl_t *cmdtp, int argc,
 	bootstage_mark(BOOTSTAGE_ID_NET_START);
 
 	size = net_loop(proto);
-	if (size < 0) {
+	if (size < 0 && size > (-1000)) {
 		bootstage_error(BOOTSTAGE_ID_NET_NETLOOP_OK);
 		return CMD_RET_FAILURE;
 	}
