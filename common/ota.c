@@ -40,6 +40,7 @@ static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 static int curr_device = 0;
 extern unsigned int x2_src_boot;
 extern struct spi_flash *nor_flash;
+extern struct spi_flash *flash;
 
 int get_emmc_size(uint64_t *size)
 {
@@ -408,9 +409,8 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 
 	printf("command : %s \n", command);
 	ret = run_command_list(command, -1, 0);
-
-	if (ret == 0)
-		printf("ota update %s success!\n", name);
+	if (ret < 0)
+		return ret;
 
 	if (strcmp(name, "all") == 0) {
 		s = "gpt extend mmc 0";
@@ -458,7 +458,9 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	else
 		ret = ota_nor_update_image(partition_name, argv[2], bytes);
 
-	if (ret == CMD_RET_FAILURE)
+	if (ret == 0)
+		printf("ota update image success!\n");
+	else
 		printf("Error: ota update image faild!\n");
 
 	return ret;
@@ -565,11 +567,12 @@ void ota_recovery_mode_set(unsigned int addr, unsigned int size)
 	env_set("bootdelay", "0");
 
 	if (x2_src_boot == PIN_2ND_SF) {
+		if (!flash)
+			return;
 		/* load recovery.gz */
-		if (nor_flash != NULL) {
-			gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-			spi_flash_read(nor_flash, addr, size, (void *)gz_addr);
-		}
+		gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+
+		spi_flash_read(flash, addr, size, (void *)gz_addr);
 	} else {
 		/* env bootfile set*/
 		s = "recovery.gz\0";

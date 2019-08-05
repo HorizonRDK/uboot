@@ -24,13 +24,14 @@
 #include <j2-led.h>
 #include <configs/x2_config.h>
 #include <spi_flash.h>
+#include <asm/gpio.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
 extern unsigned int sys_sdram_size;
-extern struct spi_flash *nor_flash;
+extern struct spi_flash *flash;
 
 int x2j2_get_boardid(void)
 {
@@ -187,34 +188,60 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 	return 0xff;
 }
 
+static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
+	bool flag)
+{
+	char cmd[256] = { 0 };
+	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+
+	if (!flash)
+		return;
+
+	if (flag == false) {
+		spi_flash_read(flash, addr, leng, (void *)dtb_addr);
+	} else {
+		spi_flash_read(flash, DTB_MAPPING_ADDR + NOR_SECTOR_SIZE,
+			NOR_SECTOR_SIZE * 4, (void *)gz_addr);
+
+		sprintf(cmd, "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
+		run_command_list(cmd, -1, 0);
+
+		gz_addr = dtb_addr + addr;
+		if (gz_addr != dtb_addr)
+			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
+	}
+}
+
 static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		struct x2_kernel_hdr *config)
 {
 	char *s = NULL, *tmp = NULL;
 	int i = 0;
-	unsigned long dtb_addr;
-
+	bool gz_flag = false;
 	int count = config->dtb_number;
+
 	if (count > 16) {
 		printf("error: count %02x not support\n", count);
 		return NULL;
 	}
 
-	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+	if (config->dtb[0].dtb_addr == 0)
+		gz_flag = true;
+
 	for (i = 0; i < count; i++) {
 		if (board_id == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 
 			if (x2_src_boot == PIN_2ND_SF) {
-				if (config->dtb[i].dtb_addr == 0x0) {
+				if ((config->dtb[i].dtb_addr == 0x0) && (gz_flag == false)) {
 					printf("error: dtb %s not exit\n", s);
 					return NULL;
 				}
 
 				/* load dtb file */
-				if (nor_flash != NULL)
-					spi_flash_read(nor_flash, config->dtb[i].dtb_addr,
-					config->dtb[i].dtb_size, (void *)dtb_addr);
+				nor_dtb_image_load(config->dtb[i].dtb_addr,
+					config->dtb[i].dtb_size, gz_flag);
 
 				/* set bootargs */
 				tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
@@ -311,6 +338,8 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
 	ulong gz_addr;
+	unsigned int addr = config->Image_addr;
+	unsigned int size = config->Image_size;
 
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
@@ -325,9 +354,8 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 		printf("uboot: normal boot \n");
 
 		/* load Image.gz */
-		if (nor_flash != NULL)
-			spi_flash_read(nor_flash, config->Image_addr, config->Image_size,
-			(void *)gz_addr);
+		if (flash)
+			spi_flash_read(flash, addr, size, (void *)gz_addr);
 	} else {
 		/* enable OTA: check upflag and boot_reason */
 		/* check boot_reason */
@@ -344,9 +372,8 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 			ota_uboot_update_check(kernel);
 
 			/* load Image.gz */
-			if (nor_flash != NULL)
-				spi_flash_read(nor_flash, config->Image_addr,
-				config->Image_size, (void *)gz_addr);
+			if (flash)
+				spi_flash_read(flash, addr, size, (void *)gz_addr);
 		}
 	}
 }
@@ -355,23 +382,25 @@ static void x2_dtb_mapping_load(void)
 {
 	int rcode = 0;
 	char partname[] = "kernel";
-	char command[256];
+	char cmd[256] = { 0 };
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
 		/* load dtb-mapping.conf */
-		sprintf(command,"ext4load mmc 0:%d 0x%x dtb-mapping.conf",
-			get_partition_id(partname), X2_DTB_CONFIG_ADDR);
-		printf("command is %s\n", command);
-		rcode = run_command_list(command, -1, 0);
+		sprintf(cmd,"ext4load mmc 0:%d 0x%x dtb-mapping.conf",
+		get_partition_id(partname), X2_DTB_CONFIG_ADDR);
+		printf("command is %s\n", cmd);
+		rcode = run_command_list(cmd, -1, 0);
 		if (rcode != 0) {
 			printf("error: dtb-mapping.conf not exit! \n");
 			return;
 		}
 	} else {
 		/* load dtb-mapping.conf */
-		if (nor_flash != NULL)
-			spi_flash_read(nor_flash, DTB_MAPPING_ADDR, DTB_MAPPING_SIZE,
+		if (flash)
+			spi_flash_read(flash, DTB_MAPPING_ADDR, DTB_MAPPING_SIZE,
 			(void *)X2_DTB_CONFIG_ADDR);
+		else
+			printf("error: flash init failed\n");
 	}
 }
 
@@ -411,23 +440,18 @@ static void x2_env_and_boardid_init(void)
 		}
 	}
 
-	if (x2_src_boot == PIN_2ND_EMMC) {
-		/* init mmcroot and mmcload */
-		x2_mmc_env_init();
-
-		/* svb board */
-		if (board_id == X2_SVB_BOARD_ID || board_id == J2_SVB_BOARD_ID)
-			return;
-	} else {
-		/* init nor env */
-		x2_nor_env_init(x2_kernel_conf);
-	}
-
+	/* load dtb */
 	printf("final/board_id = %02x\n", board_id);
 	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
 
 	printf("fdtimage = %s\n", s);
 	env_set("fdtimage", s);
+
+	/* mmc or nor env init */
+	if (x2_src_boot == PIN_2ND_EMMC)
+		x2_mmc_env_init();
+	else
+		x2_nor_env_init(x2_kernel_conf);
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)

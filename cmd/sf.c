@@ -30,7 +30,7 @@
 #include "w1/w1_int.h"
 #include "w1/x1_gpio.h"
 
-static struct spi_flash *flash;
+struct spi_flash *flash;
 /*
  * This function computes the length argument for the erase command.
  * The length on which the command is to operate can be given in two forms:
@@ -657,7 +657,7 @@ int  check_Crc(uint16_t crc_start, unsigned char * Data, int len)
 }
 
 
-int w1_init_setup()
+int w1_init_setup(void)
 {
     if (w1_ds28e1x_init() < 0) {
         printf("ds28e1x init fail !!!\n");
@@ -692,11 +692,10 @@ int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
 {
     int ret = 0;
     unsigned long offset;
-    uint32_t    i,header,type,d_length,crc,c_crc;
+    uint32_t header,type,d_length,crc,c_crc;
     uint8_t  package[SECURE_KEY_LEN] = {0};
     uint8_t  secure_key[SECURE_KEY_LEN] ={0};
-    uint8_t  result[SECURE_KEY_LEN] = {0};
-    uint32_t *p_pack = package;
+    uint32_t *p_pack = (uint32_t *)package;
     uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
     uint8_t real_key[32] = {0};
 
@@ -790,8 +789,7 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
     int ret = 0;
-    unsigned int nor_addrw;
-    uint32_t	i,header,type,d_length,crc,c_crc;
+    uint32_t	header,type,d_length,crc,c_crc;
     uint8_t  package[SN_LEN] = {0};
     //uint8_t  board_sn[SN_LEN] = {0};
     uint32_t *p_pack = package;
@@ -887,8 +885,6 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
 	unsigned int sn_len = 0x0;
-	unsigned long f_offset = SN_OFFSET;
-    unsigned long len = BOOT_ARGINFO_BLOCK;
 	uint8_t  board_sn[SN_LEN] = {0};
 	unsigned long *buf = &sn_buf[0];
 	memset(buf, 0, SN_LEN);
@@ -911,6 +907,8 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	memcpy(&board_sn[0],(uint8_t *)(buf+1),sn_len);
 	
     printf("len = %d, gsn:%send\n",sn_len, board_sn);
+
+	return 0;
 }
 
 int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,
@@ -937,6 +935,8 @@ int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,
     }
     printf("%d ", total);
     printf("end\n");
+
+	return 0;
 }
 
 U_BOOT_CMD(

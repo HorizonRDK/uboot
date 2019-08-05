@@ -58,4 +58,6 @@ U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
 	   "          default: writing device depend on bootmode\n"
 	   "    - example:\n"
 	   "          otawrite uboot 0x4000000 0x100000\n"
+	   "    - version: \n"
+	   "          [2019-08-02]\n"
 );

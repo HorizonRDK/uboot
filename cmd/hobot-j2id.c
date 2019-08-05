@@ -40,7 +40,6 @@ static inline int j2id_gpio_get_value(unsigned int gpio)
 static int do_get_j2id(enum j2id *id){
     int ret;
     int value;
-    unsigned int gpio;
 
     ret = j2id_gpio_get_value(ETH_MAC_CFG0_GPIO);
     if(ret < 0)

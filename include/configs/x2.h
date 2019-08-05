@@ -147,6 +147,7 @@
 #define KERNEL_ADDR			0x80000
 #define FDT_ADDR			0x4000000
 #define GZ_ADDR				0x20000000
+#define LOAD_ADDR			0x6000000
 
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
 
@@ -187,7 +188,8 @@
         "ext4load mmc 0:4 ${gz_addr} ${bootfile};" \
         "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
     "unzipimage=unzip ${gz_addr} ${kernel_addr}\0" \
-    "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0"
+    "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0" \
+    "load_addr=" __stringify(LOAD_ADDR) "\0"
 #endif
 
 /* #define X2_AUTOBOOT */

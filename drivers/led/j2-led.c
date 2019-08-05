@@ -2,6 +2,7 @@
 #include <dm.h>
 #include <dm/lists.h>
 #include <j2-led.h>
+#include <asm/gpio.h>
 
 struct j2_led_dev gj2_led;
 

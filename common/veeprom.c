@@ -17,27 +17,18 @@ static char buffer[BUFFER_SIZE];
 static int curr_device = -1;
 extern unsigned int x2_src_boot;
 
-struct spi_flash *nor_flash = NULL;
+extern struct spi_flash *flash;
 struct mmc *emmc = NULL;
 
 /* init nor flash device  */
 static void init_nor_device(void)
 {
-	unsigned int bus = CONFIG_SF_DEFAULT_BUS;
-	unsigned int cs = CONFIG_SF_DEFAULT_CS;
-	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
-	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
-	struct spi_flash *new;
+	char *s;
 
-	if (nor_flash)
+	if (!flash) {
+		s = "sf probe";
+		run_command_list(s, -1, 0);
 		return;
-	/* spi_flash_free(nor_flash); */
-
-	new = spi_flash_probe(bus, cs, speed, mode);
-	nor_flash = new;
-
-	if (!new) {
-		printf("Failed to initialize SPI flash at %u:%u\n", bus, cs);
 	}
 }
 
@@ -63,7 +54,7 @@ static int dw_init(int flag)
 
 	if (x2_src_boot == PIN_2ND_SF) {
 		init_nor_device();
-		if (!nor_flash) {
+		if (!flash) {
 			printf("Failed to initialize SPI flash\n");
 			ret = -1;
 		}
@@ -91,7 +82,10 @@ static int dw_read(unsigned int cur_sector)
 	int ret = 0;
 
 	if (x2_src_boot == PIN_2ND_SF) {
-		ret = spi_flash_read(nor_flash, cur_sector * 512, SECTOR_SIZE, buffer);
+		if (!flash)
+			return -1;
+
+		ret = spi_flash_read(flash, cur_sector * 512, SECTOR_SIZE, buffer);
 		if (ret != 0) {
 			printf("Error: read nor flash fail\n");
 			return -1;
@@ -112,13 +106,16 @@ static int dw_write(unsigned int cur_sector)
 	int ret = 0;
 
 	if (x2_src_boot == PIN_2ND_SF) {
-		ret = spi_flash_erase(nor_flash, start_sector, 64 * 1024);
+		if (!flash)
+			return -1;
+
+		ret = spi_flash_erase(flash, start_sector, 64 * 1024);
 		if (ret != 0) {
 			printf("Error: erase nor flash fail\n");
 			return -1;
 		}
 
-		ret = spi_flash_write(nor_flash, cur_sector * 512, SECTOR_SIZE, buffer);
+		ret = spi_flash_write(flash, cur_sector * 512, SECTOR_SIZE, buffer);
 		if (ret != 0) {
 			printf("Error: read nor flash fail\n");
 			return -1;
@@ -153,7 +150,7 @@ int veeprom_init(void)
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		init_nor_device();
-		if (!nor_flash) {
+		if (!flash) {
 			printf("Failed to initialize SPI flash\n");
 			return -1;
 		}
@@ -180,7 +177,7 @@ int veeprom_init(void)
 void veeprom_exit(void)
 {
 	if (x2_src_boot == PIN_2ND_SF)
-		spi_flash_free(nor_flash);
+		spi_flash_free(flash);
 	else
 		curr_device = -1;
 }
