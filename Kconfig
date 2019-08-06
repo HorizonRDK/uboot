@@ -484,6 +484,13 @@ config ARCH_FIXUP_FDT_MEMORY
 	  used for booting OS with different memory setup where the part of
 	  the memory location should be used for different purpose.
 
+config MULTIMODE
+	bool "enable for dual camera project"
+	default n
+	help
+	  Enable this will change the kernel load address. This is for
+	  dual camera project to fix possible system crash.
+
 endmenu		# Boot images
 
 source "api/Kconfig"
