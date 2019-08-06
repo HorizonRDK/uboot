@@ -54,7 +54,7 @@ void board_init_f(ulong dummy)
 {
 	char pllswitch[VEEPROM_PERI_PLL_SIZE] = { 0 };
 
-	writel(0xFED00000, BIF_SHARE_REG_BASE);
+	//writel(0xFED00000, BIF_SHARE_REG_BASE);
 	icache_enable();
 
 	preloader_console_init();
