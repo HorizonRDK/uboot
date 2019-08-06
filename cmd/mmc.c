@@ -24,7 +24,8 @@ static void print_mmcinfo(struct mmc *mmc)
 	printf("Name: %c%c%c%c%c \n", mmc->cid[0] & 0xff,
 			(mmc->cid[1] >> 24), (mmc->cid[1] >> 16) & 0xff,
 			(mmc->cid[1] >> 8) & 0xff, mmc->cid[1] & 0xff);
-
+	printf("Serial: 0x%04x%04x\n", (mmc->cid[2] & 0xffff),
+				(mmc->cid[3] >> 16) & 0xffff);
 	printf("Bus Speed: %d\n", mmc->clock);
 #if CONFIG_IS_ENABLED(MMC_VERBOSE)
 	printf("Mode : %s\n", mmc_mode_name(mmc->selected_mode));
