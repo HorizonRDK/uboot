@@ -95,6 +95,7 @@ static void system_sdram_size_init(void)
 	case J2_MM_BOARD_ID:
 	case X2_96BOARD_ID:
 	case J2_SOM_SK_ID:
+	case J2_SOM_SAM_ID:
 		sys_sdram_size = 0x40000000; /* 1G */
 		break;
 	default:
