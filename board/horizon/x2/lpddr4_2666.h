@@ -103,11 +103,7 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 
 	/* performance setting */
 	{ DDRC_ODTMAP, 0x00000000 },
-#ifdef CONFIG_X2_QUAD_BOARD
-	{ DDRC_SCHED, 0x20001a01 },
-#else
 	{ DDRC_SCHED, 0x20003601 },
-#endif
 	{ DDRC_SCHED1, 0x00000000 },
 	{ DDRC_PERFHPR1, 0x0f000001 },
 	{ DDRC_PERFLPR1, 0x0f00007f },
