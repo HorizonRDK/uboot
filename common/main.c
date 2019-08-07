@@ -32,7 +32,6 @@ extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
 extern unsigned int sys_sdram_size;
 extern struct spi_flash *flash;
-
 int x2j2_get_boardid(void)
 {
 	int board_id;
@@ -704,6 +703,9 @@ void main_loop(void)
 #endif
 		reboot_notify_to_mcu();
 		printf("=>j2quad<=");
+	}
+	if (x2j2_get_boardid()==J2_MM_BOARD_ID){
+		env_set("kernel_addr", "0x400000"); 		
 	}
 //#endif
 //END4[prj_j2quad]
