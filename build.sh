@@ -51,6 +51,8 @@ function choose()
     echo "ddr_frequency=$ddr_frequency"
     if [ "$ddr_frequency" = "3200" ];then
         echo "#define CONFIG_X2_LPDDR4_3200 (3200)" >> $tmp
+    elif [ "$ddr_frequency" = "2133" ];then
+        echo "#define CONFIG_X2_LPDDR4_2133 (2133)" >> $tmp
     else
         echo "#define CONFIG_X2_LPDDR4_2666 (2666)" >> $tmp
     fi
@@ -159,7 +161,7 @@ function all()
 
 function usage()
 {
-    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666]"
+    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666|2133]"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, ap"
     echo "  -b  board type "
@@ -196,6 +198,8 @@ do
                 ddr_frequency="2666"
             elif [ "$arg" = "3200" ];then
                 ddr_frequency="3200"
+            elif [ "$arg" = "2133" ];then
+                ddr_frequency="2133"
             else
                 usage
                 exit 1
