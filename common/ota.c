@@ -39,7 +39,6 @@ static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
 static int curr_device = 0;
 extern unsigned int x2_src_boot;
-extern struct spi_flash *nor_flash;
 extern struct spi_flash *flash;
 
 int get_emmc_size(uint64_t *size)
@@ -125,7 +124,8 @@ int get_partition_id(char *partname)
 	return CMD_RET_FAILURE;
 }
 
-unsigned int get_patition_start_lba(char *partname)
+static unsigned int get_patition_lba(char *partname,
+	unsigned int *start_lba, unsigned int *end_lba)
 {
 	struct blk_desc *mmc_dev;
 	struct mmc *mmc;
@@ -133,7 +133,6 @@ unsigned int get_patition_start_lba(char *partname)
 	int i = 0;
 	gpt_entry *gpt_pte = NULL;
 	char *name;
-	unsigned int start_lba = 0;
 
 	mmc = init_mmc_device(curr_device, false);
 	if (!mmc)
@@ -169,71 +168,15 @@ unsigned int get_patition_start_lba(char *partname)
 
 			name = printf_efiname(&gpt_pte[i]);
 			if ( strcmp(name, partname) == 0 ) {
-				start_lba = gpt_pte[i].starting_lba;
+				*start_lba = gpt_pte[i].starting_lba;
+				*end_lba = gpt_pte[i].ending_lba;
 				break;
 			}
 		}
 
 		/* Remember to free pte */
 		free(gpt_pte);
-		return start_lba;
-	}
-
-	return CMD_RET_FAILURE;
-}
-
-unsigned int get_patition_end_lba(char *partname)
-{
-	struct blk_desc *mmc_dev;
-	struct mmc *mmc;
-	struct part_driver *drv;
-	int i = 0;
-	gpt_entry *gpt_pte = NULL;
-	char *name;
-	unsigned int end_lba = 0;
-
-	mmc = init_mmc_device(curr_device, false);
-	if (!mmc)
-		return CMD_RET_FAILURE;
-
-	mmc_dev = blk_get_devnum_by_type(IF_TYPE_MMC, curr_device);
-	if (mmc_dev !=NULL && mmc_dev->type != DEV_TYPE_UNKNOWN) {
-		drv = part_driver_lookup_type(mmc_dev);
-		if (!drv)
-			return CMD_RET_SUCCESS;
-
-		ALLOC_CACHE_ALIGN_BUFFER_PAD(gpt_header, gpt_head, 1, mmc_dev->blksz);
-
-		/* This function validates AND fills in the GPT header and PTE */
-		if (is_gpt_valid(mmc_dev, GPT_PRIMARY_PARTITION_TABLE_LBA,
-			gpt_head, &gpt_pte) != 1) {
-			printf("%s: *** ERROR: Invalid GPT ***\n", __func__);
-			if (is_gpt_valid(mmc_dev, (mmc_dev->lba - 1),
-				gpt_head, &gpt_pte) != 1) {
-				printf("%s: *** ERROR: Invalid Backup GPT ***\n",
-					__func__);
-				return CMD_RET_SUCCESS;
-			} else {
-				printf("%s: ***        Using Backup GPT ***\n",
-					__func__);
-			}
-		}
-
-		for (i = 0; i < le32_to_cpu(gpt_head->num_partition_entries); i++) {
-			/* Stop at the first non valid PTE */
-			if (!is_pte_valid(&gpt_pte[i]))
-				break;
-
-			name = printf_efiname(&gpt_pte[i]);
-			if ( strcmp(name, partname) == 0 ) {
-				end_lba = gpt_pte[i].ending_lba;
-				break;
-			}
-		}
-
-		/* Remember to free pte */
-		free(gpt_pte);
-		return end_lba;
+		return 0;
 	}
 
 	return CMD_RET_FAILURE;
@@ -294,17 +237,10 @@ static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
 	unsigned int part_addr;
 	unsigned int part_size;
 	int ret;
-	unsigned int nor_addr = 0;
-	char command[256] = { 0 };
 	char *s;
+	unsigned int data;
+	void *realaddr;
 	unsigned int sector = (bytes + NOR_SECTOR_SIZE -1)/NOR_SECTOR_SIZE;
-
-	nor_addr = simple_strtoul(addr, 0, 16);
-
-	if (nor_addr%NOR_SECTOR_SIZE != 0) {
-		printf("error: addr %s not support ! \n", addr);
-		return CMD_RET_FAILURE;
-	}
 
 	if (strcmp(name, "uboot") == 0) {
 		part_addr = NOR_UBOOT_ADDR;
@@ -322,42 +258,46 @@ static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
 		part_addr = 0;
 		part_size = 0x4000000;
 	} else {
-		printf("error: partition %s not support! \n", name);
+		printf("error: partition name %s not support! \n", name);
 		return CMD_RET_FAILURE;
 	}
 
 	if (bytes > part_size) {
-		printf("Error: image more than partiton size %02x \n", NOR_KERNEL_MAX_SIZE);
+		printf("Error: image more than partition size %02x \n", part_size);
 		return CMD_RET_FAILURE;
 	}
 
-	s = "sf probe";
-	ret = run_command_list(s, -1, 0);
-	if (ret < 0) {
-		printf(" sf probe error \n");
-		return ret;
+	if (!flash) {
+		s = "sf probe";
+		ret = run_command_list(s, -1, 0);
+		if (ret < 0) {
+			printf("flash init failed !\n");
+			return CMD_RET_FAILURE;
+		}
 	}
 
-	sprintf(command, "sf erase %x %x", part_addr, sector * NOR_SECTOR_SIZE);
-	ret = run_command_list(command, -1, 0);
+	printf("sf erase %02x %02x\n", part_addr, sector * NOR_SECTOR_SIZE);
+	ret = spi_flash_erase(flash, part_addr, sector * NOR_SECTOR_SIZE);
 	if (ret < 0) {
 		printf(" sf erase error \n");
 		return ret;
 	}
 
-	sprintf(command, "sf write %s %x %x", addr, part_addr, bytes);
-	ret = run_command_list(command, -1, 0);
+	realaddr = (void *)simple_strtoul(addr, NULL, 16);
+	printf("sf write %02x %02x %02x\n", realaddr, part_addr,
+		sector * NOR_SECTOR_SIZE);
+	ret = spi_flash_write(flash, part_addr, bytes, realaddr);
 	if (ret < 0) {
 		printf(" sf write error \n");
 		return ret;
 	}
 
-	return 0;
+	return ret;
 }
 
-int ota_update_image(char *name, char *addr, unsigned int bytes)
+static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 {
-	unsigned int start_lba, end_lba;
+	unsigned int start_lba = 0, end_lba = 0;
 	char command[256] = "mmc write ";
 	char lba_size[64] = { 0 };
 	char *s;
@@ -379,7 +319,7 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 			printf("Error: gpt-backup size(%x) is not equal to 0x%x\n", bytes, 33*512);
 			return CMD_RET_FAILURE;
 		}
-		end_lba = (unsigned int)get_patition_end_lba("userdata");
+		get_patition_lba("userdata", &start_lba, &end_lba);
 		uint32_to_char(end_lba+1, lba_size);
 		sprintf(command, "%s %s %s %x", command, addr, lba_size, 33);
 	} else if (strcmp(name, "all") == 0){
@@ -387,10 +327,9 @@ int ota_update_image(char *name, char *addr, unsigned int bytes)
 
 		sprintf(command, "%s %s 0 %x", command, addr, sector);
 	} else {
-		start_lba = (unsigned int)get_patition_start_lba(name);
-		end_lba = (unsigned int)get_patition_end_lba(name);
+		get_patition_lba(name, &start_lba, &end_lba);
 		part_size = end_lba - start_lba + 1;
-		if ((start_lba == CMD_RET_FAILURE) || (start_lba == end_lba)) {
+		if (start_lba == end_lba) {
 			return CMD_RET_FAILURE;
 		}
 
@@ -454,7 +393,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	/* update image */
 	if (boot_mode == PIN_2ND_EMMC)
-		ret = ota_update_image(partition_name, argv[2], bytes);
+		ret = ota_mmc_update_image(partition_name, argv[2], bytes);
 	else
 		ret = ota_nor_update_image(partition_name, argv[2], bytes);
 
