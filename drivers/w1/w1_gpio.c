@@ -407,7 +407,7 @@ static u8 w1_gpio_touch_bit(void *data, u8 bit)
             gpio_set_data(pdata->pin, 0);          //set 0
             udelay_mod(1);
             master_write_bit_dir(data, 1);         //input
-            udelay_mod(1);
+            //udelay_mod(1);
             ret = w1_gpio_read_bit(data);
             udelay_mod(8);
             return ret;
