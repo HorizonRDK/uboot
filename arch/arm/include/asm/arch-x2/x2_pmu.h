@@ -16,6 +16,14 @@
 
 #define X2_PMU_SW_REG_00		(PMU_SYS_BASE + 0x0200)
 #define X2_PMU_SW_REG_01		(PMU_SYS_BASE + 0x0204)
+#define X2_PMU_SW_REG_02               (PMU_SYS_BASE + 0x0208)
+#define X2_PMU_SW_REG_03               (PMU_SYS_BASE + 0x020c)
+#define X2_PMU_SW_REG_04               (PMU_SYS_BASE + 0x0210)
+#define X2_PMU_SW_REG_27               (PMU_SYS_BASE + 0x026c)
+#define X2_PMU_SW_REG_28               (PMU_SYS_BASE + 0x0270)
+#define X2_PMU_SW_REG_29               (PMU_SYS_BASE + 0x0274)
+#define X2_PMU_SW_REG_30               (PMU_SYS_BASE + 0x0278)
+#define X2_PMU_SW_REG_31               (PMU_SYS_BASE + 0x027c)
 
 #endif /* __X2_PMU_H__ */
 

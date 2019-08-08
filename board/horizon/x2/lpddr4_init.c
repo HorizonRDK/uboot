@@ -355,6 +355,7 @@ static unsigned int lpddr4_read_msg(void)
 }
 
 #ifdef CONFIG_X2_PM
+#if 0
 static void lpddr4_enter_retention(void)
 {
 	unsigned int val;
@@ -422,7 +423,7 @@ static void lpddr4_enter_retention(void)
 
 	return;
 }
-
+#endif
 static int lpddr4_save_param(struct dram_timing_info *dram_timing)
 {
 	uint32_t *pcfg = (uint32_t *)X2_SRAM_LOAD_ADDR;
@@ -496,6 +497,7 @@ static int lpddr4_restore_param(struct dram_timing_info *dram_timing)
 	return 0;
 }
 
+#if 0
 static inline void disable_cnn_core(void)
 {
 	u32 reg;
@@ -577,6 +579,7 @@ static inline void do_suspend(void)
 
 	wfi();
 }
+#endif
 #endif /* CONFIG_X2_PM */
 
 static inline void lpddr4_cfg_fw(struct dram_timing_info *dram_timing,
@@ -732,12 +735,12 @@ void ddr_init(struct dram_timing_info *dram_timing)
 		cdd_ch = lpddr4_read_msg();
 	} else {
 #ifdef CONFIG_X2_PM
-		printf("Exit from suspend ...\n");
+//		printf("Exit from suspend ...\n");
 		lpddr4_restore_param(dram_timing);
 
-		enable_cnn_core();
+//		enable_cnn_core();
 
-		printf("End of restore ...\n");
+//		printf("End of restore ...\n");
 #endif /* CONFIG_X2_PM */
 	}
 
@@ -835,13 +838,22 @@ void ddr_init(struct dram_timing_info *dram_timing)
 #ifdef CONFIG_X2_PM
 		lpddr4_save_param(dram_timing);
 
+#if 0
 		disable_cnn_core();
 
 		printf("Enter self-refresh ...\n");
 		lpddr4_enter_retention();
 
 		do_suspend();
+#endif
+	} else if (wk_sta == 2) {
+		void (*x2_resume)(void);
+		unsigned long p = readl(X2_PMU_SW_REG_03);
+		x2_resume = (void(*)(void))p;
+
+		invalidate_icache_all();
+		x2_resume();
 #endif /* CONFIG_X2_PM */
-	}
+       }
 }
 

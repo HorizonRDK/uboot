@@ -62,8 +62,9 @@
 /* The option for som board */
 /* #define CONFIG_X2_SOM_BOARD */
 /* #define CONFIG_X2_MONO_BOARD */
-
-/* #define CONFIG_X2_PM */
+#ifdef CONFIG_X2_MMC_BOOT
+#define CONFIG_X2_PM
+#endif
 
 #else
 
