@@ -392,10 +392,10 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 			return CMD_RET_USAGE;
 
 	/* update image */
-	if (boot_mode == PIN_2ND_EMMC)
-		ret = ota_mmc_update_image(partition_name, argv[2], bytes);
-	else
+	if (boot_mode == PIN_2ND_SF)
 		ret = ota_nor_update_image(partition_name, argv[2], bytes);
+	else
+		ret = ota_mmc_update_image(partition_name, argv[2], bytes);
 
 	if (ret == 0)
 		printf("ota update image success!\n");
