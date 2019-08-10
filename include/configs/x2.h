@@ -90,8 +90,8 @@
 #endif /* CONFIG_SPL_BUILD */
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
-#define CONFIG_SYS_TEXT_BASE		0x01d00000		/* Offset is 29MB*/
-#define X2_USABLE_RAM_TOP			0x02000000		/* Top is 32MB*/
+#define CONFIG_SYS_TEXT_BASE		0x02100000		/* Offset is 33MB*/
+#define X2_USABLE_RAM_TOP			0x03100000		/* Top is 49MB*/
 
 #define X2_SWINFO_MEM_ADDR			0x020ff000
 #define X2_SWINFO_MEM_MAGIC			0x57534248
@@ -139,7 +139,7 @@
 #define CONFIG_SYS_MAXARGS	64	/* max command args */
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_1M)
+#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_8M)
 
 #ifdef CONFIG_SYS_SKIP_RELOC
 #define SZ_66K				0x00010800 /* TBL table + board info + global data */
