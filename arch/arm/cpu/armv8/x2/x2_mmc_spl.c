@@ -1,4 +1,3 @@
-
 #include <asm/io.h>
 #include <asm/arch/x2_reg.h>
 #include <asm/arch/x2_sysctrl.h>
@@ -339,7 +338,7 @@ int veeprom_write(int offset, const char *buf, int size)
 static void ota_update_failed_output(char* boot_reason)
 {
 	printf("*************************************************\n");
-	printf("Error: update %s faild! \n", boot_reason);
+	printf("Error: update %s failed! \n", boot_reason);
 	printf("*************************************************\n");
 }
 

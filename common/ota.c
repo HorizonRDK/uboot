@@ -400,7 +400,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (ret == 0)
 		printf("ota update image success!\n");
 	else
-		printf("Error: ota update image faild!\n");
+		printf("Error: ota update image failed!\n");
 
 	return ret;
 }
@@ -408,7 +408,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 void ota_update_failed_output(char *boot_reason, char *partition)
 {
 	printf("*************************************************\n");
-	printf("Error: update %s faild! \n", boot_reason);
+	printf("Error: update %s failed! \n", boot_reason);
 	printf("	   into %s backup partition! \n", partition);
 	printf("*************************************************\n");
 }

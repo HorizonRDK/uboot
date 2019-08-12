@@ -719,7 +719,7 @@ static bool ota_nor_spl_update_check(void) {
 			nor_veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
 				VEEPROM_UPDATE_FLAG_SIZE);
 
-			printf("Error: update %s faild! \n", boot_reason);
+			printf("Error: update %s failed! \n", boot_reason);
 		}
 	}
 
