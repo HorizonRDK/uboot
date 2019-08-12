@@ -1,0 +1,12 @@
+{
+    "linters": {
+        "c": {
+            "type": "cpplint",
+	    "severity":{
+		"whitespace/tab": "disabled"
+	    },
+            "flags": ["--extensions=h,c"],
+            "include": ["(\\.h$)", "(\\.c$)"]
+        }
+    }
+}
