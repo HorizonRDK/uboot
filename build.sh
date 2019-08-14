@@ -58,7 +58,7 @@ function choose()
     fi
 
     echo "" >> $tmp
-    if [ "$board" = "som" ];then
+    if [ "$board" = "som" -o "$board" = "s202" ];then
         echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp

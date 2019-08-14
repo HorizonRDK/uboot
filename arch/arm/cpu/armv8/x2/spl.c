@@ -78,7 +78,9 @@ void board_init_f(ulong dummy)
 
 		if (strcmp(pllswitch, "disable_peri_pll") == 0)
 			{}
-		else if ((g_binfo.board_id == J2_MM_BOARD_ID) && (strcmp(pllswitch, "") == 0))
+		else if (((g_binfo.board_id == J2_MM_BOARD_ID) ||
+			(g_binfo.board_id == J2_MM_S202_BOARD_ID)) &&
+				(strcmp(pllswitch, "") == 0))
 			{}
 		else
 			switch_peri_pll();

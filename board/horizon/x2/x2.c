@@ -1,3 +1,9 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2019 Horizon Robotics, Inc.
+ *    All rights reserved.
+ */
+
 #include <common.h>
 #include <sata.h>
 #include <ahci.h>
@@ -93,6 +99,7 @@ static void system_sdram_size_init(void)
 		sys_sdram_size = 0x80000000; /* 2G */
 		break;
 	case J2_MM_BOARD_ID:
+        case J2_MM_S202_BOARD_ID:
 	case X2_96BOARD_ID:
 	case J2_SOM_SK_ID:
 	case J2_SOM_SAM_ID:

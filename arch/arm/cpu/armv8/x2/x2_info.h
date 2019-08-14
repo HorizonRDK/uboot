@@ -1,3 +1,9 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2019 Horizon Robotics, Inc.
+ *    All rights reserved.
+ */
+
 #ifndef __X2_INFO_H__
 #define __X2_INFO_H__
 
@@ -59,7 +65,7 @@
 #define X2_96BOARD_ID		0x105
 #define QUAD_BOARD_ID		0x300
 #define J2_MM_BOARD_ID		0x400
-
+#define J2_MM_S202_BOARD_ID     0x401
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 
 struct x2_image_hdr {
