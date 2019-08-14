@@ -6,7 +6,8 @@
 
 static const char *swinfo_boot_desp[] = {
 	"normal", "splonce", "ubootonce",
-	"splwait", "ubootwait", "udumptf", "unknown"
+	"splwait", "ubootwait", "udumptf", "udumpemmc",
+	"unknown"
 };
 static int do_swinfo(cmd_tbl_t *cmdtp, int flag, int argc,
 		char * const argv[])

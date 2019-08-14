@@ -331,6 +331,8 @@ static int x2_swinfo_dump_check(void)
 	uint8_t d_ip[5];
 	char dump[128];
 	char *s = dump;
+	const char *dcmd, *ddev;
+	uint32_t dmmc, dpart;
 
 	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
 	if (s_magic == X2_SWINFO_MEM_MAGIC) {
@@ -342,12 +344,24 @@ static int x2_swinfo_dump_check(void)
 	}
 	s_boot = readl(s_addrb);
 	s_dump = readl(s_addrd);
-	if (s_boot == X2_SWINFO_BOOT_UDUMPTF) {
+	if (s_boot == X2_SWINFO_BOOT_UDUMPTF ||
+		s_boot == X2_SWINFO_BOOT_UDUMPEMMC) {
 		stored_dumptype = 1;
-		printf("swinfo dump ddr 0x%x -> tfcard\n", sys_sdram_size);
+		if (s_boot == X2_SWINFO_BOOT_UDUMPTF) {
+			ddev = "tfcard";
+			dcmd = "fatwrite";
+			dmmc = 1;
+			dpart = 1;
+		} else {
+			ddev = "emmc";
+			dcmd = "ext4write";
+			dmmc = 0;
+			dpart = get_partition_id("userdata");
+		}
+		printf("swinfo dump ddr 0x%x -> %s:%d\n", sys_sdram_size, ddev, dpart);
 		s += sprintf(s, "mmc rescan; ");
-		s += sprintf(s, "fatwrite mmc 1:0 0x0 /dump_ddr_%x.img 0x%x",
-				sys_sdram_size, sys_sdram_size);
+		s += sprintf(s, "%s mmc %d:%d 0x0 /dump_ddr_%x.img 0x%x",
+				dcmd, dmmc, dpart, sys_sdram_size, sys_sdram_size);
 		env_set("dumpcmd", dump);
 	} else if (s_dump) {
 		stored_dumptype = 2;
