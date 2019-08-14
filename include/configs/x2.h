@@ -154,7 +154,7 @@
 #define KERNEL_ADDR			0x80000
 #endif
 #define FDT_ADDR			0x4000000
-#define GZ_ADDR				0x20000000
+#define GZ_ADDR				0x8000000
 #define LOAD_ADDR			0x6000000
 
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
