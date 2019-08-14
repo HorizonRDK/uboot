@@ -684,8 +684,10 @@ void main_loop(void)
 	update_tftp(0UL, NULL, NULL);
 #endif /* CONFIG_UPDATE_TFTP */
 
+#ifndef CONFIG_DOWNLOAD_MODE
 	if ((x2_src_boot == PIN_2ND_EMMC) || (x2_src_boot == PIN_2ND_SF))
 		x2_env_and_boardid_init();
+#endif
 
 #ifdef X2_AUTORESET
 	prepare_autoreset();

@@ -491,6 +491,12 @@ config MULTIMODE
 	  Enable this will change the kernel load address. This is for
 	  dual camera project to fix possible system crash.
 
+config DOWNLOAD_MODE
+	bool "enable for download tools"
+	default n
+	help
+	  Enable this will not init env and close read/write veeprom.
+	  This is for download tools.
 endmenu		# Boot images
 
 source "api/Kconfig"
