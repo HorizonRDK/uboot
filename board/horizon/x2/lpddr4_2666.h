@@ -288,7 +288,8 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_MASTER0_ACX4ANIBDIS, 0x0 },
 
 #if defined(CONFIG_X2_YMODEM_BOOT) || defined(CONFIG_X2_AP_BOOT)
-#if defined(CONFIG_X2_SOM_BOARD) || defined(CONFIG_X2_MONO_BOARD) || defined(CONFIG_X2_SK_BOARD)
+#if defined(CONFIG_X2_SOM_BOARD) || defined(CONFIG_X2_MONO_BOARD) || \
+	defined(CONFIG_X2_QUAD_BOARD) || defined(CONFIG_X2_SK_BOARD)
 	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
 	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
 	{ DDRP_DBYTE0_DQ2LNSEL, 0x4 },
