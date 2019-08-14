@@ -2651,7 +2651,7 @@ retry:
 
 		if (err) {
 #if !defined(CONFIG_SPL_BUILD) || defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
-			pr_err("Card did not respond to voltage select!\n");
+			pr_debug("Card did not respond to voltage select!\n");
 #endif
 			return -EOPNOTSUPP;
 		}
@@ -2785,7 +2785,7 @@ static int mmc_probe(bd_t *bis)
 	}
 	uclass_foreach_dev(dev, uc) {
 		ret = device_probe(dev);
-		if (ret)
+		if (ret && ret != (-EOPNOTSUPP))
 			pr_err("%s - probe failed: %d\n", dev->name, ret);
 	}
 
