@@ -53,6 +53,8 @@
 #include <asm/arch/x2_bifsd.h>
 #endif
 #include <veeprom.h>
+#include <asm/arch/x2_sysctrl.h>
+#include <asm/arch/x2_pmu.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 extern int boot_stage_mark(int stage);
@@ -650,6 +652,25 @@ static int initr_bedbug(void)
 	return 0;
 }
 #endif
+static int  disable_cnn(void)
+{
+	u32 reg;
+
+	/* Disable clock of CNN */
+	writel(0x33, X2_CNNSYS_CLKEN_CLR);
+	while (!((reg = readl(X2_CNNSYS_CLKOFF_STA)) & 0xF));
+	udelay(5);
+
+	reg = readl(X2_PMU_VDD_CNN_CTRL) | 0x22;
+	writel(reg, X2_PMU_VDD_CNN_CTRL);
+	udelay(5);
+
+	writel(0x3, X2_SYSC_CNNSYS_SW_RSTEN);
+	udelay(5);
+
+	printf("Disable cnn cores ..\n");
+	return 0;
+}
 
 static int run_main_loop(void)
 {
@@ -864,6 +885,7 @@ static init_fnc_t init_sequence_r[] = {
 #if defined(CONFIG_PRAM)
 	initr_mem,
 #endif
+	disable_cnn,
 	run_main_loop,
 };
 

@@ -671,27 +671,7 @@ static inline void lpddr4_cfg_fw(struct dram_timing_info *dram_timing,
 }
 
 extern unsigned int g_ddr_rate;
-static inline void disable_cnn(void)
-{
-	u32 reg;
 
-	/* Disable clock of CNN */
-	writel(0x33, X2_CNNSYS_CLKEN_CLR);
-	while (!((reg = readl(X2_CNNSYS_CLKOFF_STA)) & 0xF));
-	udelay(5);
-
-	reg = readl(X2_PMU_VDD_CNN_CTRL) | 0x22;
-	writel(reg, X2_PMU_VDD_CNN_CTRL);
-	udelay(5);
-
-	writel(0x3, X2_SYSC_CNNSYS_SW_RSTEN);
-	udelay(5);
-
-//	reg = readl(X2_PMU_VDD_CNN_CTRL) & ~0x11;
-//	writel(reg, X2_PMU_VDD_CNN_CTRL);
-
-	printf("Disable cnn cores .....\n");
-}
 void ddr_init(struct dram_timing_info *dram_timing)
 {
 	unsigned int value, temp;
@@ -844,7 +824,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	reg32_write(DDRC_PCTRL_3, 0x1);
 	reg32_write(DDRC_PCTRL_4, 0x1);
 	reg32_write(DDRC_PCTRL_5, 0x1);
-	disable_cnn();
+
 	if (wk_sta == 0) {
 #ifndef CONFIG_SUPPORT_PALLADIUM
 		if (g_dev_ops.proc_end) {
