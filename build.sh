@@ -158,6 +158,11 @@ function all()
     fi
 }
 
+function all_32()
+{
+    CROSS_COMPILE=$CROSS_COMPILE_64
+    all
+}
 
 function usage()
 {
