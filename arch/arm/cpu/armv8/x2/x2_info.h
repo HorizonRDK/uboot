@@ -60,6 +60,7 @@
 #define J2_SOM_SAM_ID		0x205
 #define X2_SVB_BOARD_ID		0x100
 #define J2_SVB_BOARD_ID		0x200
+#define X2_DEV_BOARD_ID		0x101
 #define X2_SOM_3V3_ID		0x103
 #define X2_SOM_ID		0x104
 #define X2_96BOARD_ID		0x105
