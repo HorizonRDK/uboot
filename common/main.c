@@ -238,6 +238,10 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 					return NULL;
 				}
 
+				/* mono has 2 dts, 64M nor flash using the other one */
+				if (board_id == X2_MONO_BOARD_ID)
+					i = i + 1;
+
 				/* load dtb file */
 				nor_dtb_image_load(config->dtb[i].dtb_addr,
 					config->dtb[i].dtb_size, gz_flag);
