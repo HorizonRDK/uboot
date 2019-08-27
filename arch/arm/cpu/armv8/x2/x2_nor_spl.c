@@ -687,8 +687,10 @@ static bool ota_nor_spl_update_check(void) {
 		 * if 10 consecutive startup failures occur
 		 */
 		nor_veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
-		count = count - 1;
-		nor_veeprom_write(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+		if (count > 0) {
+			count = count - 1;
+			nor_veeprom_write(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+		}
 
 		if (count <= 0) {
 			printf("Error: Failed times more than 10, using backup partitions\n");

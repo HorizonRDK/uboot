@@ -238,7 +238,6 @@ static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
 	unsigned int part_size;
 	int ret;
 	char *s;
-	unsigned int data;
 	void *realaddr;
 	unsigned int sector = (bytes + NOR_SECTOR_SIZE -1)/NOR_SECTOR_SIZE;
 
@@ -284,7 +283,7 @@ static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
 	}
 
 	realaddr = (void *)simple_strtoul(addr, NULL, 16);
-	printf("sf write %02x %02x %02x\n", realaddr, part_addr,
+	printf("sf write %s %02x %02x\n", (char *)realaddr, part_addr,
 		sector * NOR_SECTOR_SIZE);
 	ret = spi_flash_write(flash, part_addr, bytes, realaddr);
 	if (ret < 0) {
@@ -494,32 +493,24 @@ bool ota_all_update(char up_flag, bool part_status)
 	return boot_flag;
 }
 
-void ota_recovery_mode_set(unsigned int addr, unsigned int size)
+void ota_recovery_mode_set(void)
 {
 	char *s = NULL;
 	char boot_reason[16] = "recovery";
-	ulong gz_addr;
 
 	veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 				VEEPROM_RESET_REASON_SIZE);
 
 	env_set("bootdelay", "0");
 
-	if (x2_src_boot == PIN_2ND_SF) {
-		if (!flash)
-			return;
-		/* load recovery.gz */
-		gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-
-		spi_flash_read(flash, addr, size, (void *)gz_addr);
-	} else {
+	if (x2_src_boot == PIN_2ND_EMMC) {
 		/* env bootfile set*/
 		s = "recovery.gz\0";
 		env_set("bootfile", s);
 	}
 }
 
-void ota_check_update_success_flag(void)
+unsigned int ota_check_update_success_flag(void)
 {
 	char boot_reason[64] = { 0 };
 	bool update_success;
@@ -532,9 +523,13 @@ void ota_check_update_success_flag(void)
 			VEEPROM_UPDATE_MODE_SIZE);
 
 	update_success = (up_flag >> 3) & 0x1;
-	if ((update_success == 0) && (strcmp(upmode, "golden") == 0))
+	if ((update_success == 0) && (strcmp(upmode, "golden") == 0)) {
 		/* when update uboot failed in golden mode, into recovery system */
-		ota_recovery_mode_set(0, 0);
+		ota_recovery_mode_set();
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 unsigned int ota_uboot_update_check(char *partition) {
@@ -544,23 +539,23 @@ unsigned int ota_uboot_update_check(char *partition) {
 	bool boot_flag;
 	char upmode[16] = { 0 };
 
-	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
-			VEEPROM_UPDATE_MODE_SIZE);
-
 	ota_get_update_status(&up_flag, &partstatus, boot_reason);
 
 	part_status = (partstatus >> partition_status_flag(partition)) & 0x1;
 	boot_flag = part_status;
 	boot_bak = part_status^1;
 
-	/* update: setting delay 0 */
-	ota_update_set_bootdelay(boot_reason);
-
 	/* normal boot */
 	if ((strcmp(boot_reason, partition) != 0) &&
 		(strcmp(boot_reason, "all") != 0))  {
 		return ota_normal_boot(boot_flag, partition);
 	}
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	/* update: setting delay 0 */
+	ota_update_set_bootdelay(boot_reason);
 
 	/* update kernel , system or all */
 	if (strcmp(boot_reason, partition) == 0) {
@@ -578,14 +573,17 @@ unsigned int ota_uboot_update_check(char *partition) {
 			VEEPROM_UPDATE_FLAG_SIZE);
 
 		if (strcmp(upmode, "golden") == 0)
-			/* when update kernel or system failed in golden mode, into recovery system */
-			ota_recovery_mode_set(0, 0);
+			/* update failed, enter recovery mode */
+			ota_recovery_mode_set();
 		else
 			ota_update_failed_output(boot_reason, partition);
 	}
 
 	if (x2_src_boot == PIN_2ND_SF) {
-		return 0;
+		if (boot_flag == boot_bak)
+			return 1;
+		else
+			return 0;
 	} else {
 		if (boot_flag == 1)
 			strcat(partition, "bak");

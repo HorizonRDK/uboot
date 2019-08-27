@@ -273,6 +273,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	unsigned int rootfs_id, kernel_id;
 	char boot_reason[64] = { 0 };
 	char *s;
+	char count;
 
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
@@ -280,27 +281,33 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
 
-	if (((strcmp(upmode, "AB") != 0) && (strcmp(upmode, "golden") != 0))
-		|| (strcmp(boot_reason, "normal") == 0)) {
-		/* normal boot: disable OTA or boot_reason='normal' */
-		printf("uboot: normal boot \n");
+	/* get rootfs and kernel partition id */
+	rootfs_id = get_partition_id(rootfs);
+	kernel_id = get_partition_id(kernel);
 
-		/* get rootfs and kernel partition id */
-		rootfs_id = get_partition_id(rootfs);
-		kernel_id = get_partition_id(kernel);
-	} else {
-		/* enable OTA: check upflag and boot_reason */
-		/* check boot_reason */
-		if (strcmp(boot_reason, "recovery") == 0)  {
+	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0)) {
+		if (strcmp(boot_reason, "normal") == 0) {
+			/* boot_reason is 'normal', normal boot */
+			printf("uboot: normal boot \n");
+
+			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
+				VEEPROM_COUNT_SIZE);
+
+			if (count <= 0) {
+				/* system boot failed, enter recovery mode */
+				ota_recovery_mode_set();
+			} else {
+				/* get rootfs and kernel partition id */
+				rootfs_id = ota_uboot_update_check(rootfs);
+				kernel_id = ota_uboot_update_check(kernel);
+			}
+		} else if (strcmp(boot_reason, "recovery") == 0) {
+			/* boot_reason is 'recovery', enter recovery mode */
 			env_set("bootdelay", "0");
 
 			/* set environment bootfile */
 			s = "recovery.gz\0";
 			env_set("bootfile", s);
-
-			/* get rootfs and kernel partition id */
-			rootfs_id = get_partition_id(rootfs);
-			kernel_id = get_partition_id(kernel);
 		} else {
 			/* check update_success flag */
 			ota_check_update_success_flag();
@@ -310,6 +317,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 			kernel_id = ota_uboot_update_check(kernel);
 		}
 	}
+
 	/* init bootargs */
 	s = env_get("bootargs");
 	s[70] = hex_to_char(rootfs_id);
@@ -337,8 +345,9 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
 	ulong gz_addr;
-	unsigned int addr = config->Image_addr;
-	unsigned int size = config->Image_size;
+	char count;
+	unsigned int ret1, ret2;
+	bool load_imggz = true;
 
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
@@ -347,33 +356,50 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 			VEEPROM_UPDATE_MODE_SIZE);
 
 	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-	if (((strcmp(upmode, "golden") != 0))
-		|| (strcmp(boot_reason, "normal") == 0)) {
-		/* normal boot: disable OTA or boot_reason='normal' */
-		printf("uboot: normal boot \n");
 
-		/* load Image.gz */
-		if (flash)
-			spi_flash_read(flash, addr, size, (void *)gz_addr);
-	} else {
-		/* enable OTA: check upflag and boot_reason */
-		/* check boot_reason */
-		if (strcmp(boot_reason, "recovery") == 0)  {
+	if ((strcmp(upmode, "golden") == 0)) {
+		if (strcmp(boot_reason, "normal") == 0) {
+			/* boot_reason is 'normal', normal boot */
+			printf("uboot: normal boot \n");
 
-			/* load recovery.gz */
-			ota_recovery_mode_set(config->Recovery_addr, config->Recovery_size);
+			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
+					VEEPROM_COUNT_SIZE);
+			if (count <= 0) {
+				/* system boot failed, enter recovery mode */
+				ota_recovery_mode_set();
+
+				load_imggz = false;
+			}
+		} else if (strcmp(boot_reason, "recovery") == 0) {
+			/* boot_reason is 'recovery', enter recovery mode */
+			env_set("bootdelay", "0");
+
+			load_imggz = false;
 		} else {
 			/* check update_success flag */
-			ota_check_update_success_flag();
+			if (ota_check_update_success_flag()) {
+				load_imggz = false;
+			} else {
+				/* ota partition status check */
+				ret1 = ota_uboot_update_check(rootfs);
+				ret2 = ota_uboot_update_check(kernel);
 
-			/* get rootfs and kernel partition id */
-			ota_uboot_update_check(rootfs);
-			ota_uboot_update_check(kernel);
-
-			/* load Image.gz */
-			if (flash)
-				spi_flash_read(flash, addr, size, (void *)gz_addr);
+				if ((ret1 == 1) || (ret2 == 1))
+					load_imggz = false;
+			}
 		}
+	}
+
+	if (load_imggz) {
+		/* load Image.gz */
+		if (flash)
+			spi_flash_read(flash, config->Image_addr, config->Image_size,
+			(void *)gz_addr);
+	} else {
+		/* load recovery.gz */
+		if (flash)
+			spi_flash_read(flash, config->Recovery_addr, config->Recovery_size,
+			(void *)gz_addr);
 	}
 }
 
