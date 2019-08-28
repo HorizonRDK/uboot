@@ -545,6 +545,9 @@ unsigned int ota_uboot_update_check(char *partition) {
 	boot_flag = part_status;
 	boot_bak = part_status^1;
 
+	/* update: setting delay 0 */
+	ota_update_set_bootdelay(boot_reason);
+
 	/* normal boot */
 	if ((strcmp(boot_reason, partition) != 0) &&
 		(strcmp(boot_reason, "all") != 0))  {
@@ -553,9 +556,6 @@ unsigned int ota_uboot_update_check(char *partition) {
 
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
-
-	/* update: setting delay 0 */
-	ota_update_set_bootdelay(boot_reason);
 
 	/* update kernel , system or all */
 	if (strcmp(boot_reason, partition) == 0) {
