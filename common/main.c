@@ -28,6 +28,8 @@
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
+DECLARE_GLOBAL_DATA_PTR;
+
 extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
 extern unsigned int sys_sdram_size;
@@ -266,6 +268,29 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	return s;
 }
 
+static void x2_bootargs_init(unsigned int rootfs_id)
+{
+	char *s;
+	unsigned int len = 0, i;
+
+	/* init bootargs */
+	s = env_get("bootargs");
+	len = strlen(s);
+
+	for(i = 0; i < len; ++i) {
+		if (s[i]  == 'r') {
+			if (s[i + 1] == 'o' && s[i + 2] == 'o' && s[i + 3] == 't'
+				&& s[i + 4] == '=')
+				break;
+		}
+	}
+
+	if (i < len) {
+		s[i + 18] = hex_to_char(rootfs_id);
+		env_set("bootargs", s);
+	}
+}
+
  static void x2_mmc_env_init(void)
 {
 	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
@@ -323,9 +348,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 	}
 
 	/* init bootargs */
-	s = env_get("bootargs");
-	s[70] = hex_to_char(rootfs_id);
-	env_set("bootargs", s);
+	x2_bootargs_init(rootfs_id);
 
 	/* init env mmcload */
 	mmcload[26] = hex_to_char(kernel_id);
@@ -661,11 +684,10 @@ static int reboot_notify_to_mcu(void)
 //#endif
 //END4[prj_j2quad]
 
-static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
+static int do_set_tag_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
 {
 	u32 size;
-	char cmd[256] = { 0 };
 	char *s = NULL;
 
 	if (argc > 1)
@@ -679,16 +701,17 @@ static int do_set_dts_memsize(cmd_tbl_t *cmdtp, int flag,
 		return 0;
 	}
 
-	s = env_get("bootargs");
+	printf("uboot mem_size = %02x\n", size);
+	printf("gd mem size is %02llx\n", gd->bd->bi_dram[0].size);
 
-	sprintf(cmd, "%s mem=%dM", s, size / 0x100000);
-	env_set("bootargs", cmd);
+	/* set mem size */
+	gd->bd->bi_dram[0].size = size;
 
 	return 0;
 }
 
 U_BOOT_CMD(
-	mem_modify,	2,	0,	do_set_dts_memsize,
+	mem_modify,	2,	0,	do_set_tag_memsize,
 	"Change DDR Mem Size(Mbyte)",
 	"-mem_modify 0x40000000"
 );
