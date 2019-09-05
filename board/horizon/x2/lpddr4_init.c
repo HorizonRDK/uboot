@@ -726,7 +726,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	wk_sta = readl(X2_PMU_WAKEUP_STA);
 	printf("wake sta = 0x%x, src = 0x%x\n", wk_sta, readl(X2_PMU_W_SRC));
 
-	if (wk_sta != 2)
+	if (wk_sta == 3)
 		wk_sta = 0;
 
 	lpddr4_cfg_fw(dram_timing, wk_sta);
@@ -846,7 +846,7 @@ void ddr_init(struct dram_timing_info *dram_timing)
 
 		do_suspend();
 #endif
-	} else if (wk_sta == 2) {
+	} else if (wk_sta == 2 || wk_sta == 1) {
 		void (*x2_resume)(void);
 		unsigned long p = readl(X2_PMU_SW_REG_03);
 		x2_resume = (void(*)(void))p;
