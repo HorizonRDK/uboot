@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <asm/arch/x2_mmc.h>
 #include <mmc.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -45,6 +46,7 @@ struct hobot_dwmmc_priv {
 static void sdio0_pin_mux_config(void)
 {
     unsigned int reg_val;
+    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
 
     /* GPIO46-GPIO49 GPIO50-GPIO58 */
     reg_val = readl(GPIO3_CFG);
@@ -56,25 +58,29 @@ static void sdio0_pin_mux_config(void)
     reg_val &= 0xFFFFF000;
     writel(reg_val, GPIO5_CFG);
 
-	/* For x2 dev 3.3v voltage*/
-    reg_val = readl(GPIO7_CFG);
-    reg_val |= 0x00003000;
-    writel(reg_val, GPIO7_CFG);
+	if (boot_info->board_id == X2_DEV_BOARD_ID) {
+		/* For x2 dev 3.3v voltage*/
+		reg_val = readl(GPIO7_CFG);
+		reg_val |= 0x00003000;
+		writel(reg_val, GPIO7_CFG);
 
-    reg_val = readl(GPIO7_DIR);
-    reg_val |= 0x00400000;
-    reg_val &= 0xffffffbf;
-    writel(reg_val, GPIO7_DIR);
+		reg_val = readl(GPIO7_DIR);
+		reg_val |= 0x00400000;
+		reg_val &= 0xffffffbf;
+		writel(reg_val, GPIO7_DIR);
+	}
 
-	/* For j2 dev 3.3v voltage*/
-    reg_val = readl(GPIO5_CFG);
-    reg_val |= 0x03000000;
-    writel(reg_val, GPIO5_CFG);
+	if (boot_info->board_id == J2_SOM_DEV_ID) {
+		/* For j2 dev 3.3v voltage*/
+		reg_val = readl(GPIO5_CFG);
+		reg_val |= 0x03000000;
+		writel(reg_val, GPIO5_CFG);
 
-    reg_val = readl(GPIO5_DIR);
-    reg_val |= 0x10000000;
-    reg_val &= 0xffffefff;
-    writel(reg_val, GPIO5_DIR);
+		reg_val = readl(GPIO5_DIR);
+		reg_val |= 0x10000000;
+		reg_val &= 0xffffefff;
+		writel(reg_val, GPIO5_DIR);
+	}
 }
 static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 {
