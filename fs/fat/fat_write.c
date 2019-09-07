@@ -577,7 +577,7 @@ static void flush_dir_table(fsdata *mydata, dir_entry **dentptr)
 
 	if (set_cluster(mydata, dir_curclust,
 		    get_dentfromdir_block,
-		    mydata->clust_size * mydata->sect_size) != 0) {
+		    (unsigned long)mydata->clust_size * mydata->sect_size) != 0) {
 		printf("error: wrinting directory entry\n");
 		return;
 	}
@@ -678,7 +678,7 @@ set_contents(fsdata *mydata, dir_entry *dentptr, __u8 *buffer,
 
 		/* set remaining bytes */
 		actsize = filesize;
-		if (set_cluster(mydata, curclust, buffer, (int)actsize) != 0) {
+		if (set_cluster(mydata, curclust, buffer, actsize) != 0) {
 			debug("error: writing cluster\n");
 			return -1;
 		}
@@ -695,7 +695,7 @@ set_contents(fsdata *mydata, dir_entry *dentptr, __u8 *buffer,
 
 		return 0;
 getit:
-		if (set_cluster(mydata, curclust, buffer, (int)actsize) != 0) {
+		if (set_cluster(mydata, curclust, buffer, actsize) != 0) {
 			debug("error: writing cluster\n");
 			return -1;
 		}
@@ -1078,7 +1078,7 @@ static int do_fat_write(const char *filename, void *buffer, loff_t size,
 
 	/* Write directory table to device */
 	ret = set_cluster(mydata, dir_curclust, get_dentfromdir_block,
-			mydata->clust_size * mydata->sect_size);
+			(unsigned long)mydata->clust_size * mydata->sect_size);
 	if (ret)
 		printf("Error: writing directory entry\n");
 
