@@ -43,6 +43,7 @@
 #define X2_DTB_CONFIG_ADDR	(X2_BOOTINFO_ADDR + 0x1000)
 #define DTB_MAPPING_ADDR	0x140000
 #define DTB_MAPPING_SIZE	0x400
+#define DTB_MAX_NUM		20
 
 #define X2_BOARD_SVB 0
 #define X2_BOARD_SOM 1
@@ -64,6 +65,7 @@
 #define X2_SOM_3V3_ID		0x103
 #define X2_SOM_ID		0x104
 #define X2_96BOARD_ID		0x105
+#define X2_DEV_512M_BOARD_ID	0x106
 #define QUAD_BOARD_ID		0x300
 #define J2_MM_BOARD_ID		0x400
 #define J2_MM_S202_BOARD_ID     0x401
@@ -127,9 +129,9 @@ struct x2_kernel_hdr {
 	unsigned int Recovery_size;
 	unsigned int dtb_number;
 
-	struct x2_dtb_hdr dtb[16];
+	struct x2_dtb_hdr dtb[DTB_MAX_NUM];
 
-	unsigned int reserved[59];
+	unsigned int reserved[11];
 };
 
 #endif /* __X2_INFO_H__ */
