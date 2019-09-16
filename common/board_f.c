@@ -977,7 +977,7 @@ void board_init_f(ulong boot_flags)
 {
 	gd->flags = boot_flags;
 	gd->have_console = 0;
-//	writel(0xFED10000, BIF_SHARE_REG_BASE);
+	writel(0xFED10000, BIF_SHARE_REG_BASE);
 #ifdef X2_AUTOBOOT
         boot_stage_mark(0);
 #endif

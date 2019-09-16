@@ -672,6 +672,22 @@ static int  disable_cnn(void)
 	return 0;
 }
 
+/* GPIO PIN MUX */
+#define PIN_MUX_BASE    0xA6003000
+#define GPIO1_CFG (PIN_MUX_BASE + 0x10)
+
+static int bif_recover_reset_func(void)
+{
+	unsigned int reg_val;
+
+	/*set gpio1[15] GPIO function*/
+	reg_val = readl(GPIO1_CFG);
+	reg_val &= ~(0xc0000000);
+	writel(reg_val, GPIO1_CFG);
+	return 0;
+}
+
+
 static int run_main_loop(void)
 {
 #ifdef CONFIG_SANDBOX
@@ -886,6 +902,7 @@ static init_fnc_t init_sequence_r[] = {
 	initr_mem,
 #endif
 	disable_cnn,
+	bif_recover_reset_func,
 	run_main_loop,
 };
 

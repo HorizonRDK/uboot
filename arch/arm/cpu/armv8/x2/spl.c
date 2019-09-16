@@ -50,11 +50,27 @@ void spl_dram_init(void)
 #endif /* CONFIG_TARGET_X2 */
 }
 
+/* GPIO PIN MUX */
+#define PIN_MUX_BASE    0xA6003000
+#define GPIO1_CFG (PIN_MUX_BASE + 0x10)
+
+static int bif_change_reset2gpio(void)
+{
+	unsigned int reg_val;
+
+	/*set gpio1[15] GPIO function*/
+	reg_val = readl(GPIO1_CFG);
+	reg_val |= 0xc0000000;
+	writel(reg_val, GPIO1_CFG);
+	return 0;
+}
+
 void board_init_f(ulong dummy)
 {
 	char pllswitch[VEEPROM_PERI_PLL_SIZE] = { 0 };
 
-	//writel(0xFED00000, BIF_SHARE_REG_BASE);
+	bif_change_reset2gpio();
+	writel(0xFED00000, BIF_SHARE_REG_BASE);
 	icache_enable();
 
 	preloader_console_init();
@@ -92,7 +108,6 @@ void board_init_f(ulong dummy)
 	/* write bootinfo to ddr X2_BOOTINFO_ADDR */
 	x2_bootinfo_init();
 #endif
-
 	return;
 }
 
