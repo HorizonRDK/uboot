@@ -17,6 +17,7 @@ function choose()
     if [ "$bootmode" = "ap" ];then
         echo "#define CONFIG_X2_AP_BOOT" >> $tmp
         echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
@@ -24,6 +25,7 @@ function choose()
     elif [ "$bootmode" = "uart" ];then
         echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
         echo "#define CONFIG_X2_YMODEM_BOOT" >> $tmp
+        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
@@ -31,13 +33,23 @@ function choose()
     elif [ "$bootmode" = "nor" ];then
         echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
         echo "#define CONFIG_X2_NOR_BOOT" >> $tmp
+        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
+    elif [ "$bootmode" = "nand" ];then
+        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "#define CONFIG_X2_NAND_BOOT" >> $tmp
+        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "emmc" ];then
         echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
         echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
         echo "#define CONFIG_X2_MMC_BOOT" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
@@ -136,6 +148,13 @@ function all()
         cpfiles $splname "$prefix/"
         cd ../
 
+        bootmode="nand"
+        build
+        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
+        mv "u-boot-spl.bin" $splname
+        cpfiles $splname "$prefix/"
+        cd ../
+
         bootmode="uart"
         build
         splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
@@ -166,9 +185,9 @@ function all_32()
 
 function usage()
 {
-    echo "Usage: build.sh [-o uart|emmc|ap|nor|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666|2133]"
+    echo "Usage: build.sh [-o uart|emmc|ap|nor|nand|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666|2133]"
     echo "Options:"
-    echo "  -o  boot mode, all or one of uart, emmc, nor, ap"
+    echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
     echo "  -b  board type "
     echo "  -d  set ddr frequency 3200 or 2666"
     echo "  -h  help info"
