@@ -10,6 +10,7 @@
 #define DDRT_WR_RDY_BIT			(1 << 0)
 #define DDRT_DW_RDY_BIT			(1 << 8)
 #define DDRT_MEM_RDY_BIT		(1 << 9)
+#define DDRT_UBOOT_RDY_BIT		(1 << 10)
 
 #endif /* __ASM_ARCH_X2_SHARE_H__ */
 
