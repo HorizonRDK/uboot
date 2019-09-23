@@ -973,10 +973,26 @@ static const init_fnc_t init_sequence_f[] = {
 	NULL,
 };
 
+/* GPIO PIN MUX */
+#define PIN_MUX_BASE    0xA6003000
+#define GPIO1_CFG (PIN_MUX_BASE + 0x10)
+
+static int bif_change_reset2gpio(void)
+{
+	unsigned int reg_val;
+
+	/*set gpio1[15] GPIO function*/
+	reg_val = readl(GPIO1_CFG);
+	reg_val |= 0xc0000000;
+	writel(reg_val, GPIO1_CFG);
+	return 0;
+}
+
 void board_init_f(ulong boot_flags)
 {
 	gd->flags = boot_flags;
 	gd->have_console = 0;
+	bif_change_reset2gpio();
 	writel(0xFED10000, BIF_SHARE_REG_BASE);
 #ifdef X2_AUTOBOOT
         boot_stage_mark(0);
