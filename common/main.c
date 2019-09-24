@@ -345,6 +345,12 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 			/* get rootfs and kernel partition id */
 			rootfs_id = ota_uboot_update_check(rootfs);
 			kernel_id = ota_uboot_update_check(kernel);
+
+			/* auto extend last emmc partition */
+			if (strcmp(boot_reason, "all") == 0) {
+				s = "gpt extend mmc 0";
+				run_command_list(s, -1, 0);
+			}
 		}
 	}
 
