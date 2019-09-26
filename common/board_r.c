@@ -55,6 +55,7 @@
 #include <veeprom.h>
 #include <asm/arch/x2_sysctrl.h>
 #include <asm/arch/x2_pmu.h>
+#include <asm/arch/x2_share.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 extern int boot_stage_mark(int stage);
@@ -672,10 +673,6 @@ static int  disable_cnn(void)
 	return 0;
 }
 
-/* GPIO PIN MUX */
-#define PIN_MUX_BASE    0xA6003000
-#define GPIO1_CFG (PIN_MUX_BASE + 0x10)
-
 static int bif_recover_reset_func(void)
 {
 	unsigned int reg_val;
@@ -687,6 +684,31 @@ static int bif_recover_reset_func(void)
 	return 0;
 }
 
+static int bif_change_reset2gpio(void)
+{
+	unsigned int reg_val;
+
+	/*set gpio1[15] GPIO function*/
+	reg_val = readl(GPIO1_CFG);
+	reg_val |= 0xc0000000;
+	writel(reg_val, GPIO1_CFG);
+	return 0;
+}
+
+static int apbooting(void)
+{
+	bif_change_reset2gpio();
+	writel(DDRT_UBOOT_RDY_BIT, X2_SHARE_DDRT_CTRL);
+	mdelay(100);
+	if ((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 1) {
+		printf("-- wait for kernel\n");
+		while (!((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 0));
+		bif_recover_reset_func();
+		run_command_list("booti 0x80000 - 0x10000000", -1, 0);
+	}
+	bif_recover_reset_func();
+    return 0;
+}
 
 static int run_main_loop(void)
 {
@@ -903,6 +925,7 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 	disable_cnn,
 	bif_recover_reset_func,
+	apbooting,
 	run_main_loop,
 };
 

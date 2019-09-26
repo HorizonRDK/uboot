@@ -25,7 +25,6 @@
 #include <configs/x2_config.h>
 #include <spi_flash.h>
 #include <asm/gpio.h>
-#include <asm/arch/x2_share.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -752,15 +751,6 @@ void main_loop(void)
 #ifdef X2_AUTORESET
 	prepare_autoreset();
 #endif
-
-    /* for ap booting */
-    writel(DDRT_UBOOT_RDY_BIT, X2_SHARE_DDRT_CTRL);
-    mdelay(100);
-    if ((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 1) {
-        printf("-- wait for kernel\n");
-        while (!((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 0));
-        run_command_list("booti 0x80000 - 0x10000000", -1, 0);
-    }
 
 	s = bootdelay_process();
 	if (cli_process_fdt(&s))
