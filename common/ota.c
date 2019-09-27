@@ -501,13 +501,42 @@ void ota_recovery_mode_set(void)
 	veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 				VEEPROM_RESET_REASON_SIZE);
 
-	env_set("bootdelay", "0");
-
 	if (x2_src_boot == PIN_2ND_EMMC) {
 		/* env bootfile set*/
 		s = "recovery.gz\0";
 		env_set("bootfile", s);
 	}
+}
+
+void ota_ab_boot_bak_partition(unsigned int *rootfs_id,
+	unsigned int *kernel_id)
+{
+	char partstatus;
+	bool boot_flag, part_status;
+	char rootfs[32] = "system";
+	char kernel[32] = "kernel";
+
+	veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
+			VEEPROM_ABMODE_STATUS_SIZE);
+
+	/* get kernel backup partition id */
+	part_status = (partstatus >> partition_status_flag(rootfs)) & 0x1;
+	boot_flag = part_status ^ 1;
+
+	if (boot_flag == 1)
+		snprintf(rootfs, sizeof(rootfs), "%sbak", rootfs);
+
+	*rootfs_id = get_partition_id(rootfs);
+
+	/* get system backup partition id */
+	part_status = (partstatus >> partition_status_flag(kernel)) & 0x1;
+	boot_flag = part_status ^ 1;
+
+	if (boot_flag == 1)
+		snprintf(kernel, sizeof(kernel), "%sbak", kernel);
+	*kernel_id = get_partition_id(kernel);
+
+	return;
 }
 
 unsigned int ota_check_update_success_flag(void)

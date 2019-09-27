@@ -323,8 +323,13 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 				VEEPROM_COUNT_SIZE);
 
 			if (count <= 0) {
-				/* system boot failed, enter recovery mode */
-				ota_recovery_mode_set();
+				if (strcmp(upmode, "AB") == 0) {
+					/* AB mode, boot system backup partition */
+					ota_ab_boot_bak_partition(&rootfs_id, &kernel_id);
+				} else {
+					/* golden mode, boot recovery system */
+					ota_recovery_mode_set();
+				}
 			} else {
 				/* get rootfs and kernel partition id */
 				rootfs_id = ota_uboot_update_check(rootfs);
