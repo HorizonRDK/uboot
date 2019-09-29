@@ -464,23 +464,6 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret;
     unsigned int reg_val;
-    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
-
-    if (boot_info->board_id == X2_MONO_BOARD_ID){
-		/* GPIO4   7 */
-	reg_val = readl(GPIO4_CFG);
-	reg_val |= 0x0000c000;
-	writel(reg_val, GPIO4_CFG);
-	reg_val = readl(GPIO4_DIR);
-	reg_val |= 0x00800000;
-	reg_val &= 0xffffff7f;
-	writel(reg_val, GPIO4_DIR);
-	printf("mono board reset phy...\n");
-	udelay(25000);
-	reg_val = readl(GPIO4_DIR);
-	reg_val |= 0x00800080;
-	writel(reg_val, GPIO4_DIR);
-    }
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -1250,9 +1233,26 @@ static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, type;
+    unsigned int reg_val;
+    struct x2_info_hdr* boot_info;
 
     debug("%s(dev=%p):\n", __func__, dev);
-
+	boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
+    if (boot_info->board_id == X2_MONO_BOARD_ID) {
+		/* GPIO4   7 */
+	reg_val = readl(GPIO4_CFG);
+	reg_val |= 0x0000c000;
+	writel(reg_val, GPIO4_CFG);
+	reg_val = readl(GPIO4_DIR);
+	reg_val |= 0x00800000;
+	reg_val &= 0xffffff7f;
+	writel(reg_val, GPIO4_DIR);
+	printf("mono board reset phy...\n");
+	udelay(25000);
+	reg_val = readl(GPIO4_DIR);
+	reg_val |= 0x00800080;
+	writel(reg_val, GPIO4_DIR);
+    }
     eqos->dev = dev;
     eqos->config = (void *)dev_get_driver_data(dev);
 
