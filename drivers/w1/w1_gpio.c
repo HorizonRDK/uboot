@@ -457,7 +457,6 @@ struct w1_master *w1_gpio_probe(struct w1_bus_master *bus_master, struct w1_gpio
 
 int w1_master_trigger_authentication(char*secret_buf,unsigned int cvalue)
 {
-        int ret =0;
         struct w1_slave *sl = NULL;
         struct w1_master *dev = master_total;
         sl = w1_slave_match_one(dev,0x4B);
@@ -470,7 +469,6 @@ int w1_master_trigger_authentication(char*secret_buf,unsigned int cvalue)
 
 int w1_master_setup_slave(struct w1_master *dev, u8 fid, char*buf,char *w_buf)
 {
-        int ret =0;
         struct w1_slave *sl = NULL;
         sl = w1_slave_match_one(dev,fid);
         if (!sl) {
@@ -485,7 +483,6 @@ int w1_master_setup_slave(struct w1_master *dev, u8 fid, char*buf,char *w_buf)
 
 int w1_master_load_key(struct w1_master *dev, u8 fid, char*w_buf,char *r_buf)
 {
-        int ret =0;
         struct w1_slave *sl = NULL;
         sl = w1_slave_match_one(dev,fid);
         if (!sl) {
@@ -496,97 +493,154 @@ int w1_master_load_key(struct w1_master *dev, u8 fid, char*w_buf,char *r_buf)
         return w1_ds28e1x_write_read_key(sl,w_buf,r_buf);
 }
 
+int w1_master_reset_write_auth_mode(struct w1_master *dev, u8 fid, uint8_t *key)
+{
+	int ret;
+	struct w1_slave *sl = NULL;
+	unsigned char id_buf[256], i;
+	unsigned char data[36] = {0x20, 0x10};
 
+	sl = w1_slave_match_one(dev, fid);
+	if (!sl) {
+		printf("match slave fail \n");
+		return -1;
+	}
 
-int w1_master_set_write_auth_mode(struct w1_master *dev, u8 fid) {
-    int ret;
-    struct w1_slave *sl = NULL;
-    //struct w1_master *dev = master_total;
-
-    sl = w1_slave_match_one(dev, fid);
-    if (!sl) {
-        printf("match slave fail \n");
-        return -1;
-    }
-
-    /* set block 0 Authentication Protection  */
-    ret = w1_ds28e1x_write_blockprotection(sl, 0, PROT_BIT_AUTHWRITE_WRITE);
-    if (ret<0) {
-        printf("write block 0 protect write fail: %d\n", ret);
-        return -1;
-    }
-
-    udelay_mod(5*1000);
-
-    /* set block 1 Authentication Protection  */
-    ret =  w1_ds28e1x_write_blockprotection(sl, 1, PROT_BIT_AUTHWRITE_WRITE);
-    if (ret < 0) {
-        printf("write block 1 protect write fail:%d\n", ret);
-        return -1;
-    }
-
-    udelay_mod(10*1000);
-
-    return 0;
-}
-
-int w1_master_auth_write_usr_mem(struct w1_master *dev, u8 fid,char* buf) {
-    char old_data[32];
-    char data[10] = {0};
-    char id_buf[256], manid[2];
-    int ret = 0;
-    int seg = 0;
-    int i = 0;
-
-    struct w1_slave *sl = NULL;
-    //struct w1_master *dev = master_total;
-
-    sl = w1_slave_match_one(dev, 0x4B);
-    if (!sl) {
-        printf("match slave fail \n");
-        return -1;
-    }
-
-    // read personality bytes to get manufacturer ID
 	while (i < 50) {
 		ret = w1_ds28e1x_read_status(sl, 0xE0, id_buf);
-		if (ret == 0) {
-            break;
-        }
+		if (ret == 0)
+			break;
+
 		udelay_mod(2*1000);
 		i++;
 	}
-    if (ret == 0) {
-        manid[0] = id_buf[3];
+
+	if (ret == 0) {
+		data[2] = id_buf[3];
+		data[3] = id_buf[2];
+	}
+
+	memcpy(data + 4, key, 32);
+
+	ret = w1_ds28e1x_write_authblockprotection(sl, data);
+	if (ret != 0) {
+	    printf("w1_ds28e1x_write_authblockprotection: %d\n", ret);
+	    return -1;
+	}
+
+	data[0] = 0x21;
+	ret = w1_ds28e1x_write_authblockprotection(sl, data);
+	if (ret != 0) {
+	    printf("w1_ds28e1x_write_authblockprotection: %d\n", ret);
+	    return -1;
+	}
+
+	udelay_mod(5 * 1000);
+
+	memset(id_buf, 0, 256);
+	while (i < 50) {
+		ret = w1_ds28e1x_read_status(sl, 0x0, id_buf);
+		if (ret == 0)
+			break;
+
+		udelay_mod(2*1000);
+		i++;
+	}
+
+	return 0;
+}
+
+int w1_master_set_write_auth_mode(struct w1_master *dev, u8 fid)
+{
+	int ret;
+	struct w1_slave *sl = NULL;
+
+	sl = w1_slave_match_one(dev, fid);
+	if (!sl) {
+		printf("match slave fail \n");
+		return -1;
+	}
+
+	/* set block 0 Authentication Protection  */
+	ret = w1_ds28e1x_write_blockprotection(sl, 0, PROT_BIT_AUTHWRITE_WRITE);
+	if (ret != 0) {
+		printf("write block 0 protect write fail: %d\n", ret);
+		return -1;
+	}
+
+	udelay_mod(5*1000);
+
+	/* set block 1 Authentication Protection  */
+	ret =  w1_ds28e1x_write_blockprotection(sl, 1, PROT_BIT_AUTHWRITE_WRITE);
+	if (ret != 0) {
+		printf("write block 1 protect write fail:%d\n", ret);
+		return -1;
+	}
+
+	udelay_mod(10*1000);
+
+	return 0;
+}
+
+int w1_master_auth_write_usr_mem(struct w1_master *dev, u8 fid,char* buf)
+{
+	char old_data[32];
+	char data[10] = {0};
+	char id_buf[256], manid[2];
+	int ret = 0;
+	int seg = 0;
+	int i = 0;
+
+	struct w1_slave *sl = NULL;
+	//struct w1_master *dev = master_total;
+
+	sl = w1_slave_match_one(dev, fid);
+	if (!sl) {
+		printf("match slave fail \n");
+		return -1;
+	}
+
+	// read personality bytes to get manufacturer ID
+	while (i < 50) {
+		ret = w1_ds28e1x_read_status(sl, 0xE0, id_buf);
+		if (ret == 0)
+			break;
+
+		udelay_mod(2*1000);
+		i++;
+	}
+
+	if (ret == 0) {
+		manid[0] = id_buf[3];
 		manid[1] = id_buf[2];
-    } else {
-        printf("get man-id fail.\n");
-        return -1;
-    }
+	} else {
+		printf("get man-id fail.\n");
+		return -1;
+	}
 
-    udelay_mod(5*1000);
+	udelay_mod(5*1000);
 
-    ret = w1_ds28e1x_get_buffer(sl, old_data, 10);
-    if (ret < 0) {
-        printf("get old usr info fail.\n");
-        return -1;
-    }
+	ret = w1_ds28e1x_get_buffer(sl, old_data, 10);
+	if (ret < 0) {
+		printf("get old usr info fail.\n");
+		return -1;
+	}
 
-    udelay_mod(5*1000);
+	udelay_mod(5*1000);
 
-    for (seg=0; seg<8; seg++) {
-        memcpy(&data[0], &buf[seg*4], 4);
-        memcpy(&data[4], &old_data[seg*4], 4);
-        memcpy(&data[8], manid, 2);
-        ret = w1_ds28e1x_write_authblock(sl, 0, seg, data, (seg==0)? 0 : 1);
-        if (ret < 0) {
-            printf("w1 write authblock fail:%d\n", ret);
-            return -1;
-        }
-        udelay_mod(2*1000);
-    }
+	for (seg = 0; seg < 8; seg++) {
+		memcpy(&data[0], &buf[seg * 4], 4);
+		memcpy(&data[4], &old_data[seg * 4], 4);
+		memcpy(&data[8], manid, 2);
+		ret = w1_ds28e1x_write_authblock(sl, 0, seg, data, (seg == 0) ? 0 : 1);
+		if (ret != 0) {
+		    printf("w1 write authblock fail:%d\n", ret);
+		    return -1;
+		}
+		udelay_mod(2*1000);
+	}
 
-    return 0;
+	return 0;
 }
 
 int w1_master_get_rom_id(struct w1_master *dev, u8 fid, char* rom_id) {

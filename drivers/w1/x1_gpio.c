@@ -16,7 +16,6 @@
 
 void control_gpio_5_3() 
 {
-    int ret;
     unsigned int reg_val;
 	reg_val = readl(GPIO5_CFG);
 	reg_val |= 0x00003000;  //设置为gpio模式

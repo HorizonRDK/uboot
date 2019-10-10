@@ -36,7 +36,7 @@
 #define CMD_WRITE_AUTH_PROTECT   0xCC
 #define CMD_PIO_READ             0xDD
 #define CMD_PIO_WRITE            0x96
-#define CMD_RELEASE		0xAA
+#define CMD_RELEASE		 0xAA
 
 #define BLOCK_READ_PROTECT       0x80
 #define BLOCK_WRITE_PROTECT      0x40
@@ -466,7 +466,7 @@ int w1_ds28e1x_write_authblock(struct w1_slave *sl, int page, int segment, uchar
 	cnt += 2;
 
 	// now wait for the MAC computation.
-        udelay_mod(SHA_COMPUTATION_DELAY*1000);
+        udelay_mod(SHA_COMPUTATION_DELAY * 1000);
 
 	if (!contflag) {
 		// check the first CRC16
@@ -496,11 +496,11 @@ int w1_ds28e1x_write_authblock(struct w1_slave *sl, int page, int segment, uchar
 	else
 	{
 		if (!calculate_write_authMAC256(page, segment, (char *)new_data, (char *)old_data, (char *)manid, &buf[0]))
-		return -1;
+			return -1;
 	}
 
 	// transmit MAC as a block - send the second 32bytes
-	cnt=0;
+	cnt = 0;
 	w1_write_block(sl->master, buf, 32);
 
 	// calculate CRC on MAC
@@ -513,14 +513,14 @@ int w1_ds28e1x_write_authblock(struct w1_slave *sl, int page, int segment, uchar
 	cnt = 3;
 
 	// ckeck CRC16
-	for (i = 0; i < (cnt-1); i++)
+	for (i = 0; i < (cnt - 1); i++)
 		docrc16(buf[i]);
 
 	if (slave_crc16 != 0xB001)
 		return -1;
 
 	// check CS
-	if (buf[cnt-1] != 0xAA)
+	if (buf[cnt - 1] != 0xAA)
 		return -1;
 
 	// send release and strong pull-up
@@ -528,7 +528,7 @@ int w1_ds28e1x_write_authblock(struct w1_slave *sl, int page, int segment, uchar
 	w1_write_block(sl->master, &buf[0], 1);
 
 	// now wait for the MAC computation.
-	udelay_mod(EEPROM_WRITE_DELAY*1000);
+	udelay_mod(EEPROM_WRITE_DELAY * 1000);
 
 	// read the CS byte
 	cs = w1_read_8(sl->master);
@@ -683,7 +683,7 @@ int w1_ds28e1x_read_memory(struct w1_slave *sl, int seg, int page, uchar *rdbuf,
 	}
 
 	buf[cnt++] = CMD_READ_MEMORY;
-	buf[cnt++] = (seg<<5) | page;	 // address
+	buf[cnt++] = (seg << 5) | page;	 // address
 
 	// Send command
 	w1_write_block(sl->master, &buf[0], 2);
@@ -695,8 +695,8 @@ int w1_ds28e1x_read_memory(struct w1_slave *sl, int seg, int page, uchar *rdbuf,
 	offset = cnt;
 
 	// read data and CRC16
-	w1_read_block(sl->master, &buf[cnt], length+2);
-	cnt+=length+2;
+	w1_read_block(sl->master, &buf[cnt], length + 2);
+	cnt += length + 2;
 
 	// check the first CRC16
 	slave_crc16 = 0;
@@ -723,10 +723,10 @@ int w1_ds28e1x_read_memory(struct w1_slave *sl, int seg, int page, uchar *rdbuf,
 	}
 
 	// copy the data to the read buffer
-        memcpy(rdbuf,&buf[offset],length);
+        memcpy(rdbuf, &buf[offset], length);
 
-        for (i=0;i<length;i++) {
-            printf("memory  %x \n",buf[offset+i]);
+        for (i = 0; i < length; i++) {
+            printf("memory  %x \n",buf[offset + i]);
 
         }
 	return 0;
@@ -1323,7 +1323,7 @@ int w1_ds28e1x_read_status(struct w1_slave *sl, int pbyte, uchar *rdbuf)
 	}
 
 	// copy the data to the read buffer
-	memcpy(rdbuf,&buf[offset],rdnum-4);
+	memcpy(rdbuf, &buf[offset], rdnum - 4);
 	//printf("ds28e1x_read_status ok !!\n");
 	return 0;
 }
@@ -1370,9 +1370,10 @@ int w1_ds28e1x_write_blockprotection(struct w1_slave *sl, uchar block, uchar pro
 		return -1;
 
 	// sent release
+	w1_write_8(sl->master, CMD_RELEASE);
 
 	// now wait for programming
-	udelay_mod(EEPROM_WRITE_DELAY*1000);
+	udelay_mod(8 * 1000);
 
 	// read the CS byte
 	cs = w1_read_8(sl->master);
@@ -1397,9 +1398,9 @@ int w1_ds28e1x_write_blockprotection(struct w1_slave *sl, uchar block, uchar pro
 //
 int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 {
-	uchar buf[256],cs,mt[64];
+	uchar buf[256], cs, mt[64];
 	int cnt=0, i;
-	int new_value, old_value;
+	uchar new_value, old_value;
 	uchar manid[2];
 
 	if (!sl)
@@ -1422,9 +1423,10 @@ int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 
 	// read first CRC
 	w1_read_block(sl->master, &buf[cnt], 2);
+	cnt += 2;
 
 	// now wait for the MAC computation.
-	udelay_mod(SHA_COMPUTATION_DELAY*1000);
+	udelay_mod(SHA_COMPUTATION_DELAY * 1000);
 
 	// check CRC16
 	slave_crc16 = 0;
@@ -1436,10 +1438,13 @@ int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 
 	// calculate MAC
 	// clear
-	memset(mt,0,64);
+	memset(mt, 0, 64);
+
+	// insert secret
+	memcpy(mt, data + 4, 32);
 
 	// insert ROM number
-	memcpy(&mt[32],rom_no,8);
+	memcpy(&mt[32], rom_no, 8);
 
 	// instert block and page
 	mt[43] = 0;
@@ -1468,8 +1473,11 @@ int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 	mt[50] = (new_value & PROT_BIT_WRITE) ? 0x01 : 0x00;
 	mt[51] = (new_value & PROT_BIT_READ) ? 0x01 : 0x00;
 
+	mt[52] = 0x80;
+	mt[60] = 0xB8;
+
 	// compute the mac
-	compute_mac256(mt, 55, &buf[0]);
+	compute_mac256(mt, 64, &buf[0]);
 	cnt = 32;
 
 	// send the MAC
@@ -1481,14 +1489,14 @@ int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 
 	// ckeck CRC16
 	slave_crc16 = 0;
-	for (i = 0; i < (cnt-1); i++)
+	for (i = 0; i < (cnt - 1); i++)
 		docrc16(buf[i]);
 
 	if (slave_crc16 != 0xB001)
 		return -1;
 
 	// check CS
-	if (buf[cnt-1] != 0xAA)
+	if (buf[cnt - 1] != 0xAA)
 		return -1;
 
 	// send release and strong pull-up
@@ -1496,9 +1504,7 @@ int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 	w1_write_8(sl->master, 0xAA);
 
 	// now wait for the MAC computation.
-	udelay_mod(EEPROM_WRITE_DELAY*1000);
-
-
+	udelay_mod(EEPROM_WRITE_DELAY * 1000);
 
 	// read the CS byte
 	cs = w1_read_8(sl->master);
@@ -1547,8 +1553,8 @@ int w1_ds28e1x_write_read_key(struct w1_slave *sl, char *secret_buf, char *r_buf
             return rt;
         }
 
-		set_secret(master_secret);
-		set_romid((unsigned char *)rom_no);
+	set_secret(master_secret);
+	set_romid((unsigned char *)rom_no);
 
          /* Load the master secret */
         rslt = w1_ds28e1x_load_secret(sl, 0);
@@ -1839,20 +1845,20 @@ static int w1_ds28e1x_add_slave(struct w1_slave *sl)
 	if (init_verify) {
 		if (skip_setup == 0) {
 
-            //in some race condition ofdevice search, setup may fail. so gurantee setup using re-try.
-            ii = 0;
-            while (ii < RETRY_LIMIT) {
-			err = w1_ds28e1x_setup_device(sl,NULL,NULL);
-			//err = w1_ds28e1x_setup_for_production(sl);
-			if (err == 0)
-				break;
+			//in some race condition ofdevice search, setup may fail. so gurantee setup using re-try.
+			ii = 0;
+			while (ii < RETRY_LIMIT) {
+				err = w1_ds28e1x_setup_device(sl,NULL,NULL);
+				//err = w1_ds28e1x_setup_for_production(sl);
+				if (err == 0)
+					break;
 
-			udelay_mod(10000);
-			ii++;
-	        }
+				udelay_mod(10000);
+				ii++;
+			}
 
-            if(err == 0)
-			skip_setup = 1;
+			if(err == 0)
+				skip_setup = 1;
 			err = w1_ds28e1x_verifymac(sl,NULL,0);
 			verification = err;
 		} else {

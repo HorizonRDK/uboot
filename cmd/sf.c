@@ -746,34 +746,41 @@ int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
     }
 
     /* first set the auth mode */
-        ret = w1_master_set_write_auth_mode(master_total,SECURE_IC_ID);
-    if (ret <0) {
+    ret = w1_master_set_write_auth_mode(master_total, SECURE_IC_ID);
+    if (ret != 0) {
         printf("burn_w1_master_set_write_auth_mode_error\n");
         printf("burn_key_failed\n");
         return 0;
     }
 
     /* decrypt to realy key */
-    hb_aes_decrypt(&secure_key[32], key_note, real_key, 32);
+    hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
     memcpy(&secure_key[32], real_key, 32);
 
-     /* load the secure key only */
-    ret = w1_master_load_key(master_total,SECURE_IC_ID,secure_key,NULL);
-
-    if (ret <0) {
+    /* load the secure key only */
+    ret = w1_master_load_key(master_total, SECURE_IC_ID, secure_key, NULL);
+    if (ret != 0) {
         printf("burn_key_w1_master_load_key_error\n");
         printf("burn_key_failed\n");
         return 0;
     }
 
-        /* load the usr_data */
-
-        ret = w1_master_auth_write_usr_mem(master_total,SECURE_IC_ID,secure_key);
-    if (ret <0) {
+    /* load the usr_data */
+    ret = w1_master_auth_write_usr_mem(master_total, SECURE_IC_ID, secure_key);
+    if (ret != 0) {
         printf("burn_key_w1_master_auth_write_usr_mem_error\n");
         printf("burn_key_failed\n");
         return 0;
     }
+
+    #if 0
+    ret = w1_master_reset_write_auth_mode(master_total, SECURE_IC_ID, real_key);
+    if (ret != 0) {
+        printf("w1_master_reset_write_auth_mode\n");
+        printf("burn_key_failed\n");
+        return 0;
+    }
+    #endif
 
     printf("burn_key_succeeded\n");
 
@@ -788,56 +795,54 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int cs = CONFIG_SF_DEFAULT_CS;
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
-    int ret = 0;
-    uint32_t	header,type,d_length,crc,c_crc;
-    uint8_t  package[SN_LEN] = {0};
-    //uint8_t  board_sn[SN_LEN] = {0};
-    uint32_t *p_pack = package;
-    unsigned long offset =0;
-    //unsigned long *buf =(unsigned long *)0x80000;
-	unsigned int sn_len = 0x0;
-	unsigned long *buf = &sn_buf[0];
+	int ret = 0;
+	uint32_t header,type,d_length,crc,c_crc;
+	uint8_t  package[SN_LEN] = {0};
+	uint32_t *p_pack = (uint32_t *)package;
+	unsigned long offset =0;
+	unsigned long *buf = (unsigned long *)&sn_buf[0];
 	memset(buf, 0, SN_LEN);	
-    offset = simple_strtoul(argv[1], NULL, 16);    /* sn data addr in ddr*/
-    memcpy(&package[0],(uint8_t *)offset,sizeof(package));
-    //nor_addrw = nor_addr_width();
-    flash =spi_flash_probe(bus, cs, speed,mode);
-    if (!flash) {
-        printf("burn_sn_initialize_spi_flash_error\n");
-        printf("burn_sn_failed\n");
-        return 0;
-    }
+	offset = simple_strtoul(argv[1], NULL, 16);    /* sn data addr in ddr*/
+	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
 
-    header = *p_pack;
-    type =	*(p_pack + TYPE_INDEX);
-    d_length =	*(p_pack + LENGTH_INDEX);
-    crc = *(p_pack + CRC_INDEX);
-
-    if (header != HEADER_FIX) {
-        printf("burn_sn_header_error\n");
-        printf("burn_sn_failed\n");
-        return 0;
-    }
-    if (type != SN_TYPE) {
-        printf("burn_sn_type_error\n");
-        printf("burn_sn_failed\n");
-        return 0;
-    }
-
-    if (d_length <= SN_LEN) {
-       //memcpy(&board_sn[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
-        memcpy(buf + 1,(uint8_t *)(p_pack + DATA_INDEX),d_length);
-    } else {
-        printf("burn_sn_length_error,sn > 1k\n");
-        printf("burn_sn_failed\n");
+	flash =spi_flash_probe(bus, cs, speed,mode);
+	if (!flash) {
+		printf("burn_sn_initialize_spi_flash_error\n");
+		printf("burn_sn_failed\n");
 		return 0;
-    }
+	}
+
+	header = *p_pack;
+	type =	*(p_pack + TYPE_INDEX);
+	d_length =	*(p_pack + LENGTH_INDEX);
+	crc = *(p_pack + CRC_INDEX);
+
+	if (header != HEADER_FIX) {
+		printf("burn_sn_header_error\n");
+		printf("burn_sn_failed\n");
+		return 0;
+	}
+	if (type != SN_TYPE) {
+		printf("burn_sn_type_error\n");
+		printf("burn_sn_failed\n");
+		return 0;
+	}
+
+	if (d_length <= SN_LEN) {
+		//memcpy(&board_sn[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
+		memcpy(buf + 1,(uint8_t *)(p_pack + DATA_INDEX),d_length);
+	} else {
+		printf("burn_sn_length_error,sn > 1k\n");
+		printf("burn_sn_failed\n");
+		return 0;
+	}
+
 	c_crc=check_Crc(0,&package[PACK_LEN],d_length);
-    if (crc !=c_crc){
-        printf("burn_sn_crc_error\n");
-        printf("burn_sn_failed\n");
-        return 0;
-    }
+	if (crc !=c_crc) {
+		printf("burn_sn_crc_error\n");
+		printf("burn_sn_failed\n");
+		return 0;
+	}
 
 	memcpy((uint32_t*)buf,&d_length,sizeof(uint32_t));
 	/*
@@ -848,7 +853,7 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 0;
 	}
 	*/
-    sn_len = *buf;
+
 	ret = veeprom_clear(SN_OFFSET, SN_LEN);
 	if (ret !=1) {  //ret = 1 for emmc , ret = 0 for norflash
 		printf("burn_sn_erase_flash_error\n");
@@ -871,7 +876,7 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 0;
 	}
 */
-    printf("burn_sn_succeeded\n");
+	printf("burn_sn_succeeded\n");
 	return 0;
 }
 
@@ -886,17 +891,14 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
 	unsigned int sn_len = 0x0;
 	uint8_t  board_sn[SN_LEN] = {0};
-	unsigned long *buf = &sn_buf[0];
+	unsigned long *buf = (unsigned long *)&sn_buf[0];
 	memset(buf, 0, SN_LEN);
 
-    //nor_addrw = nor_addr_width();
-    flash =spi_flash_probe(bus, cs, speed,mode);
-
-    if (!flash) {
-        printf("get sn Failed to initialize SPI flash\n");
-        return -1;
-    }
-	//ret = spi_flash_read(flash, f_offset, flash->sector_size, buf);
+	flash =spi_flash_probe(bus, cs, speed,mode);
+	if (!flash) {
+		printf("get sn Failed to initialize SPI flash\n");
+		return -1;
+	}
 
 	ret = veeprom_read(SN_OFFSET, (char *)buf, SN_LEN);
 	if (ret !=1) {
@@ -905,8 +907,8 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	}	
 	sn_len = *buf;
 	memcpy(&board_sn[0],(uint8_t *)(buf+1),sn_len);
-	
-    printf("len = %d, gsn:%send\n",sn_len, board_sn);
+
+	printf("len = %d, gsn:%send\n",sn_len, board_sn);
 
 	return 0;
 }

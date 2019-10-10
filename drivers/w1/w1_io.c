@@ -147,7 +147,7 @@ void w1_write_8(struct w1_master *dev, u8 byte)
 	else
 		for (i = 0; i < 8; ++i) {
 			if (i == 7)
-		       w1_pre_write(dev);
+				w1_pre_write(dev);
 			w1_touch_bit(dev, (byte >> i) & 0x1);
 		}
 	w1_post_write(dev);
@@ -231,8 +231,9 @@ u8 w1_read_8(struct w1_master *dev)
 	if (dev->bus_master->read_byte)
 		res = dev->bus_master->read_byte(dev->bus_master->data);
 	else
-		for (i = 0; i < 8; ++i)
+		for (i = 0; i < 8; ++i) {
 			res |= (w1_touch_bit(dev,1) << i);
+		}
 
 	return res;
 }
@@ -362,10 +363,10 @@ void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_cal
 		 */
 
 		if (w1_reset_bus(dev)) {
-				if (dev->search_count > 0) {
-                    dev->search_count--;
-                }
-		    printf("w1_reset_bus  error !!\n");
+			if (dev->search_count > 0)
+				dev->search_count--;
+
+			printf("w1_reset_bus  error !!\n");
 			break;
 		}
 
