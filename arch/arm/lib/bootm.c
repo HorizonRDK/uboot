@@ -362,7 +362,7 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 					    ES_TO_AARCH64);
 #endif
 	}
-#else
+#else   // else this armv7, not CONFIG_ARM64
 	unsigned long machid = gd->bd->bi_arch_number;
 	char *s;
 	void (*kernel_entry)(int zero, int arch, uint params);

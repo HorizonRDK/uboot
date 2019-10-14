@@ -657,10 +657,12 @@ static int initr_bedbug(void)
 static int  disable_cnn(void)
 {
 	u32 reg;
-
+#if	!defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X2A_FPGA)
 	/* Disable clock of CNN */
 	writel(0x33, X2_CNNSYS_CLKEN_CLR);
 	while (!((reg = readl(X2_CNNSYS_CLKOFF_STA)) & 0xF));
+
+#endif
 	udelay(5);
 
 	reg = readl(X2_PMU_VDD_CNN_CTRL) | 0x22;

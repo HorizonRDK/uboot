@@ -44,6 +44,7 @@
 #include <asm/arch-x2/x2_sysctrl.h>
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 /* GPIO PIN MUX */
+#if defined(CONFIG_TARGET_X2_FPGA) || defined(CONFIG_TARGET_X2)
 #define PIN_MUX_BASE    0xA6003000
 #define GPIO2_CFG (PIN_MUX_BASE + 0x20)
 #define GPIO2_DIR (PIN_MUX_BASE + 0x28)
@@ -51,7 +52,24 @@
 #define GPIO4_CFG (PIN_MUX_BASE + 0x40)
 #define GPIO4_DIR (PIN_MUX_BASE + 0x48)
 #define GPIO4_VAL (PIN_MUX_BASE + 0x4C)
-
+#else
+#define	PIN_MUX_BASE	0xA6004000
+#define	GPIO_EPHY_CLK	(PIN_MUX_BASE + 0x98)
+#define	GPIO_MDCK	(PIN_MUX_BASE+0x9C)
+#define GPIO_MDIO (PIN_MUX_BASE +0xA0)
+#define GPIO_RX_CLK (PIN_MUX_BASE +0xA4)
+#define GPIO_RGMII_RXD0 (PIN_MUX_BASE +0xA8)
+#define GPIO_RGMII_RXD1 (PIN_MUX_BASE +0xAC)
+#define GPIO_RGMII_RXD2 (PIN_MUX_BASE +0xB0)
+#define GPIO_RGMII_RXD3 (PIN_MUX_BASE +0xB4)
+#define GPIO_RGMII_RX_DV (PIN_MUX_BASE +0xB8)
+#define GPIO_RGMII_TX_CLK (PIN_MUX_BASE +0xBC)
+#define GPIO_RGMII_TXD0 (PIN_MUX_BASE +0xC0)
+#define GPIO_RGMII_TXD1 (PIN_MUX_BASE +0xC4)
+#define	 GPIO_RGMII_TXD2 (PIN_MUX_BASE +0xC8)
+#define GPIO_RGMII_TXD3 (PIN_MUX_BASE +0xCC)
+#define GPIO_RGMII_TX_EN (PIN_MUX_BASE +0xD0)
+#endif
 /* Core registers */
 
 #define ETH_1000M_DIV (0)
@@ -286,6 +304,9 @@ struct eqos_priv {
     bool started;
     bool reg_access_ok;
     unsigned is_88e6321;
+    phy_interface_t interface;
+    int speed;
+    int duplex;
 };
 
 /*
@@ -470,6 +491,7 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
 
     debug("%s(dev=%p):\n", __func__, dev);
 
+
     /* phy reset by gpio in furture */
 /*
     ret = dm_gpio_set_value(&eqos->phy_reset_gpio, 1);
@@ -487,6 +509,8 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
         return ret;
     }
 */
+#if  !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X2A_FPGA)
+
     ret = reset_assert(&eqos->reset_ctl);
     if (ret < 0) {
         pr_err("reset_assert() failed: %d", ret);
@@ -500,8 +524,8 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
         pr_err("reset_deassert() failed: %d", ret);
         return ret;
     }
-
     debug("%s: OK\n", __func__);
+#endif
     return 0;
 }
 
@@ -701,12 +725,16 @@ static int eqos_start(struct udevice *dev)
     const void *blob = gd->fdt_blob;
     int node = dev_of_offset(dev);
     int phy_addr = 0;
-
+	const char *phy_mode;
+	int fl_node;
     debug("%s(dev=%p):\n", __func__, dev);
 
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
 
+	val = readl(eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
+	val |= 0x3;
+	writel(val, eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
     ret = eqos_start_clks_tegra186(dev);
     if (ret < 0) {
         pr_err("eqos_start_clks_tegra186() failed: %d", ret);
@@ -722,33 +750,61 @@ static int eqos_start(struct udevice *dev)
     udelay(10);
 
     eqos->reg_access_ok = true;
-
+#if !defined(CONFIG_TARGET_X2A_FPGA) && !defined(CONFIG_TARGET_X2_FPGA)
     ret = wait_for_bit_le32(&eqos->dma_regs->mode,
                        EQOS_DMA_MODE_SWR, false, 10, false);
     if (ret) {
         pr_err("EQOS_DMA_MODE_SWR stuck");
         goto err_stop_resets;
     }
+#endif
+
     rate = eqos_get_tick_clk_rate_tegra186(dev);
     val = (rate / 1000000) - 1;
     writel(val, &eqos->mac_regs->us_tic_counter);
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
+#ifdef CONFIG_TARGET_X2A_FPGA
 
+	phy_mode = fdt_getprop(blob, node, "phy-mode", NULL);
+	if (phy_mode)
+		eqos->interface = phy_get_interface_by_name(phy_mode);
+	else
+		eqos->interface = 0;
+#if 0
+	fl_node = fdt_subnode_offset(blob, node, "fixed-link");
+
+	if (fl_node != -FDT_ERR_NOTFOUND) {
+		eqos->speed = fdtdec_get_int(blob, fl_node, "speed", 0);
+		eqos->duplex = fdtdec_get_bool(blob, fl_node, "full-duplex");
+	}
+
+	printf("%s, and speed:%d, duplex:%d\n", __func__, eqos->speed, eqos->duplex);
+#endif
+
+#endif
 	if (!eqos->is_88e6321) {
-		eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
+		// eqos->phy = phy_connect(eqos->mii, phy_addr, dev, 0);
+		eqos->phy = phy_connect(eqos->mii, phy_addr, dev, eqos->interface);
 		if (!eqos->phy || eqos->phy->drv->uid == 0xffffffff) {
 			eqos->is_88e6321 = 2;
 		} else {
 			fprintf(stdout, "Phy name:%s\n",eqos->phy->drv->name);
 			fprintf(stdout, "Phy uid:%x\n",eqos->phy->drv->uid);
 
+#if 0
+#ifdef CONFIG_TARGET_X2A_FPGA
+	eqos->phy->autoneg = AUTONEG_DISABLE;
+	eqos->phy->speed = eqos->speed;
+	eqos->phy->duplex = eqos->duplex;
+#endif
+#endif
+
 			ret = phy_config(eqos->phy);
 			if (ret < 0) {
 				pr_err("phy_config() failed: %d", ret);
 				goto err_shutdown_phy;
 			}
-
 			ret = phy_startup(eqos->phy);
 			if (ret < 0) {
 				pr_err("phy_startup() failed: %d", ret);
@@ -1241,9 +1297,12 @@ static int eqos_probe(struct udevice *dev)
     int ret, type;
     unsigned int reg_val;
     struct x2_info_hdr* boot_info;
+	int i;
+	unsigned char reg;
 
     debug("%s(dev=%p):\n", __func__, dev);
 	boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
+#if defined(CONFIG_TARGET_X2_FPGA) || defined(CONFIG_TARGET_X2)
     if (boot_info->board_id == X2_MONO_BOARD_ID) {
 		/* GPIO4   7 */
 	reg_val = readl(GPIO4_CFG);
@@ -1259,6 +1318,15 @@ static int eqos_probe(struct udevice *dev)
 	reg_val |= 0x00800080;
 	writel(reg_val, GPIO4_DIR);
     }
+#else
+	// printf("%s, before gpio\n",__func__);
+		for (i = 0x98; i < 0xD4; i += 4) {
+			reg = readl(PIN_MUX_BASE + i);
+			reg &= ~(0x03);
+			writel(reg, PIN_MUX_BASE +i);
+		}
+		// printf("%s, after gpio\n",__func__);
+#endif
     eqos->dev = dev;
     eqos->config = (void *)dev_get_driver_data(dev);
 
@@ -1300,7 +1368,10 @@ static int eqos_probe(struct udevice *dev)
     }
 
     /* set GPIO2 PINs to function0(RGMII) */
-    writel(0, GPIO2_CFG);
+
+	#if defined(CONFIG_TARGET_X2_FPGA) || defined(CONFIG_TARGET_X2)
+    		writel(0, GPIO2_CFG);
+	#endif
 
     type = get_product_id(eqos->mii, 0x12, 0);
     if (type == 0x3100)

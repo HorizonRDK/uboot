@@ -62,7 +62,7 @@ static void x2_boot_src_init(void)
 	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
 	x2_src_boot = PIN_2NDBOOT_SEL(reg);
 
-	printf("x2_gpio_boot_mode is %02x \n", x2_src_boot);
+	// printf("x2_gpio_boot_mode is %02x \n", x2_src_boot);
 }
 
 static void system_sdram_size_init(void)

@@ -649,7 +649,11 @@ static struct phy_driver M88E1118R_driver = {
 	.name = "Marvell 88E1118R",
 	.uid = 0x1410e40,
 	.mask = 0xffffff0,
+#ifdef CONFIG_TARGET_X2A_FPGA
+	.features = PHY_BASIC_FEATURES,
+#else
 	.features = PHY_GBIT_FEATURES,
+#endif
 	.config = &m88e1118_config,
 	.startup = &m88e1118_startup,
 	.shutdown = &genphy_shutdown,
