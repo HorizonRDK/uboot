@@ -84,7 +84,7 @@ static void sdio0_pin_mux_config(void)
 }
 static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 {
-#ifndef CONFIG_TARGET_X2_FPGA
+#if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X2A_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 
@@ -158,7 +158,7 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		return ret;
 
 #else
-#ifndef CONFIG_TARGET_X2_FPGA
+#if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X2A_FPGA)
 
 	ret = clk_get_by_index(dev, 0, &priv->div1_clk);
 	if (ret < 0) {

@@ -1062,6 +1062,13 @@ config TARGET_X2_FPGA
 	help
 	  Support for Hbot's x2 fpga.
 
+config TARGET_X2A_FPGA
+	bool "support Hobot X2A FPGA"
+	select ARM64
+	select OF_CONTROL
+	help
+	  support for hobot x2a fpga
+
 config TARGET_X2
 	bool "Support Horizon X2"
 	select ARM64
@@ -1532,6 +1539,7 @@ source "board/xilinx/zynq/Kconfig"
 source "board/xilinx/zynqmp/Kconfig"
 source "board/zipitz2/Kconfig"
 source "board/horizon/x2_fpga/Kconfig"
+source "board/horizon/x2a_fpga/Kconfig"
 source "board/horizon/x2/Kconfig"
 
 source "arch/arm/Kconfig.debug"
