@@ -701,11 +701,10 @@ static int apbooting(void)
 	char cmd[256] = { 0 };
 
 	bif_change_reset2gpio();
-	writel(DDRT_UBOOT_RDY_BIT, X2_SHARE_DDRT_CTRL);
-	mdelay(100);
-	if ((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 1) {
+	if (readl(X2_SHARE_BOOT_KERNEL_CTRL) == 0x5aa5) {
+		writel(DDRT_UBOOT_RDY_BIT, X2_SHARE_DDRT_CTRL);
 		printf("-- wait for kernel\n");
-		while (!((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 0));
+		while (!(readl(X2_SHARE_DDRT_CTRL) == 0)) {}
 		kernel_addr = readl(X2_SHARE_KERNEL_ADDR);
 		dtb_addr = readl(X2_SHARE_DTB_ADDR);
 		bif_recover_reset_func();
@@ -715,7 +714,7 @@ static int apbooting(void)
 		// run_command_list("booti 0x80000 - 0x10000000", -1, 0);
 	}
 	bif_recover_reset_func();
-    return 0;
+	return 0;
 }
 
 static int run_main_loop(void)
