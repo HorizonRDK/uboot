@@ -697,14 +697,22 @@ static int bif_change_reset2gpio(void)
 
 static int apbooting(void)
 {
+	unsigned int kernel_addr, dtb_addr;
+	char cmd[256] = { 0 };
+
 	bif_change_reset2gpio();
 	writel(DDRT_UBOOT_RDY_BIT, X2_SHARE_DDRT_CTRL);
 	mdelay(100);
 	if ((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 1) {
 		printf("-- wait for kernel\n");
 		while (!((readl(X2_SHARE_DDRT_CTRL) & DDRT_WR_RDY_BIT) == 0));
+		kernel_addr = readl(X2_SHARE_KERNEL_ADDR);
+		dtb_addr = readl(X2_SHARE_DTB_ADDR);
 		bif_recover_reset_func();
-		run_command_list("booti 0x80000 - 0x10000000", -1, 0);
+		snprintf(cmd, sizeof(cmd)-1, "booti 0x%x - 0x%x", kernel_addr, dtb_addr);
+		printf("cmd: %s\n", cmd);
+		run_command_list(cmd, -1, 0);
+		// run_command_list("booti 0x80000 - 0x10000000", -1, 0);
 	}
 	bif_recover_reset_func();
     return 0;

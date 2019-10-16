@@ -3,6 +3,8 @@
 
 #include <asm/arch/x2_reg.h>
 
+#define X2_SHARE_DTB_ADDR		(BIF_SPI_BASE + 0x068)
+#define X2_SHARE_KERNEL_ADDR	(BIF_SPI_BASE + 0x06C)
 #define X2_SHARE_DDRT_BOOT_TYPE	(BIF_SPI_BASE + 0x070)
 #define X2_SHARE_DDRT_CTRL		(BIF_SPI_BASE + 0x074)
 #define X2_SHARE_DDRT_FW_SIZE	(BIF_SPI_BASE + 0x078)
