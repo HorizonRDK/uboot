@@ -49,7 +49,7 @@
  */
 
 #include "w1/modes.h"
-//#include <string.h>
+#include "linux/string.h"
 #include "log.h"
 //#include <assert.h> //guoying
 

@@ -35,6 +35,7 @@
 #include "w1/aes.h"
 #include "w1/w1.h"
 #include "w1/aes_locl.h"
+#include "malloc.h"
 
 #define BYTE7 0xd3
 #define KEY_MASK 0x1a63b

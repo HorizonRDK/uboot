@@ -10,6 +10,8 @@
 #ifndef _LINUX_W1_GPIO_H
 #define _LINUX_W1_GPIO_H
 
+#include "w1/w1.h"
+
 /**
  * struct w1_gpio_platform_data - Platform-dependent data for w1-gpio
  * @pin: GPIO pin to use

@@ -20,10 +20,9 @@
  */
 
 #include "w1/w1.h"
+#include "linux/string.h"
 
 static int w1_delay_parm = 1;
-
-static int w1_disable_irqs = 1;
 
 static u8 w1_crc8_table[] = {
 	0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
@@ -43,6 +42,8 @@ static u8 w1_crc8_table[] = {
 	233, 183, 85, 11, 136, 214, 52, 106, 43, 117, 151, 201, 74, 20, 246, 168,
 	116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53
 };
+
+extern int printf(const char *fmt, ...);
 
 static void w1_delay(unsigned long tm)
 {
@@ -80,8 +81,6 @@ static u8 w1_touch_bit(struct w1_master *dev, int bit)
  */
 static void w1_write_bit(struct w1_master *dev, int bit)
 {
-	unsigned long flags = 0;
-
 	if (bit) {
 		dev->bus_master->write_bit(dev->bus_master->data, 0);
 		w1_delay(1);
@@ -162,7 +161,7 @@ void w1_write_8(struct w1_master *dev, u8 byte)
 static u8 w1_read_bit(struct w1_master *dev)
 {
 	int result;
-	unsigned long flags = 0;
+
 	/* sample timing is critical here */
 	dev->bus_master->write_bit(dev->bus_master->data, 0);
 	//w1_delay(1);
@@ -314,8 +313,7 @@ u8 w1_read_block(struct w1_master *dev, u8 *buf, int len)
  */
 int w1_reset_bus(struct w1_master *dev)
 {
-	int result;
-	unsigned long flags = 0;
+	int result = 0;
 
 	if (dev->bus_master->reset_bus) {
 		result = dev->bus_master->reset_bus(dev->bus_master->data) & 0x1;
@@ -336,23 +334,14 @@ u8 w1_calc_crc8(u8 * data, int len)
 
 void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb)
 {
-        u64 last_rn, rn, tmp64;
-	int i, slave_count = 0;
-	int last_zero, last_device;
-	int search_bit, desc_bit;
-	u8  triplet_ret = 0;
-        int ret =0;
+	u64 rn;
+	int slave_count = 0;
+	int last_device;
 
-	search_bit = 0;
 	rn = dev->search_id;
-	last_rn = 0;
 	last_device = 0;
-	last_zero = -1;
-
-	desc_bit = 64;
 
 	while ( !last_device && (slave_count++ < dev->max_slave_count) ) {
-		last_rn = rn;
 		rn = 0;
 
 		/*

@@ -15,7 +15,7 @@
 #include "linux/delay.h"
 #include "linux/string.h"
 #include "w1/x1_gpio.h"
-//#include "driver/timer.h"
+#include "w1/w1_ds28e1x.h"
 
 int w1_max_slave_count = 1;            /* suppose only one slave device */
 int w1_max_slave_ttl = 10;
@@ -27,7 +27,8 @@ extern struct w1_master                *master_total;
 
 /* 20 35 40 failed !!*/
 #define PROT_BIT_AUTHWRITE_WRITE	0x10
-
+#define PROT_BIT_WRITE_PROTECTION	0x40
+#define PROT_BIT_RESET			0x00
 
 struct w1_slave sl_satic;
 
@@ -493,12 +494,12 @@ int w1_master_load_key(struct w1_master *dev, u8 fid, char*w_buf,char *r_buf)
         return w1_ds28e1x_write_read_key(sl,w_buf,r_buf);
 }
 
-int w1_master_reset_write_auth_mode(struct w1_master *dev, u8 fid, uint8_t *key)
+int w1_master_auth_write_block_protection(struct w1_master *dev, u8 fid, uint8_t *key)
 {
 	int ret;
 	struct w1_slave *sl = NULL;
-	unsigned char id_buf[256], i;
-	unsigned char data[36] = {0x20, 0x10};
+	unsigned char id_buf[256], i = 0;
+	unsigned char data[32] = {0};
 
 	sl = w1_slave_match_one(dev, fid);
 	if (!sl) {
@@ -522,29 +523,20 @@ int w1_master_reset_write_auth_mode(struct w1_master *dev, u8 fid, uint8_t *key)
 
 	memcpy(data + 4, key, 32);
 
+	data[0] = 0x10;
+	data[1] = 0x10;
 	ret = w1_ds28e1x_write_authblockprotection(sl, data);
 	if (ret != 0) {
 	    printf("w1_ds28e1x_write_authblockprotection: %d\n", ret);
 	    return -1;
 	}
 
-	data[0] = 0x21;
+	data[0] = 0x11;
+	data[1] = 0x11;
 	ret = w1_ds28e1x_write_authblockprotection(sl, data);
 	if (ret != 0) {
 	    printf("w1_ds28e1x_write_authblockprotection: %d\n", ret);
 	    return -1;
-	}
-
-	udelay_mod(5 * 1000);
-
-	memset(id_buf, 0, 256);
-	while (i < 50) {
-		ret = w1_ds28e1x_read_status(sl, 0x0, id_buf);
-		if (ret == 0)
-			break;
-
-		udelay_mod(2*1000);
-		i++;
 	}
 
 	return 0;
@@ -582,11 +574,103 @@ int w1_master_set_write_auth_mode(struct w1_master *dev, u8 fid)
 	return 0;
 }
 
+int w1_master_set_write_mode_for_test(struct w1_master *dev, u8 fid)
+{
+	int ret;
+	struct w1_slave *sl = NULL;
+
+	sl = w1_slave_match_one(dev, fid);
+	if (!sl) {
+		printf("match slave fail \n");
+		return -1;
+	}
+
+	/* set block 0 Write Protection  */
+	ret = w1_ds28e1x_write_blockprotection(sl, 0, PROT_BIT_WRITE_PROTECTION);
+	if (ret != 0) {
+		printf("write block 0 protect write fail: %d\n", ret);
+		return -1;
+	}
+
+	udelay_mod(5*1000);
+
+	/* set block 1 Write Protection  */
+	ret =  w1_ds28e1x_write_blockprotection(sl, 1, PROT_BIT_WRITE_PROTECTION);
+	if (ret != 0) {
+		printf("write block 1 protect write fail:%d\n", ret);
+		return -1;
+	}
+
+	udelay_mod(5*1000);
+
+	/* reset block 0 Write Protection  */
+	ret = w1_ds28e1x_write_blockprotection(sl, 0, PROT_BIT_RESET);
+	if (ret != 0) {
+		printf("write block 0 protect write fail: %d\n", ret);
+		return -1;
+	}
+
+	udelay_mod(5*1000);
+
+	/* reset block 1 Write Protection  */
+	ret =  w1_ds28e1x_write_blockprotection(sl, 1, PROT_BIT_RESET);
+	if (ret != 0) {
+		printf("write block 1 protect write fail:%d\n", ret);
+		return -1;
+	}
+
+	udelay_mod(5*1000);
+
+	return 0;
+}
+
+int w1_master_get_write_auth_mode(struct w1_master *dev, u8 fid, unsigned char *buf)
+{
+	int ret, i = 0;
+	struct w1_slave *sl = NULL;
+
+	sl = w1_slave_match_one(dev, fid);
+	if (!sl) {
+		printf("match slave fail \n");
+		return -1;
+	}
+
+	while (i < 50) {
+		ret = w1_ds28e1x_read_status(sl, 0x0, buf);
+		if (ret == 0)
+			break;
+
+		udelay_mod(2*1000);
+		i++;
+	}
+
+	for (i = 0; i < 6; i++)
+		printf("0x%x ", buf[i]);
+	printf("\n");
+
+	return 0;
+}
+
+int w1_master_is_write_auth_mode(struct w1_master *dev, u8 fid, int *yes)
+{
+	unsigned char buf[16];
+	int ret;
+
+	*yes = 0;
+	ret = w1_master_get_write_auth_mode(dev, fid, buf);
+	if (ret == 0) {
+		if (buf[0] & 0x10 || buf[1] & 0x10)
+			*yes = 1;
+	}
+
+	return ret;
+}
+
 int w1_master_auth_write_usr_mem(struct w1_master *dev, u8 fid,char* buf)
 {
-	char old_data[32];
-	char data[10] = {0};
-	char id_buf[256], manid[2];
+	uchar old_data[32];
+	uchar data[10] = {0};
+	uchar id_buf[256], manid[2];
 	int ret = 0;
 	int seg = 0;
 	int i = 0;
@@ -643,7 +727,8 @@ int w1_master_auth_write_usr_mem(struct w1_master *dev, u8 fid,char* buf)
 	return 0;
 }
 
-int w1_master_get_rom_id(struct w1_master *dev, u8 fid, char* rom_id) {
+int w1_master_get_rom_id(struct w1_master *dev, u8 fid, char* rom_id)
+{
     struct w1_slave *sl = NULL;
 
     sl = w1_slave_match_one(dev, fid);

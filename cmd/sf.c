@@ -630,7 +630,7 @@ enum pack_index {
     MAX_STATES = 0x0F
 };
 
-struct w1_master                 *master_total =NULL;
+struct w1_master                 *master_total = NULL;
 struct w1_bus_master              bus_master;
 struct w1_gpio_platform_data      pdata_sf;
 
@@ -690,102 +690,108 @@ int w1_init_setup(void)
 int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
                 char * const argv[])
 {
-    int ret = 0;
-    unsigned long offset;
-    uint32_t header,type,d_length,crc,c_crc;
-    uint8_t  package[SECURE_KEY_LEN] = {0};
-    uint8_t  secure_key[SECURE_KEY_LEN] ={0};
-    uint32_t *p_pack = (uint32_t *)package;
-    uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
-    uint8_t real_key[32] = {0};
+	int ret = 0, has_auth;
+	unsigned long offset;
+	uint32_t header,type,d_length,crc,c_crc;
+	uint8_t  package[SECURE_KEY_LEN] = {0};
+	uint8_t  secure_key[SECURE_KEY_LEN] ={0};
+	uint32_t *p_pack = (uint32_t *)package;
+	uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
+	uint8_t real_key[32] = {0};
 
-    if (!mark_register_cnt)
-        ret = w1_init_setup();
+	if (!mark_register_cnt)
+	ret = w1_init_setup();
 
-    if (ret <0) {
-        printf("burn_key_w1_init_setup_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
-    mark_register_cnt =1;
+	if (ret < 0) {
+		printf("burn_key_w1_init_setup_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+	mark_register_cnt =1;
 
-    offset = simple_strtoul(argv[1], NULL, 16);    /* secure data addr in ddr*/
+	offset = simple_strtoul(argv[1], NULL, 16);    /* secure data addr in ddr*/
 
-    memcpy(&package[0],(uint8_t *)offset,sizeof(package));
+	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
 
-    header = *p_pack;
-    type =  *(p_pack + TYPE_INDEX);
-    d_length =  *(p_pack + LENGTH_INDEX);
-    crc = *(p_pack + CRC_INDEX);
+	header = *p_pack;
+	type =  *(p_pack + TYPE_INDEX);
+	d_length =  *(p_pack + LENGTH_INDEX);
+	crc = *(p_pack + CRC_INDEX);
 
-    if (header != HEADER_FIX) {
-        printf("burn_key_header_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	if (header != HEADER_FIX) {
+		printf("burn_key_header_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    if (type != SECURE_KEY_TYPE) {
-        printf("burn_key_type_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	if (type != SECURE_KEY_TYPE) {
+		printf("burn_key_type_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    if (d_length <= SECURE_KEY_LEN) {
-        memcpy(&secure_key[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
-    } else {
-        printf("burn_key_length_error, length > 1k\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	if (d_length <= SECURE_KEY_LEN) {
+		memcpy(&secure_key[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
+	} else {
+		printf("burn_key_length_error, length > 1k\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    c_crc=check_Crc(0,&package[PACK_LEN],d_length);
-    if (crc !=c_crc){
-        printf("burn_key_crc_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	c_crc=check_Crc(0,&package[PACK_LEN],d_length);
+	if (crc !=c_crc){
+		printf("burn_key_crc_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    /* first set the auth mode */
-    ret = w1_master_set_write_auth_mode(master_total, SECURE_IC_ID);
-    if (ret != 0) {
-        printf("burn_w1_master_set_write_auth_mode_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	ret = w1_master_is_write_auth_mode(master_total, SECURE_IC_ID, &has_auth);
+	if (ret != 0) {
+		printf("w1_master_is_write_auth_mode failed\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    /* decrypt to realy key */
-    hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
-    memcpy(&secure_key[32], real_key, 32);
+	/* decrypt to realy key */
+	hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
+	memcpy(&secure_key[32], real_key, 32);
 
-    /* load the secure key only */
-    ret = w1_master_load_key(master_total, SECURE_IC_ID, secure_key, NULL);
-    if (ret != 0) {
-        printf("burn_key_w1_master_load_key_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	/* load the secure key only */
+	ret = w1_master_load_key(master_total, SECURE_IC_ID, secure_key, NULL);
+	if (ret != 0) {
+		printf("burn_key_w1_master_load_key_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    /* load the usr_data */
-    ret = w1_master_auth_write_usr_mem(master_total, SECURE_IC_ID, secure_key);
-    if (ret != 0) {
-        printf("burn_key_w1_master_auth_write_usr_mem_error\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
+	/* load the usr_data */
+	ret = w1_master_auth_write_usr_mem(master_total, SECURE_IC_ID, secure_key);
+	if (ret != 0) {
+		printf("burn_key_w1_master_auth_write_usr_mem_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
 
-    #if 0
-    ret = w1_master_reset_write_auth_mode(master_total, SECURE_IC_ID, real_key);
-    if (ret != 0) {
-        printf("w1_master_reset_write_auth_mode\n");
-        printf("burn_key_failed\n");
-        return 0;
-    }
-    #endif
+	if (has_auth) {
+		ret = w1_master_auth_write_block_protection(master_total, SECURE_IC_ID, real_key);
+		if (ret != 0) {
+			printf("w1_master_auth_write_block_protection\n");
+			printf("burn_key_failed\n");
+			return 0;
+		}
+	} else {
+		/* first set the auth mode */
+		ret = w1_master_set_write_auth_mode(master_total, SECURE_IC_ID);
+		if (ret != 0) {
+			printf("burn_w1_master_set_write_auth_mode_error\n");
+			printf("burn_key_failed\n");
+			return 0;
+		}
+	}
 
-    printf("burn_key_succeeded\n");
+	printf("burn_key_succeeded\n");
 
-    return 0;
-
+	return 0;
 }
 
 int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,

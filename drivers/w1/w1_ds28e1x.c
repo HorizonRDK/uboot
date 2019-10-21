@@ -1508,7 +1508,7 @@ int w1_ds28e1x_write_authblockprotection(struct w1_slave *sl, uchar *data)
 
 	// read the CS byte
 	cs = w1_read_8(sl->master);
-
+	printf("<%s: %d>cs = 0x%x\n", __FUNCTION__, __LINE__, cs);
 	if (cs == 0xAA)
 		return 0;
 	else
@@ -1528,9 +1528,6 @@ unsigned int d_calculateCrossCheckValue(unsigned int cvalue)
     w = w ^ (w>>19) ^ t ^ (t>>8);
     return w;
 }
-
-
-
 
 int w1_ds28e1x_write_read_key(struct w1_slave *sl, char *secret_buf, char *r_buf)
 {
@@ -1696,7 +1693,7 @@ success:
 int w1_ds28e1x_setup_device(struct w1_slave *sl, char *secret_buf, char *binding)
 {
 	int rslt,rt;
-	uchar buf[256], manid[2];
+	uchar buf[256];
 
 	/* this write key and data function useless when in release version (fixed key and data) by wilbur  */
    #if  0
@@ -1740,11 +1737,7 @@ int w1_ds28e1x_setup_device(struct w1_slave *sl, char *secret_buf, char *binding
 	// read personality bytes to get manufacturer ID
 
 	rslt = w1_ds28e1x_read_status(sl, 0xE0, buf);
-	if (rslt == 0) {
-		manid[0] = buf[3];
-		manid[1] = buf[2];
-	}
-	else{
+	if (rslt != 0) {
 		rt = -1;
 		printf("ds28e1x_setup_device read_status error %d\n",rt);
 		goto end;
@@ -1819,7 +1812,6 @@ void w1_ds28e1x_get_rom_id(char* rom_id) {
 
 //static int w1_ds28e1x_get_buffer(struct w1_slave *sl, uchar *rdbuf, int retry_limit)
 int w1_ds28e1x_get_buffer(struct w1_slave *sl, uchar *rdbuf, int retry_limit)
-
 {
 	int ret = -1, retry = 0;
 

@@ -1,9 +1,7 @@
 #include <stdlib.h>
-//#include <string.h>
-//#include "assert.h"	//guoying
 #include "w1/hobot_aes.h"
+#include "log.h"
 
-// sizeof(out) = (sizeof(in) + AES_BLOCK_SIZE - 1) & ~AES_BLOCK_SIZE
 int hb_aes_encrypt(char* in, char* key, char* out, int len) {
 
         int i =15;

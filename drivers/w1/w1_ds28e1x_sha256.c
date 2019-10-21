@@ -11,12 +11,8 @@
  * published by the Free Software Foundation.
  *
  */
-
-
-//#include <linux/string.h>
-//#include <linux/memory.h>
-
 #include "w1/w1_ds28e1x_sha256.h"
+#include "linux/string.h"
 
 #define SHA_256_INITIAL_LENGTH    8
 
@@ -47,6 +43,8 @@ void sha_writeResult(ushort reverse, uchar* outpointer);
 ulong sha_getW(int index);
 void sha_prepareSchedule(uchar* message);
 void sha256_hashblock(uchar* message, ushort lastblock);
+
+extern int printf(const char *fmt, ...);
 
 // hold secret for creating a
 static uchar secret[32];

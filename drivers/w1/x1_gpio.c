@@ -7,14 +7,17 @@
 #include "w1/x1_gpio.h"
 #include "linux/types.h"
 #include <asm/io.h>
+#include "linux/delay.h"
+
 /* GPIO PIN MUX */
 #define PIN_MUX_BASE    0xA6003000
 #define GPIO5_CFG (PIN_MUX_BASE + 0x50)
 #define GPIO5_DIR (PIN_MUX_BASE + 0x58)
 #define GPIO5_VAL (PIN_MUX_BASE + 0x5C)
 
+extern int printf(const char *fmt, ...);
 
-void control_gpio_5_3() 
+void control_gpio_5_3(void)
 {
     unsigned int reg_val;
 	reg_val = readl(GPIO5_CFG);
