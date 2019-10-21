@@ -2,9 +2,11 @@
     "linters": {
         "c": {
             "type": "cpplint",
-	    "severity":{
-		"whitespace/tab": "disabled"
-	    },
+            "severity":{
+                "whitespace/tab": "disabled",
+                "whitespace/comments": "disabled",
+                "readability/casting": "disabled"
+            },
             "flags": ["--extensions=h,c"],
             "include": ["(\\.h$)", "(\\.c$)"]
         }
