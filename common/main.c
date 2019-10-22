@@ -34,6 +34,8 @@ extern int boot_stage_mark(int stage);
 extern unsigned int x2_src_boot;
 extern unsigned int sys_sdram_size;
 extern struct spi_flash *flash;
+bool recovery_sys_enable = true;
+
 int x2j2_get_boardid(void)
 {
 	int board_id;
@@ -406,7 +408,8 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 				/* system boot failed, enter recovery mode */
 				ota_recovery_mode_set();
 
-				load_imggz = false;
+				if (recovery_sys_enable)
+					load_imggz = false;
 			}
 		} else if (strcmp(boot_reason, "recovery") == 0) {
 			/* boot_reason is 'recovery', enter recovery mode */
@@ -474,6 +477,7 @@ static void x2_env_and_boardid_init(void)
 	struct x2_info_hdr *x2_board_type;
 	struct x2_kernel_hdr *x2_kernel_conf;
 	char *s = NULL;
+	char boot_reason[64] = { 0 };
 
 	/* load config dtb_mapping */
 	x2_dtb_mapping_load();
@@ -509,6 +513,19 @@ static void x2_env_and_boardid_init(void)
 
 	printf("fdtimage = %s\n", s);
 	env_set("fdtimage", s);
+
+	/* init env recovery_sys_enable */
+	s = env_get("recovery_system");
+	if (strcmp(s, "disable") == 0) {
+		recovery_sys_enable = false;
+
+		/* config resetreason */
+		veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+			VEEPROM_RESET_REASON_SIZE);
+		if (strcmp(boot_reason, "recovery") == 0)
+			veeprom_write(VEEPROM_RESET_REASON_OFFSET, "normal",
+			VEEPROM_RESET_REASON_SIZE);
+	}
 
 	/* mmc or nor env init */
 	if (x2_src_boot == PIN_2ND_EMMC)

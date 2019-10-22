@@ -40,6 +40,7 @@ static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 static int curr_device = 0;
 extern unsigned int x2_src_boot;
 extern struct spi_flash *flash;
+extern bool recovery_sys_enable;
 
 int get_emmc_size(uint64_t *size)
 {
@@ -498,13 +499,15 @@ void ota_recovery_mode_set(void)
 	char *s = NULL;
 	char boot_reason[16] = "recovery";
 
-	veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+	if (recovery_sys_enable) {
+		veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 				VEEPROM_RESET_REASON_SIZE);
 
-	if (x2_src_boot == PIN_2ND_EMMC) {
-		/* env bootfile set*/
-		s = "recovery.gz\0";
-		env_set("bootfile", s);
+		if (x2_src_boot == PIN_2ND_EMMC) {
+			/* env bootfile set*/
+			s = "recovery.gz\0";
+			env_set("bootfile", s);
+		}
 	}
 }
 
