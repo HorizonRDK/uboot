@@ -497,6 +497,14 @@ config DOWNLOAD_MODE
 	help
 	  Enable this will not init env and close read/write veeprom.
 	  This is for download tools.
+
+config AP_CP_COMN_MODE
+        bool "enable for AP-CP communication"
+        default n
+        help
+          Enable this will into ap-cp communication mode. CP can execute commands which from AP.
+          This is for AP burn image and run command in uboot command line mode.
+
 endmenu		# Boot images
 
 source "api/Kconfig"

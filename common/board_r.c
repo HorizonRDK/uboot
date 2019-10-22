@@ -56,6 +56,7 @@
 #include <asm/arch/x2_sysctrl.h>
 #include <asm/arch/x2_pmu.h>
 #include <asm/arch/x2_share.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 extern int boot_stage_mark(int stage);
@@ -717,6 +718,117 @@ static int apbooting(void)
 	return 0;
 }
 
+#ifdef CONFIG_AP_CP_COMN_MODE
+struct x2_ap_comn_handle{
+	unsigned int magic[4];		/* 0xFEFEFEFE */
+	unsigned int cmd_status[4]; /* 0: free 1: ready 2: running 3:finish */
+	unsigned int cmd_result[4]; /* 0: success  1: failed  */
+};
+
+#define AP_CP_COMN_ADDR (X2_BOOTINFO_ADDR)
+#define AP_BUF_ADDR (AP_CP_COMN_ADDR + 0x200)
+#define CP_BUF_ADDR (AP_CP_COMN_ADDR + 0x300)
+#define STATUS_READ 0
+#define STATUS_WRITE 1
+
+static void receive_msg(char *buf, unsigned int size)
+{
+	if (NULL == buf)
+		return;
+
+	memcpy(buf, (void *)AP_BUF_ADDR, size);
+}
+
+static void send_msg(char *buf, unsigned int size)
+{
+	if (NULL == buf)
+		return;
+
+	memcpy((void *)CP_BUF_ADDR, buf, size);
+}
+
+static void x2_handle_status(struct x2_ap_comn_handle *handle,
+	unsigned int flag)
+{
+	if (NULL == handle)
+		return;
+
+	/* 0: read  1: write */
+	if (flag == 0)
+		memcpy(handle, (void *)AP_CP_COMN_ADDR, sizeof(struct x2_ap_comn_handle));
+	else
+		memcpy((void *)AP_CP_COMN_ADDR, handle, sizeof(struct x2_ap_comn_handle));
+}
+
+static int x2_ap_communication(void)
+{
+	char receive_info[256] = { 0 };
+	char send_info[256] = { 0 };
+	int ret = 0;
+	char cache_off[32] = "dcache off";
+	struct x2_ap_comn_handle handle = { 0 };
+
+	/* magic check */
+	x2_handle_status(&handle, STATUS_READ);
+	if (handle.magic[0] != 0xFEFEFEFE)
+		return 0;
+
+	/* close uboot dcache */
+	run_command_list(cache_off, -1, 0);
+
+	/* init handle */
+	handle.cmd_status[0] = 0;
+	handle.cmd_result[0] = 0;
+
+	/* update status to memory */
+	x2_handle_status(&handle, STATUS_WRITE);
+
+	printf("***** uboot AP-CP communication mode ! *****\n");
+	printf("***** waiting cmd from AP: *****\n");
+
+	while(1) {
+		/* read status */
+		x2_handle_status(&handle, STATUS_READ);
+
+		if (handle.cmd_status[0] == 0 || handle.cmd_status[0] == 3) {
+			mdelay(1000);
+		} else {
+			/* read cmd from buffer */
+			receive_msg(receive_info, sizeof(receive_info));
+			snprintf(receive_info, sizeof(receive_info), "%s", receive_info);
+
+			/* update status */
+			handle.cmd_status[0] = 2;
+			x2_handle_status(&handle, STATUS_WRITE);
+
+			/* run command */
+			printf("receive_cmd : %s\n", receive_info);
+			printf("run cmd : \n");
+			ret = run_command_list(receive_info, -1, 0);
+			if (ret != 0) {
+				handle.cmd_result[0] = 1;
+				snprintf(send_info, sizeof(send_info), "CP run cmd failed! ");
+			} else {
+				handle.cmd_result[0] = 0;
+				snprintf(send_info, sizeof(send_info), "CP run cmd success! ");
+			}
+
+			/* send info */
+			send_msg(send_info, sizeof(send_info));
+
+			/* update status */
+			handle.cmd_status[0] = 3;
+			x2_handle_status(&handle, STATUS_WRITE);
+
+			printf("run cmd finish !\n");
+			printf("***** waiting cmd from AP: *****\n");
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static int run_main_loop(void)
 {
 #ifdef CONFIG_SANDBOX
@@ -933,6 +1045,9 @@ static init_fnc_t init_sequence_r[] = {
 	disable_cnn,
 	bif_recover_reset_func,
 	apbooting,
+#ifdef	CONFIG_AP_CP_COMN_MODE
+	x2_ap_communication,
+#endif
 	run_main_loop,
 };
 
