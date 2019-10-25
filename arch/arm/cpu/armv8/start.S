@@ -184,6 +184,7 @@ slave_cpu:
 	ldr	x1, =CPU_RELEASE_ADDR
 	ldr	x0, [x1]
 	cbz	x0, slave_cpu
+	str     xzr, [x1]
 	br	x0			/* branch to the given address */
 #endif /* CONFIG_ARMV8_MULTIENTRY */
 master_cpu:
