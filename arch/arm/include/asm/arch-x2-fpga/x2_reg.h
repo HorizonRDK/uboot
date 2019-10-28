@@ -17,4 +17,7 @@
 
 #define PMU_SYSCNT_BASE		(0xA6001000)
 
+#define SPACC_BASE	(0xB2100000)
+#define PKA_BASE	(0xA1018000)
+
 #endif /* __ASM_ARCH_X2_REG_H__ */

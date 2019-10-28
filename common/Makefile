@@ -17,6 +17,9 @@ ifdef CONFIG_BOOT_RETRY_TIME
 obj-y += bootretry.o
 endif
 
+# cipher
+obj-y += x2a_crypt.o
+
 # # boards
 obj-y += board_f.o
 obj-y += board_r.o
