@@ -696,10 +696,18 @@ static int bif_change_reset2gpio(void)
 	return 0;
 }
 
+#define X2_AP_ROOTFS_TYPE_NONE			1
+#define X2_AP_ROOTFS_TYPE_CPIO			2
+#define X2_AP_ROOTFS_TYPE_SQUASHFS		3
+#define X2_AP_ROOTFS_TYPE_CRAMFS		4
+
 static int apbooting(void)
 {
-	unsigned int kernel_addr, dtb_addr;
+	unsigned int kernel_addr, dtb_addr, initrd_addr, rootfstype;
 	char cmd[256] = { 0 };
+	char *rootfstype_str;
+	char *squashfs_str = "squashfs";
+	char *cramfs_str = "cramfs";
 
 	bif_change_reset2gpio();
 	if (readl(X2_SHARE_BOOT_KERNEL_CTRL) == 0x5aa5) {
@@ -708,7 +716,21 @@ static int apbooting(void)
 		while (!(readl(X2_SHARE_DDRT_CTRL) == 0)) {}
 		kernel_addr = readl(X2_SHARE_KERNEL_ADDR);
 		dtb_addr = readl(X2_SHARE_DTB_ADDR);
+		rootfstype = readl(X2_SHARE_ROOTFSTYPE_ADDR);
+		initrd_addr = readl(X2_SHARE_INITRD_ADDR);
 		bif_recover_reset_func();
+		// set bootargs if input rootfs is cramfs or squashfs
+		if ((X2_AP_ROOTFS_TYPE_SQUASHFS == rootfstype)
+				|| (X2_AP_ROOTFS_TYPE_CRAMFS == rootfstype)) {
+			if (X2_AP_ROOTFS_TYPE_SQUASHFS == rootfstype)
+				rootfstype_str = squashfs_str;
+			else
+				rootfstype_str = cramfs_str;
+			snprintf(cmd, sizeof(cmd)-1, "earlycon console=ttyS0 clk_ignore_unused "
+					"root=/dev/ram0 ro initrd=0x%x,100M rootfstype=%s rootwait",
+					initrd_addr, rootfstype_str);
+			env_set("bootargs", cmd);
+		}
 		snprintf(cmd, sizeof(cmd)-1, "booti 0x%x - 0x%x", kernel_addr, dtb_addr);
 		printf("cmd: %s\n", cmd);
 		run_command_list(cmd, -1, 0);
