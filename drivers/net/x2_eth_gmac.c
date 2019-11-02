@@ -41,7 +41,7 @@
 #include <wait_bit.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+#include <asm/arch/x2_sysctrl.h>
 
 /* GPIO PIN MUX */
 #define PIN_MUX_BASE    0xA6003000
@@ -54,6 +54,9 @@
 
 /* Core registers */
 
+#define ETH_1000M_DIV (0)
+#define ETH_100M_DIV (4)
+#define SET_ETH_DIV_CLK(div, x) ((x & (~0x00000700)) + (div << 8))
 #define EQOS_MAC_REGS_BASE 0x000
 struct eqos_mac_regs {
     uint32_t configuration;				/* 0x000 */
@@ -588,6 +591,7 @@ static int eqos_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, duplex, speed;
+	unsigned int mdiv = readl(X2_ETH0_CLK_CTRL);
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -606,9 +610,11 @@ static int eqos_adjust_link(struct udevice *dev)
     switch (speed) {
     case SPEED_1000:
         ret = eqos_set_gmii_speed(dev);
+	writel(SET_ETH_DIV_CLK(ETH_1000M_DIV, mdiv), X2_ETH0_CLK_CTRL);
         break;
     case SPEED_100:
         ret = eqos_set_mii_speed_100(dev);
+	writel(SET_ETH_DIV_CLK(ETH_100M_DIV, mdiv), X2_ETH0_CLK_CTRL);
         break;
     case SPEED_10:
         ret = eqos_set_mii_speed_10(dev);

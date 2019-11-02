@@ -1,3 +1,6 @@
+/*
+* Copyright x2 uboot
+*/
 #ifndef __X2_SYSCTRL_H__
 #define __X2_SYSCTRL_H__
 
@@ -38,6 +41,8 @@
 #define X2_PLLCLK_SEL				(SYSCTRL_BASE + 0x300)
 
 #define X2_SD0_CCLK_CTRL			(SYSCTRL_BASE + 0x320)
+
+#define X2_ETH0_CLK_CTRL                (SYSCTRL_BASE + 0x340)
 
 #define X2_SYSC_CNNSYS_SW_RSTEN		(SYSCTRL_BASE + 0x420)
 #define X2_SYSC_DDRSYS_SW_RSTEN		(SYSCTRL_BASE + 0x430)
