@@ -201,7 +201,7 @@ static int spinand_read_from_cache_op(struct spinand_chip *spinand,
 	uint16_t column = 0;
 	int ret;
 
-	if (req->datalen)
+	if (req->datalen == 0)
 		return -1;
 
 	buf = req->databuf.in;
@@ -635,7 +635,7 @@ void spl_nand_init(void)
 	int dm = x2_pin_get_nand_dummy();
 	int dev_mode = x2_pin_get_dev_mode();
 
-	printf("dummy=%d, dev_mode=%d\n", dm, dev_mode);
+	debug("dummy=%d, dev_mode=%d\n", dm, dev_mode);
 
 	spinand_probe(0, dev_mode, dm, 0, X2_NAND_MCLK, X2_NAND_SCLK);
 	g_dev_ops.proc_start = NULL;
