@@ -713,11 +713,11 @@ void ddr_init(struct dram_timing_info *dram_timing)
 	/* DFIMISC.dfi_init_compelete_en to 0 */
 	value = reg32_read(DDRC_DFIMISC) & ~(1 << 0);
 	reg32_write(DDRC_DFIMISC, value);
-
+#if 0
 	/* DFIMISC.dfi_frequency */
 	value = reg32_read(DDRC_DFIMISC) | (1 << 12);
 	reg32_write(DDRC_DFIMISC, value);
-
+#endif
 	reg32_write(DDRC_SWCTL, 0x1);
 
 	while (!(reg32_read(DDRC_SWSTAT) & 0x1));
