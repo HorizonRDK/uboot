@@ -19,11 +19,12 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	{ DDRC_HWLPCTL, 0x00910002 },
 	{ DDRC_RFSHCTL0, 0x00210000 },
 	{ DDRC_RFSHCTL3, 0x00000001 },
-#if defined(CONFIG_X2_SOM_BOARD)
+#if defined(CONFIG_X2_SK_BOARD) || \
+	defined(CONFIG_DDR_IS_1GB)
 	{ DDRC_RFSHTMG, 0x00410060 },
 #else
 	{ DDRC_RFSHTMG, 0x00410096 },
-#endif /* CONFIG_X2_SOM_BOARD */
+#endif /* CONFIG_X2_SK_BOARD || CONFIG_DDR_IS_1GB */
 	{ DDRC_RFSHTMG1, 0x00300000 },
 	{ DDRC_CRCPARCTL0, 0x00000000 },
 	{ DDRC_CRCPARCTL1, 0x00000000 },
@@ -79,11 +80,12 @@ static struct dram_cfg_param lpddr4_ddrc_cfg[] = {
 	{ DDRC_ADDRMAP3, 0x00000000 },
 	{ DDRC_ADDRMAP4, 0x00001f1f },
 	{ DDRC_ADDRMAP5, 0x070f0707 },
-#if defined(CONFIG_X2_SOM_BOARD)
+#if defined(CONFIG_X2_SK_BOARD) || \
+	defined(CONFIG_DDR_IS_1GB)
 	{ DDRC_ADDRMAP6, 0x0f070707},
 #else
 	{ DDRC_ADDRMAP6, 0x07070707},
-#endif /* CONFIG_X2_SOM_BOARD */
+#endif /* CONFIG_X2_SOM_BOARD || CONFIG_DDR_IS_1GB */
 	{ DDRC_ADDRMAP7, 0x00000f0f },
 	{ DDRC_ADDRMAP8, 0x00003f3f },
 	{ DDRC_ADDRMAP9, 0x07070707 },
@@ -190,8 +192,9 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE3_TXODTDRVSTREN_B0_P0, 0x600 },
 	{ DDRP_DBYTE3_TXODTDRVSTREN_B1_P0, 0x600 },
 
-#if defined(CONFIG_X2_SOM_BOARD) || \
-	defined(CONFIG_X2_MONO_BOARD)
+#if defined(CONFIG_X2_MONO_BOARD) || \
+	defined(CONFIG_X2_QUAD_BOARD) || \
+	defined(CONFIG_X2_SK_BOARD)
 	{ DDRP_DBYTE0_TXIMPEDANCECTRL1_B0_P0, 0xe38 },
 	{ DDRP_DBYTE0_TXIMPEDANCECTRL1_B1_P0, 0xe38 },
 	{ DDRP_DBYTE1_TXIMPEDANCECTRL1_B0_P0, 0xe38 },
@@ -209,7 +212,7 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE2_TXIMPEDANCECTRL1_B1_P0, 0x618 },
 	{ DDRP_DBYTE3_TXIMPEDANCECTRL1_B0_P0, 0x618 },
 	{ DDRP_DBYTE3_TXIMPEDANCECTRL1_B1_P0, 0x618 },
-#endif /* CONFIG_X2_SOM_BOARD */
+#endif /* CONFIG_X2_MONO_BOARD */
 	{ DDRP_ANIB0_ATXIMPEDANCE, 0x3ff },
 	{ DDRP_ANIB1_ATXIMPEDANCE, 0x3ff },
 	{ DDRP_ANIB2_ATXIMPEDANCE, 0x3ff },
@@ -253,7 +256,9 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_MASTER0_PLLCTRL1_P0, 0x60 },
 
 #if defined(CONFIG_X2_SOM_BOARD) || \
-	defined(CONFIG_X2_MONO_BOARD)
+	defined(CONFIG_X2_MONO_BOARD) || \
+	defined(CONFIG_X2_QUAD_BOARD) || \
+	defined(CONFIG_X2_SK_BOARD)
 	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
 	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
 	{ DDRP_DBYTE0_DQ2LNSEL, 0x4 },
@@ -264,20 +269,22 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE0_DQ7LNSEL, 0x3 },
 
 	{ DDRP_DBYTE1_DQ0LNSEL, 0x1 },
-#if defined(CONFIG_X2_SOM_BOARD)
+#if defined(CONFIG_X2_SOM_BOARD) || \
+	defined(CONFIG_X2_SK_BOARD)
 	{ DDRP_DBYTE1_DQ1LNSEL, 0x6 },
 #else
 	{ DDRP_DBYTE1_DQ1LNSEL, 0x7 },
-#endif /* CONFIG_X2_SOM_BOARD */
+#endif /* CONFIG_X2_SOM_BOARD || CONFIG_X2_SK_BOARD */
 	{ DDRP_DBYTE1_DQ2LNSEL, 0x5 },
 	{ DDRP_DBYTE1_DQ3LNSEL, 0x4 },
 	{ DDRP_DBYTE1_DQ4LNSEL, 0x2 },
 	{ DDRP_DBYTE1_DQ5LNSEL, 0x0 },
-#if defined(CONFIG_X2_SOM_BOARD)
+#if defined(CONFIG_X2_SOM_BOARD) || \
+	defined(CONFIG_X2_SK_BOARD)
 	{ DDRP_DBYTE1_DQ6LNSEL, 0x7 },
 #else
 	{ DDRP_DBYTE1_DQ6LNSEL, 0x6 },
-#endif /* CONFIG_X2_SOM_BOARD */
+#endif /* CONFIG_X2_SOM_BOARD || CONFIG_X2_SK_BOARD */
 	{ DDRP_DBYTE1_DQ7LNSEL, 0x3 },
 
 	{ DDRP_DBYTE2_DQ0LNSEL, 0x3 },
@@ -297,7 +304,7 @@ static struct dram_cfg_param lpddr4_ddrphy_cfg[] = {
 	{ DDRP_DBYTE3_DQ5LNSEL, 0x3 },
 	{ DDRP_DBYTE3_DQ6LNSEL, 0x1 },
 	{ DDRP_DBYTE3_DQ7LNSEL, 0x6 },
-#endif /* CONFIG_X2_SOM_BOARD || CONFIG_X2_MONO_BOARD */
+#endif /* CONFIG_X2_MONO_BOARD */
 };
 
 /* DRAM PHY init engine image */
