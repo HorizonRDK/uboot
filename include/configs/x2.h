@@ -31,9 +31,10 @@
 #define X2_SRAM_LOAD_ADDR	(0x8000B000)
 #define X2_SRAM_LOAD_MAX	(0x4000)
 #else
-#define CONFIG_SPL_MAX_SIZE    0x6E00
+/* in fact, max size can be up to 0x7100, reserved 0x100 bytes for gap */
+#define CONFIG_SPL_MAX_SIZE    0x7000
 
-#define X2_SRAM_LOAD_ADDR	(0x80007D00)
+#define X2_SRAM_LOAD_ADDR	(0x80008000)
 #define X2_SRAM_LOAD_MAX	(0x8000)
 #endif /* CONFIG_SPL_LOAD_FIT */
 
