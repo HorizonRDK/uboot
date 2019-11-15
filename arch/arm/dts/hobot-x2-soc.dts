@@ -34,14 +34,14 @@
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
-	
+
 	gpio: gpio@a6003000 {
 		compatible = "hobot,x2-gpio-1.0";
 		status = "okay";
 		#gpio-cells = <0x2>;
 		reg = <0x0 0xa6003000 0x0 0x100>;
 	};
-	
+
 	j2-leds {
 		red-gpio = <62>;
 		green-gpio = <61>;
@@ -57,8 +57,8 @@
 	spi-max-frequency = <500000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
-
-	flash0: gd25q256c@0 {
+/*
+	nor0: gd25q256c@0 {
 		u-boot,dm-pre-reloc;
 		compatible = "spi-flash";
 		reg = <0x0>;
@@ -66,9 +66,9 @@
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
 	};
+*/
 
-
-	spi-nand@0 {
+	nand0: spi-nand@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "spi-nand";
@@ -93,10 +93,10 @@
 };
 &bifsd {
 	status = "okay";
-	};
+};
 &sdmmc {
 	status = "okay";
-	};
+};
 &sd {
 	status = "okay";
-	};
+};

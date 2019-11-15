@@ -183,6 +183,19 @@ function all_32()
     all
 }
 
+function set_uboot_config()
+{
+    if [ "$IMAGE_TYPE" = "nand"  ] | [ "$bootmode" = "nand" ];then
+        sed -i 's/# CONFIG_CMD_UBI is not set/CONFIG_CMD_UBI=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
+        sed -i 's/# CONFIG_CMD_UBIFS is not set/CONFIG_CMD_UBIFS=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
+        sed -i 's/# CONFIG_CMD_MTDPARTS is not set/CONFIG_CMD_MTDPARTS=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
+    else
+        sed -i 's/CONFIG_CMD_UBI=y/# CONFIG_CMD_UBI is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
+        sed -i 's/CONFIG_CMD_UBIFS=y/# CONFIG_CMD_UBIFS is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
+        sed -i 's/CONFIG_CMD_MTDPARTS=y/# CONFIG_CMD_MTDPARTS is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
+    fi
+}
+
 function usage()
 {
     echo "Usage: build.sh [-o uart|emmc|ap|nor|nand|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666|2133]"
@@ -253,6 +266,8 @@ function clean()
 # include
 . $INCLUDE_FUNCS
 # include end
+
+set_uboot_config
 
 cd $(dirname $0)
 

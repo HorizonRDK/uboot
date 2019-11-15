@@ -25,6 +25,7 @@
 #include <configs/x2_config.h>
 #include <spi_flash.h>
 #include <asm/gpio.h>
+#include <ubi_uboot.h>
 
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
@@ -73,74 +74,79 @@ static void run_preboot_environment_command(void)
 #ifdef X2_AUTOBOOT
 void wait_start(void)
 {
-    uint32_t reg_val = 0;
-    uint32_t boot_flag = 0xFFFFFFFF;
-    uint32_t x2_ip = 0;
-    char x2_ip_str[32] = {0};
+	uint32_t reg_val = 0;
+	uint32_t boot_flag = 0xFFFFFFFF;
+	uint32_t x2_ip = 0;
+	char x2_ip_str[32] = {0};
 
-    /* nfs boot argument */
-    uint32_t nfs_server_ip = 0;
-    char nfs_server_ip_str[32] = {0};
-    char nfs_args[256] = {0};
+	/* nfs boot argument */
+	uint32_t nfs_server_ip = 0;
+	char nfs_server_ip_str[32] = {0};
+	char nfs_args[256] = {0};
 
-    /* nc:netconsole argument */
-    uint32_t nc_server_ip = 0;
-    uint32_t nc_mac_high = 0;
-    uint32_t nc_mac_low = 0;
-    char nc_server_ip_str[32] = {0};
-    char nc_server_mac_str[32] = {0};
+	/* nc:netconsole argument */
+	uint32_t nc_server_ip = 0;
+	uint32_t nc_mac_high = 0;
+	uint32_t nc_mac_low = 0;
+	char nc_server_ip_str[32] = {0};
+	char nc_server_mac_str[32] = {0};
 
-    char nc_args[256] = {0};
+	char nc_args[256] = {0};
 
 
-    char bootargs_str[512] = {0};
+	char bootargs_str[512] = {0};
 
-    while (1) {
-        reg_val = readl(BIF_SHARE_REG_OFF);
-        if (reg_val == BOOT_WAIT_VAL)
-                break;
-        printf("wait for client send start cmd: 0xaa\n");
-        mdelay(1000);
-    }
+	while (1) {
+		reg_val = readl(BIF_SHARE_REG_OFF);
+		if (reg_val == BOOT_WAIT_VAL)
+				break;
+		printf("wait for client send start cmd: 0xaa\n");
+		mdelay(1000);
+	}
 
-    /* nfs boot server argument parse */
-    boot_flag = readl(BIF_SHARE_REG(5));
-    if ((boot_flag&0xFF)==BOOT_VIA_NFS) {
-        x2_ip = readl(BIF_SHARE_REG(6));
-        sprintf(x2_ip_str, "%d.%d.%d.%d",
-        (x2_ip>>24)&0xFF, (x2_ip>>16)&0xFF, (x2_ip>>8)&0xFF, (x2_ip)&0xFF);
+	/* nfs boot server argument parse */
+	boot_flag = readl(BIF_SHARE_REG(5));
+	if ((boot_flag&0xFF) == BOOT_VIA_NFS) {
+		x2_ip = readl(BIF_SHARE_REG(6));
+		snprintf(x2_ip_str, sizeof(x2_ip_str), "%d.%d.%d.%d",
+		(x2_ip>>24)&0xFF, (x2_ip>>16)&0xFF, (x2_ip>>8)&0xFF, (x2_ip)&0xFF);
 
-        nfs_server_ip = readl(BIF_SHARE_REG(7));
-        sprintf(nfs_server_ip_str, "%d.%d.%d.%d",
-        (nfs_server_ip>>24)&0xFF, (nfs_server_ip>>16)&0xFF, (nfs_server_ip>>8)&0xFF, (nfs_server_ip)&0xFF);
+		nfs_server_ip = readl(BIF_SHARE_REG(7));
+		snprintf(nfs_server_ip_str, sizeof(nfs_server_ip_str), "%d.%d.%d.%d",
+			(nfs_server_ip>>24)&0xFF, (nfs_server_ip>>16)&0xFF,
+			(nfs_server_ip>>8)&0xFF, (nfs_server_ip)&0xFF);
 
-        sprintf(nfs_args, "root=/dev/nfs nfsroot=%s:/nfs_boot_server,nolock,nfsvers=3 rw "\
-                            "ip=%s:%s:192.168.1.1:255.255.255.0::eth0:off rdinit=/linuxrc ",
-                            nfs_server_ip_str, x2_ip_str, nfs_server_ip_str);
-    }
+		snprintf(nfs_args, sizeof(nfs_args), "root=/dev/nfs "\
+				"nfsroot=%s:/nfs_boot_server,nolock,nfsvers=3 rw "\
+				"ip=%s:%s:192.168.1.1:255.255.255.0::eth0:off rdinit=/linuxrc ",
+				nfs_server_ip_str, x2_ip_str, nfs_server_ip_str);
+	}
 
-    /* netconsole server argument parse */
-    if ((boot_flag>>8&0xFF)==NETCONSOLE_CONFIG_VALID) {
-        x2_ip = readl(BIF_SHARE_REG(6));
-        sprintf(x2_ip_str, "%d.%d.%d.%d",
-        (x2_ip>>24)&0xFF, (x2_ip>>16)&0xFF, (x2_ip>>8)&0xFF, (x2_ip)&0xFF);
+	/* netconsole server argument parse */
+	if ((boot_flag>>8&0xFF) == NETCONSOLE_CONFIG_VALID) {
+		x2_ip = readl(BIF_SHARE_REG(6));
+		snprintf(x2_ip_str, sizeof(x2_ip_str), "%d.%d.%d.%d",
+		(x2_ip>>24)&0xFF, (x2_ip>>16)&0xFF, (x2_ip>>8)&0xFF, (x2_ip)&0xFF);
 
-        nc_server_ip = readl(BIF_SHARE_REG(9));
-        sprintf(nc_server_ip_str, "%d.%d.%d.%d",
-        (nc_server_ip>>24)&0xFF, (nc_server_ip>>16)&0xFF, (nc_server_ip>>8)&0xFF, (nc_server_ip)&0xFF);
+		nc_server_ip = readl(BIF_SHARE_REG(9));
+		snprintf(nc_server_ip_str, sizeof(nc_server_ip_str), "%d.%d.%d.%d",
+			(nc_server_ip>>24)&0xFF, (nc_server_ip>>16)&0xFF,
+			(nc_server_ip>>8)&0xFF, (nc_server_ip)&0xFF);
 
-        nc_mac_high = readl(BIF_SHARE_REG(10));
-        nc_mac_low = readl(BIF_SHARE_REG(11));
-        sprintf(nc_server_mac_str, "%02x:%02x:%02x:%02x:%02x:%02x",
-        (nc_mac_high>>8)&0xFF, (nc_mac_high)&0xFF, (nc_mac_low>>24)&0xFF,\
-        (nc_mac_low>>16)&0xFF, (nc_mac_low>>8)&0xFF, (nc_mac_low)&0xFF);
+		nc_mac_high = readl(BIF_SHARE_REG(10));
+		nc_mac_low = readl(BIF_SHARE_REG(11));
+		snprintf(nc_server_mac_str, sizeof(nc_server_mac_str), "%02x:%02x:%02x:%02x:%02x:%02x",
+			(nc_mac_high>>8)&0xFF, (nc_mac_high)&0xFF,
+			(nc_mac_low>>24)&0xFF, (nc_mac_low>>16)&0xFF,
+			(nc_mac_low>>8)&0xFF, (nc_mac_low)&0xFF);
 
-        sprintf(nc_args, "netconsole=6666@%s/eth0,9353@%s/%s ", x2_ip_str, nc_server_ip_str, nc_server_mac_str);
-    }
+		snprintf(nc_args, sizeof(nc_args), "netconsole=6666@%s/eth0,9353@%s/%s ",
+			x2_ip_str, nc_server_ip_str, nc_server_mac_str);
+	}
 
-    sprintf(bootargs_str, "earlycon clk_ignore_unused %s %s", nfs_args, nc_args);
-    env_set("bootargs", bootargs_str);
-    return;
+	snprintf(bootargs_str, sizeof(bootargs_str), "earlycon clk_ignore_unused %s %s", nfs_args, nc_args);
+	env_set("bootargs", bootargs_str);
+	return;
 }
 #endif
 
@@ -190,7 +196,7 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 
 	return 0xff;
 }
-
+#ifdef CONFIG_X2_NOR_BOOT
 static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
 	bool flag)
 {
@@ -207,7 +213,7 @@ static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
 		spi_flash_read(flash, DTB_MAPPING_ADDR + NOR_SECTOR_SIZE,
 			NOR_SECTOR_SIZE * 4, (void *)gz_addr);
 
-		sprintf(cmd, "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
+		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
 		run_command_list(cmd, -1, 0);
 
 		gz_addr = dtb_addr + addr;
@@ -215,6 +221,26 @@ static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
 			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
 	}
 }
+#endif
+
+#ifdef CONFIG_X2_NAND_BOOT
+static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
+	bool flag)
+{
+	char cmd[256] = { 0 };
+	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+
+	if (flag == false) {
+		ubi_volume_read("dtb", (void *)dtb_addr, leng);
+	} else {
+		ubi_volume_read("dtb", (void *)gz_addr, 0);
+
+		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
+		run_command_list(cmd, -1, 0);
+	}
+}
+#endif
 
 static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		struct x2_kernel_hdr *config)
@@ -241,7 +267,7 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 					printf("error: dtb %s not exit\n", s);
 					return NULL;
 				}
-
+#ifdef CONFIG_X2_NOR_BOOT
 				/* mono has 2 dts, 64M nor flash using the other one */
 				if (board_id == X2_MONO_BOARD_ID)
 					i = i + 1;
@@ -259,6 +285,19 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 				tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
 					"mem_modify ${mem_size};run ddrboot;";
 				env_set("bootcmd", tmp);
+#endif
+#ifdef CONFIG_X2_NAND_BOOT
+				nand_dtb_image_load(config->dtb[i].dtb_addr,
+					config->dtb[i].dtb_size, gz_flag);
+				tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+					"mtdids:spi-nand0=hr_nand "\
+					"mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs) "\
+					"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
+				env_set("bootargs", tmp);
+				tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
+					"mem_modify ${mem_size};run ddrboot;";
+				env_set("bootcmd", tmp);
+#endif
 			}
 			break;
 		}
@@ -377,7 +416,7 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 		env_set("mem_size", tmp);
 	}
 }
-
+#ifdef CONFIG_X2_NOR_BOOT
 static void x2_nor_env_init(struct x2_kernel_hdr *config)
 {
 	char upmode[16] = { 0 };
@@ -443,6 +482,70 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 			(void *)gz_addr);
 	}
 }
+#endif
+
+#ifdef CONFIG_X2_NAND_BOOT
+static void x2_nand_env_init(struct x2_kernel_hdr *config)
+{
+	ulong gz_addr;
+	bool load_imggz = true;
+	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+
+	/* TODO: Change to use ubi methods */
+#ifdef CONFIG_X2_DUAL_BOOT
+	char upmode[16] = { 0 };
+	char boot_reason[64] = { 0 };
+	char rootfs[32] = "system";
+	char kernel[32] = "kernel";
+	char count;
+	unsigned int ret1, ret2;
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+		VEEPROM_RESET_REASON_SIZE);
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+
+	if ((strcmp(upmode, "golden") == 0)) {
+		if (strcmp(boot_reason, "normal") == 0) {
+			/* boot_reason is 'normal', normal boot */
+			printf("uboot: normal boot \n");
+
+			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
+					VEEPROM_COUNT_SIZE);
+			if (count <= 0) {
+				/* system boot failed, enter recovery mode */
+				ota_recovery_mode_set();
+
+				if (recovery_sys_enable)
+					load_imggz = false;
+			}
+		} else if (strcmp(boot_reason, "recovery") == 0) {
+			/* boot_reason is 'recovery', enter recovery mode */
+			env_set("bootdelay", "0");
+			load_imggz = false;
+		} else {
+			/* check update_success flag */
+			if (ota_check_update_success_flag()) {
+				load_imggz = false;
+			} else {
+				/* ota partition status check */
+				ret1 = ota_uboot_update_check(rootfs);
+				ret2 = ota_uboot_update_check(kernel);
+				if ((ret1 == 1) || (ret2 == 1))
+					load_imggz = false;
+			}
+		}
+	}
+#endif
+	if (load_imggz) {
+		/* load Image.gz */
+		ubi_volume_read("kernel", (void *)gz_addr, 0);
+	} else {
+		/* load recovery.gz */
+		ubi_volume_read("recovery", (void *)gz_addr, 0);
+	}
+}
+#endif
 
 static void x2_dtb_mapping_load(void)
 {
@@ -452,7 +555,7 @@ static void x2_dtb_mapping_load(void)
 
 	if (x2_src_boot == PIN_2ND_EMMC) {
 		/* load dtb-mapping.conf */
-		sprintf(cmd,"ext4load mmc 0:%d 0x%x dtb-mapping.conf",
+		snprintf(cmd, sizeof(cmd), "ext4load mmc 0:%d 0x%x dtb-mapping.conf",
 		get_partition_id(partname), X2_DTB_CONFIG_ADDR);
 		printf("command is %s\n", cmd);
 		rcode = run_command_list(cmd, -1, 0);
@@ -462,11 +565,16 @@ static void x2_dtb_mapping_load(void)
 		}
 	} else {
 		/* load dtb-mapping.conf */
+#ifdef CONFIG_X2_NOR_BOOT
 		if (flash)
 			spi_flash_read(flash, DTB_MAPPING_ADDR, DTB_MAPPING_SIZE,
 			(void *)X2_DTB_CONFIG_ADDR);
 		else
 			printf("error: flash init failed\n");
+#endif
+#ifdef CONFIG_X2_NAND_BOOT
+		ubi_volume_read("dtb_mapping", (void *)X2_DTB_CONFIG_ADDR, 0);
+#endif
 	}
 }
 
@@ -528,10 +636,16 @@ static void x2_env_and_boardid_init(void)
 	}
 
 	/* mmc or nor env init */
-	if (x2_src_boot == PIN_2ND_EMMC)
+	if (x2_src_boot == PIN_2ND_EMMC) {
 		x2_mmc_env_init();
-	else
+	} else {
+#ifdef CONFIG_X2_NOR_BOOT
 		x2_nor_env_init(x2_kernel_conf);
+#endif
+#ifdef  CONFIG_X2_NAND_BOOT
+		x2_nand_env_init(x2_kernel_conf);
+#endif
+	}
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
@@ -676,7 +790,7 @@ static void prepare_autoreset(void)
 //START4[prj_j2quad]
 //#if defined(CONFIG_X2_QUAD_BOARD)
 /* GPIO PIN MUX */
-#define PIN_MUX_BASE    0xA6003000
+#define PIN_MUX_BASE	0xA6003000
 #define GPIO1_CFG (PIN_MUX_BASE + 0x10)
 
 #define SWITCH_PORT_RESET_GPIO	22
@@ -748,9 +862,18 @@ U_BOOT_CMD(
 void main_loop(void)
 {
 	const char *s;
+#ifdef CONFIG_X2_NAND_BOOT
+	env_set("mtdids", "spi-nand0=hr_nand");
+	env_set("mtdparts", "mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs)");
+	run_command("mtd list", 0);
+	run_command("mtdparts", 0);
+	if (ubi_part("sys", NULL)) {
+		panic("system ubi image load failed!\n");
+	}
+#endif
 #ifdef X2_AUTOBOOT
-        boot_stage_mark(2);
-        wait_start();
+		boot_stage_mark(2);
+		wait_start();
 #endif
 	bootstage_mark_name(BOOTSTAGE_ID_MAIN_LOOP, "main_loop");
 
@@ -789,7 +912,7 @@ void main_loop(void)
 	}
 	if ((x2j2_get_boardid() == J2_MM_BOARD_ID) ||
 			(x2j2_get_boardid() == J2_MM_S202_BOARD_ID)) {
-		env_set("kernel_addr", "0x400000"); 		
+		env_set("kernel_addr", "0x400000");
 	}
 //#endif
 //END4[prj_j2quad]

@@ -1,3 +1,9 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2019 Horizon Robotics, Inc.
+ *    All rights reserved.
+ */
+
 #ifndef __X2_NAND_SPL_H__
 #define __X2_NAND_SPL_H__
 
@@ -73,6 +79,7 @@ struct spinand_chip {
 };
 
 void spl_nand_init(void);
+void x2_bootinfo_init(void);
 
 #endif /* CONFIG_X2_NAND_BOOT */
 #endif /* __X2_NAND_SPL_H__ */

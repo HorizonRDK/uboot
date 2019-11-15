@@ -1,13 +1,24 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2019 Horizon Robotics, Inc.
+ *    All rights reserved.
+ */
+
 #include <common.h>
 #include <command.h>
 #include <mmc.h>
 #include <spi.h>
 #include <spi_flash.h>
 #include <veeprom.h>
+#include <ubi_uboot.h>
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 #define SECTOR_SIZE (512)
+#ifdef CONFIG_X2_NAND_BOOT
+#define BUFFER_SIZE 2048
+#else
 #define BUFFER_SIZE SECTOR_SIZE
+#endif
 #define FLAG_RW 1
 #define FLAG_RO 0
 
@@ -53,11 +64,19 @@ static int dw_init(int flag)
 	int ret = 0;
 
 	if (x2_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_X2_NOR_BOOT
 		init_nor_device();
 		if (!flash) {
 			printf("Failed to initialize SPI flash\n");
 			ret = -1;
 		}
+#endif
+#ifdef CONFIG_X2_NAND_BOOT
+		if (ubi_part("sys", NULL)) {
+			printf("Failed to initialize veeprom ubi volumn\n");
+			ret = -1;
+		}
+#endif
 	} else {
 		/* check the status of device */
 		emmc = init_mmc_device(curr_device, false);
@@ -82,6 +101,7 @@ static int dw_read(unsigned int cur_sector)
 	int ret = 0;
 
 	if (x2_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_X2_NOR_BOOT
 		if (!flash)
 			return -1;
 
@@ -90,6 +110,7 @@ static int dw_read(unsigned int cur_sector)
 			printf("Error: read nor flash fail\n");
 			return -1;
 		}
+#endif
 	} else {
 		ret = blk_dread(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
 		if (ret != 1) {
@@ -106,6 +127,7 @@ static int dw_write(unsigned int cur_sector)
 	int ret = 0;
 
 	if (x2_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_X2_NOR_BOOT
 		if (!flash)
 			return -1;
 
@@ -120,6 +142,7 @@ static int dw_write(unsigned int cur_sector)
 			printf("Error: read nor flash fail\n");
 			return -1;
 		}
+#endif
 	} else {
 		ret = blk_dwrite(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
 		if (ret != 1) {
@@ -147,6 +170,7 @@ static int is_parameter_valid(int offset, int size)
 int veeprom_init(void)
 {
 	if (x2_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_X2_NOR_BOOT
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		init_nor_device();
@@ -154,6 +178,13 @@ int veeprom_init(void)
 			printf("Failed to initialize SPI flash\n");
 			return -1;
 		}
+#endif
+#ifdef CONFIG_X2_NAND_BOOT
+	if (ubi_part("sys", NULL)) {
+		printf("Failed to initialize veeprom ubi volumn\n");
+		return -1;
+	}
+#endif
 
 	} else {
 		/* set veeprom raw sectors */
@@ -176,10 +207,13 @@ int veeprom_init(void)
 
 void veeprom_exit(void)
 {
-	if (x2_src_boot == PIN_2ND_SF)
+	if (x2_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_X2_NOR_BOOT
 		spi_flash_free(flash);
-	else
+#endif
+	} else {
 		curr_device = -1;
+	}
 }
 
 /* format veeprom mmc blocks, memset(0) */
@@ -229,7 +263,12 @@ int veeprom_read(int offset, char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-
+#ifdef CONFIG_X2_NAND_BOOT
+	memset(buffer, 0, sizeof(buffer));
+	ubi_volume_read("veeprom", buffer, 0);
+	flush_cache((ulong)buffer, 2048);
+	memcpy(buf, buffer + offset, size);
+#else
 	sector_left = start_sector + (offset / SECTOR_SIZE);
 	sector_right = start_sector + ((offset + size - 1) / SECTOR_SIZE);
 
@@ -252,6 +291,7 @@ int veeprom_read(int offset, char *buf, int size)
 		memcpy(buf, buffer + offset_inner, operate_count);
 		buf += operate_count;
 	}
+#endif
 
 	return ret;
 }
@@ -276,7 +316,13 @@ int veeprom_write(int offset, const char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-
+#ifdef CONFIG_X2_NAND_BOOT
+	memset(buffer, 0, sizeof(buffer));
+	ubi_volume_read("veeprom", NULL);
+	flush_cache((ulong)buffer, 2048);
+	memcpy(buffer + offset, buf, size);
+	ubi_volume_write("veeprom", buffer, sizeof(buffer));
+#else
 	sector_left = start_sector + (offset / SECTOR_SIZE);
 	sector_right = start_sector + ((offset + size - 1) / SECTOR_SIZE);
 
@@ -306,7 +352,7 @@ int veeprom_write(int offset, const char *buf, int size)
 			return ret;
 		}
 	}
-	
+#endif
 	return ret;
 }
 
@@ -330,7 +376,10 @@ int veeprom_clear(int offset, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-
+#ifdef CONFIG_X2_NAND_BOOT
+	memset(buffer, 0, sizeof(buffer));
+	ubi_volume_write("veeprom", buffer, sizeof(buffer));
+#else
 	sector_left = start_sector + (offset / SECTOR_SIZE);
 	sector_right = start_sector + ((offset + size - 1) / SECTOR_SIZE);
 	printf("sector_left = %d\n", sector_left);
@@ -363,7 +412,7 @@ int veeprom_clear(int offset, int size)
 			return ret;
 		}
 	}
-
+#endif
 	return ret;
 }
 

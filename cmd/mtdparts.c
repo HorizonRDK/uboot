@@ -90,7 +90,17 @@
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
-
+#ifdef CONFIG_X2_NAND_BOOT
+#define NAND_NAME "spi-nand"
+#define NAND_NAME_LEN 8
+#define NOR_NAME "spi-nor"
+#define NOR_NAME_LEN 7
+#else
+#define NAND_NAME "nand"
+#define NAND_NAME_LEN 4
+#define NOR_NAME "nor"
+#define NOR_NAME_LEN 3
+#endif
 /* special size referring to all the remaining space in a partition */
 #define SIZE_REMAINING		(~0llu)
 
@@ -1042,12 +1052,12 @@ int mtd_id_parse(const char *id, const char **ret_id, u8 *dev_type,
 	const char *p = id;
 
 	*dev_type = 0;
-	if (strncmp(p, "nand", 4) == 0) {
+	if (strncmp(p, NAND_NAME, NAND_NAME_LEN) == 0) {
 		*dev_type = MTD_DEV_TYPE_NAND;
-		p += 4;
-	} else if (strncmp(p, "nor", 3) == 0) {
+		p += NAND_NAME_LEN;
+	} else if (strncmp(p, NOR_NAME, NOR_NAME_LEN) == 0) {
 		*dev_type = MTD_DEV_TYPE_NOR;
-		p += 3;
+		p += NOR_NAME_LEN;
 	} else if (strncmp(p, "onenand", 7) == 0) {
 		*dev_type = MTD_DEV_TYPE_ONENAND;
 		p += 7;
