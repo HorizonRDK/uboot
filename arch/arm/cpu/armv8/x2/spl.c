@@ -85,6 +85,7 @@ void board_init_f(ulong dummy)
 	spl_nor_init(g_binfo.qspi_cfg);
 #elif defined(CONFIG_X2_NAND_BOOT)
 	spl_nand_init();
+	udelay(40);
 #endif
 
 #if defined(CONFIG_X2_MMC_BOOT)
