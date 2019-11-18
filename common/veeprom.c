@@ -11,6 +11,7 @@
 #include <spi_flash.h>
 #include <veeprom.h>
 #include <ubi_uboot.h>
+#include <configs/x2_config.h>
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 #define SECTOR_SIZE (512)
