@@ -127,8 +127,8 @@ void vio_pll_init(void)
 	writel(0x1f, X2_VIOSYS_CLKEN_SET);
 }
 
-/* Update Peri PLL from 1536MHz to 1500MHz */
-void switch_peri_pll(void)
+/* Update Peri PLL */
+void switch_peri_pll(ulong pll_val)
 {
 	unsigned int value;
 	unsigned int try_num = 5;
@@ -139,8 +139,18 @@ void switch_peri_pll(void)
 	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
 		X2_PERIPLL_PD_CTRL);
 
-	value = FBDIV_BITS(250) | REFDIV_BITS(4) |
-		POSTDIV1_BITS(1) | POSTDIV2_BITS(1);
+	switch (pll_val) {
+		case MHZ(1536):
+			value = FBDIV_BITS(64) | REFDIV_BITS(1) |
+				POSTDIV1_BITS(1) | POSTDIV2_BITS(1);
+			break;
+		case MHZ(1500):
+		default:
+			value = FBDIV_BITS(250) | REFDIV_BITS(4) |
+				POSTDIV1_BITS(1) | POSTDIV2_BITS(1);
+			break;
+	}
+
 	writel(value, X2_PERIPLL_FREQ_CTRL);
 
 	value = readl(X2_PERIPLL_PD_CTRL);

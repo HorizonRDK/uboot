@@ -91,17 +91,15 @@ void board_init_f(ulong dummy)
 #if defined(CONFIG_X2_MMC_BOOT)
 	veeprom_read(VEEPROM_PERI_PLL_OFFSET, pllswitch,VEEPROM_PERI_PLL_SIZE);
 #endif
-	if ((g_x2ver & 0xFF) == 0) {
 
-		if (strcmp(pllswitch, "disable_peri_pll") == 0)
-			{}
-		else if (((g_binfo.board_id == J2_MM_BOARD_ID) ||
-			(g_binfo.board_id == J2_MM_S202_BOARD_ID)) &&
-				(strcmp(pllswitch, "") == 0))
-			{}
-		else
-			switch_peri_pll();
-	}
+	if (strcmp(pllswitch, "disable_peri_pll") == 0)
+		switch_peri_pll(MHZ(1536));
+	else if (((g_binfo.board_id == J2_MM_BOARD_ID) ||
+		(g_binfo.board_id == J2_MM_S202_BOARD_ID)) &&
+			(strcmp(pllswitch, "") == 0))
+		switch_peri_pll(MHZ(1536));
+	else
+		switch_peri_pll(MHZ(1500));
 
 	spl_dram_init();
 

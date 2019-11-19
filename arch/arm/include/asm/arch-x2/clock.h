@@ -10,7 +10,7 @@ void cnn_pll_init(void);
 
 void vio_pll_init(void);
 
-void switch_peri_pll(void);
+void switch_peri_pll(ulong pll_val);
 
 #endif /* CONFIG_SPL_BUILD */
 
