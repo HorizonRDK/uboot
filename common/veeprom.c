@@ -319,7 +319,7 @@ int veeprom_write(int offset, const char *buf, int size)
 	}
 #ifdef CONFIG_X2_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
-	ubi_volume_read("veeprom", NULL);
+	ubi_volume_read("veeprom", buffer, 0);
 	flush_cache((ulong)buffer, 2048);
 	memcpy(buffer + offset, buf, size);
 	ubi_volume_write("veeprom", buffer, sizeof(buffer));
