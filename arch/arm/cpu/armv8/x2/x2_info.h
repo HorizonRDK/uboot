@@ -42,8 +42,9 @@
 #define X2_BOOTINFO_ADDR	(X2_RESERVED_USER_ADDR)
 #define X2_DTB_CONFIG_ADDR	(X2_BOOTINFO_ADDR + 0x1000)
 #define DTB_MAPPING_ADDR	0x140000
-#define DTB_MAPPING_SIZE	0x400
 #define DTB_MAX_NUM		20
+#define KERNEL_HEAD_ADDR	0x140000
+#define RECOVERY_HEAD_ADDR	0x6D0000
 
 #define X2_BOARD_SVB 0
 #define X2_BOARD_SOM 1
@@ -132,6 +133,15 @@ struct x2_kernel_hdr {
 	struct x2_dtb_hdr dtb[DTB_MAX_NUM];
 
 	unsigned int reserved[11];
+};
+
+struct x2_flash_kernel_hdr {
+	unsigned char magic[16];			/* FLASH0 */
+	unsigned int Image_addr;
+	unsigned int Image_size;
+	unsigned char dtbname[32];
+	unsigned int dtb_addr;
+	unsigned int dtb_size;
 };
 
 #endif /* __X2_INFO_H__ */

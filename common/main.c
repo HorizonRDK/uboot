@@ -196,7 +196,7 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 
 	return 0xff;
 }
-#ifdef CONFIG_X2_NOR_BOOT
+
 static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
 	bool flag)
 {
@@ -221,7 +221,6 @@ static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
 			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
 	}
 }
-#endif
 
 #ifdef CONFIG_X2_NAND_BOOT
 static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
@@ -240,15 +239,31 @@ static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
 		run_command_list(cmd, -1, 0);
 	}
 }
-#endif
 
-static char *x2_bootinfo_dtb_get(unsigned int board_id,
+static void x2_nand_env_init(void)
+{
+	char *tmp;
+
+	/* set bootargs */
+	tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+		"mtdids:spi-nand0=hr_nand "\
+		"mtdparts=hr_nand:3145728@0x0(bootloader)," \
+		"10485760@0x300000(sys),-@0xD00000(rootfs) "\
+		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
+	env_set("bootargs", tmp);
+
+	/* set bootcmd */
+	tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
+		"mem_modify ${mem_size};run ddrboot;";
+	env_set("bootcmd", tmp);
+}
+
+static char *x2_nand_dtb_load(unsigned int board_id,
 		struct x2_kernel_hdr *config)
 {
-	char *s = NULL, *tmp = NULL;
-	int i = 0;
+	char *s = NULL;
 	bool gz_flag = false;
-	int count = config->dtb_number;
+	int i, count = config->dtb_number;
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -262,43 +277,40 @@ static char *x2_bootinfo_dtb_get(unsigned int board_id,
 		if (board_id == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 
-			if (x2_src_boot == PIN_2ND_SF) {
-				if ((config->dtb[i].dtb_addr == 0x0) && (gz_flag == false)) {
-					printf("error: dtb %s not exit\n", s);
-					return NULL;
-				}
-#ifdef CONFIG_X2_NOR_BOOT
-				/* mono has 2 dts, 64M nor flash using the other one */
-				if (board_id == X2_MONO_BOARD_ID)
-					i = i + 1;
-
-				/* load dtb file */
-				nor_dtb_image_load(config->dtb[i].dtb_addr,
-					config->dtb[i].dtb_size, gz_flag);
-
-				/* set bootargs */
-				tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
-					"root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
-				env_set("bootargs", tmp);
-
-				/* set bootcmd */
-				tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
-					"mem_modify ${mem_size};run ddrboot;";
-				env_set("bootcmd", tmp);
-#endif
-#ifdef CONFIG_X2_NAND_BOOT
-				nand_dtb_image_load(config->dtb[i].dtb_addr,
-					config->dtb[i].dtb_size, gz_flag);
-				tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
-					"mtdids:spi-nand0=hr_nand "\
-					"mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs) "\
-					"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
-				env_set("bootargs", tmp);
-				tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
-					"mem_modify ${mem_size};run ddrboot;";
-				env_set("bootcmd", tmp);
-#endif
+			if ((config->dtb[i].dtb_addr == 0x0) && (gz_flag == false)) {
+				printf("error: dtb %s not exit\n", s);
+				return NULL;
 			}
+
+			nand_dtb_image_load(config->dtb[i].dtb_addr,
+				config->dtb[i].dtb_size, false);
+
+			x2_nand_env_init();
+			break;
+		}
+	}
+
+	if (i == count)
+		printf("error: board_id %02x not support\n", board_id);
+
+	return s;
+}
+#endif
+
+static char *x2_mmc_dtb_load(unsigned int board_id,
+		struct x2_kernel_hdr *config)
+{
+	char *s = NULL;
+	int i = 0, count = config->dtb_number;
+
+	if (count > DTB_MAX_NUM) {
+		printf("error: count %02x not support\n", count);
+		return NULL;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (board_id == config->dtb[i].board_id) {
+			s = (char *)config->dtb[i].dtb_name;
 			break;
 		}
 	}
@@ -416,25 +428,37 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 		env_set("mem_size", tmp);
 	}
 }
-#ifdef CONFIG_X2_NOR_BOOT
-static void x2_nor_env_init(struct x2_kernel_hdr *config)
+
+static void x2_nor_env_init(void)
 {
-	char upmode[16] = { 0 };
-	char boot_reason[64] = { 0 };
+	char *tmp;
+
+	/* set bootargs */
+	tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused " \
+		"root=ubi0:rootfs ubi.mtd=1 rootfstype=ubifs rw rootwait";
+		env_set("bootargs", tmp);
+
+	/* set bootcmd */
+	tmp = "send_id;run unzipimage;ion_modify ${ion_size};" \
+		"mem_modify ${mem_size};run ddrboot;";
+		env_set("bootcmd", tmp);
+}
+
+static bool x2_nor_ota_upflag_check(void)
+{
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
-	ulong gz_addr;
+	char upmode[16] = { 0 };
+	char boot_reason[64] = { 0 };
+	bool load_imggz = true;
 	char count;
 	unsigned int ret1, ret2;
-	bool load_imggz = true;
 
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
 
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
-
-	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
 
 	if ((strcmp(upmode, "golden") == 0)) {
 		if (strcmp(boot_reason, "normal") == 0) {
@@ -469,23 +493,58 @@ static void x2_nor_env_init(struct x2_kernel_hdr *config)
 			}
 		}
 	}
-
-	if (load_imggz) {
-		/* load Image.gz */
-		if (flash)
-			spi_flash_read(flash, config->Image_addr, config->Image_size,
-			(void *)gz_addr);
-	} else {
-		/* load recovery.gz */
-		if (flash)
-			spi_flash_read(flash, config->Recovery_addr, config->Recovery_size,
-			(void *)gz_addr);
-	}
+	return load_imggz;
 }
-#endif
+
+static char *x2_nor_kernel_load(void)
+{
+	unsigned int kernel_addr, dtb_addr, head_addr;
+	struct x2_flash_kernel_hdr *kernel_hdr;
+	char *s;
+	bool load_imggz = true;
+	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+
+	if (flash == NULL) {
+		printf("Error: flash init failed\n");
+		return NULL;
+	}
+
+	load_imggz = x2_nor_ota_upflag_check();
+	if (load_imggz)
+		head_addr = KERNEL_HEAD_ADDR;
+	else
+		head_addr = RECOVERY_HEAD_ADDR;
+
+	/* load kernel head */
+	spi_flash_read(flash, head_addr, sizeof(struct x2_flash_kernel_hdr),
+		(void *)X2_DTB_CONFIG_ADDR);
+	kernel_hdr = (struct x2_flash_kernel_hdr *) X2_DTB_CONFIG_ADDR;
+	kernel_addr = kernel_hdr->Image_addr + head_addr;
+	dtb_addr = kernel_hdr->dtb_addr + head_addr;
+
+	/* check magic */
+	s = (char *)kernel_hdr->magic;
+	if (strcmp(s, "FLASH0") != 0) {
+		printf("Error: kernel magic check failed !\n");
+		return NULL;
+	}
+
+	/* init boorargs and bootcmd */
+	x2_nor_env_init();
+
+	/* load dtb file */
+	nor_dtb_image_load(dtb_addr, kernel_hdr->dtb_size, false);
+
+	/* load kernel */
+	spi_flash_read(flash, kernel_addr, kernel_hdr->Image_size,
+		(void *)gz_addr);
+
+	s = (char *)kernel_hdr->dtbname;
+	return s;
+}
 
 #ifdef CONFIG_X2_NAND_BOOT
-static void x2_nand_env_init(struct x2_kernel_hdr *config)
+static void x2_nand_kernel_load(struct x2_kernel_hdr *config)
 {
 	ulong gz_addr;
 	bool load_imggz = true;
@@ -564,14 +623,6 @@ static void x2_dtb_mapping_load(void)
 			return;
 		}
 	} else {
-		/* load dtb-mapping.conf */
-#ifdef CONFIG_X2_NOR_BOOT
-		if (flash)
-			spi_flash_read(flash, DTB_MAPPING_ADDR, DTB_MAPPING_SIZE,
-			(void *)X2_DTB_CONFIG_ADDR);
-		else
-			printf("error: flash init failed\n");
-#endif
 #ifdef CONFIG_X2_NAND_BOOT
 		ubi_volume_read("dtb_mapping", (void *)X2_DTB_CONFIG_ADDR, 0);
 #endif
@@ -591,13 +642,12 @@ static void x2_env_and_boardid_init(void)
 	x2_dtb_mapping_load();
 
 	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
-	x2_kernel_conf = (struct x2_kernel_hdr *) X2_DTB_CONFIG_ADDR;
 	gpio_id = x2_gpio_get();
 	printf("bootinfo/board_id = %02x gpio_id = %02x\n",
 		x2_board_type->board_id, gpio_id);
 
+	/* board_id check */
 	board_id = x2_board_type->board_id;
-
 	if (board_id == X2_GPIO_MODE) {
 		board_id = x2_gpio_to_borad_id(gpio_id);
 
@@ -615,13 +665,6 @@ static void x2_env_and_boardid_init(void)
 		}
 	}
 
-	/* load dtb */
-	printf("final/board_id = %02x\n", board_id);
-	s = x2_bootinfo_dtb_get(board_id, x2_kernel_conf);
-
-	printf("fdtimage = %s\n", s);
-	env_set("fdtimage", s);
-
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
 	if (strcmp(s, "disable") == 0) {
@@ -634,18 +677,25 @@ static void x2_env_and_boardid_init(void)
 			veeprom_write(VEEPROM_RESET_REASON_OFFSET, "normal",
 			VEEPROM_RESET_REASON_SIZE);
 	}
+	printf("final/board_id = %02x\n", board_id);
 
 	/* mmc or nor env init */
 	if (x2_src_boot == PIN_2ND_EMMC) {
+		x2_kernel_conf =  (struct x2_kernel_hdr *)X2_DTB_CONFIG_ADDR;
+		s = x2_mmc_dtb_load(board_id, x2_kernel_conf);
 		x2_mmc_env_init();
 	} else {
-#ifdef CONFIG_X2_NOR_BOOT
-		x2_nor_env_init(x2_kernel_conf);
-#endif
 #ifdef  CONFIG_X2_NAND_BOOT
-		x2_nand_env_init(x2_kernel_conf);
+		x2_kernel_conf =  (struct x2_kernel_hdr *)X2_DTB_CONFIG_ADDR;
+		s = x2_nand_dtb_load(board_id, x2_kernel_conf);
+		x2_nand_kernel_load(x2_kernel_conf);
+#else
+		s = x2_nor_kernel_load();
 #endif
 	}
+
+	printf("fdtimage = %s\n", s);
+	env_set("fdtimage", s);
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
