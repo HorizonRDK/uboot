@@ -43,7 +43,7 @@ bool ota_kernel_or_system_update(char up_flag, bool part_status);
 
 bool ota_all_update(char up_flag, bool part_status);
 
-void ota_recovery_mode_set(void);
+void ota_recovery_mode_set(bool upflag);
 
 void ota_ab_boot_bak_partition(unsigned int *rootfs_id,
 	unsigned int *kernel_id);

@@ -59,6 +59,7 @@ fit-dtb.blob
 #
 /include/config/
 /include/generated/
+/include/configs/x2_config.h
 
 # stgit generated dirs
 patches-*

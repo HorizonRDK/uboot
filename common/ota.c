@@ -494,19 +494,36 @@ bool ota_all_update(char up_flag, bool part_status)
 	return boot_flag;
 }
 
-void ota_recovery_mode_set(void)
+void ota_recovery_mode_set(bool upflag)
 {
-	char *s = NULL;
+	char *s = NULL, *fdt = NULL;
+	char cmd[64] = { 0 };
 	char boot_reason[16] = "recovery";
+	int ret;
+	unsigned int kernel_id;
 
 	if (recovery_sys_enable) {
-		veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+		if (upflag) {
+			veeprom_write(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 				VEEPROM_RESET_REASON_SIZE);
+		}
 
 		if (x2_src_boot == PIN_2ND_EMMC) {
 			/* env bootfile set*/
 			s = "recovery.gz\0";
 			env_set("bootfile", s);
+
+			/* config env fdtimage */
+			kernel_id = get_partition_id("kernel");
+			fdt = env_get("fdtimage");
+			snprintf(cmd, sizeof(cmd), "ext4load mmc 0:%d ${fdt_addr} "
+				"recovery_dtb/%s", kernel_id, fdt);
+			ret = run_command_list(cmd, -1, 0);
+			if (ret == 0) {
+				snprintf(cmd, sizeof(cmd), "recovery_dtb/%s", fdt);
+				printf("recovery fdtimage: %s\n", cmd);
+				env_set("fdtimage", cmd);
+			}
 		}
 	}
 }
@@ -557,7 +574,7 @@ unsigned int ota_check_update_success_flag(void)
 	update_success = (up_flag >> 3) & 0x1;
 	if ((update_success == 0) && (strcmp(upmode, "golden") == 0)) {
 		/* when update uboot failed in golden mode, into recovery system */
-		ota_recovery_mode_set();
+		ota_recovery_mode_set(true);
 		return 1;
 	} else {
 		return 0;
@@ -606,7 +623,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 
 		if (strcmp(upmode, "golden") == 0)
 			/* update failed, enter recovery mode */
-			ota_recovery_mode_set();
+			ota_recovery_mode_set(true);
 		else
 			ota_update_failed_output(boot_reason, partition);
 	}

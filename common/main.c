@@ -258,7 +258,7 @@ static void x2_nand_env_init(void)
 	env_set("bootcmd", tmp);
 }
 
-static char *x2_nand_dtb_load(unsigned int board_id,
+static void x2_nand_dtb_load(unsigned int board_id,
 		struct x2_kernel_hdr *config)
 {
 	char *s = NULL;
@@ -293,7 +293,8 @@ static char *x2_nand_dtb_load(unsigned int board_id,
 	if (i == count)
 		printf("error: board_id %02x not support\n", board_id);
 
-	return s;
+	printf("fdtimage = %s\n", s);
+	env_set("fdtimage", s);
 }
 #endif
 
@@ -385,7 +386,7 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 					ota_ab_boot_bak_partition(&rootfs_id, &kernel_id);
 				} else {
 					/* golden mode, boot recovery system */
-					ota_recovery_mode_set();
+					ota_recovery_mode_set(true);
 				}
 			} else {
 				/* get rootfs and kernel partition id */
@@ -395,10 +396,7 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 		} else if (strcmp(boot_reason, "recovery") == 0) {
 			/* boot_reason is 'recovery', enter recovery mode */
 			env_set("bootdelay", "0");
-
-			/* set environment bootfile */
-			s = "recovery.gz\0";
-			env_set("bootfile", s);
+			ota_recovery_mode_set(false);
 		} else {
 			/* check update_success flag */
 			ota_check_update_success_flag();
@@ -475,7 +473,7 @@ static bool x2_nor_ota_upflag_check(void)
 					VEEPROM_COUNT_SIZE);
 			if (count <= 0) {
 				/* system boot failed, enter recovery mode */
-				ota_recovery_mode_set();
+				ota_recovery_mode_set(true);
 
 				if (recovery_sys_enable)
 					load_imggz = false;
@@ -502,7 +500,7 @@ static bool x2_nor_ota_upflag_check(void)
 	return load_imggz;
 }
 
-static char *x2_nor_kernel_load(void)
+static void x2_nor_kernel_load(void)
 {
 	unsigned int kernel_addr, dtb_addr, head_addr;
 	struct x2_flash_kernel_hdr *kernel_hdr;
@@ -546,7 +544,9 @@ static char *x2_nor_kernel_load(void)
 		(void *)gz_addr);
 
 	s = (char *)kernel_hdr->dtbname;
-	return s;
+
+	printf("fdtimage = %s\n", s);
+	env_set("fdtimage", s);
 }
 
 #ifdef CONFIG_X2_NAND_BOOT
@@ -625,8 +625,15 @@ static void x2_dtb_mapping_load(void)
 		printf("command is %s\n", cmd);
 		rcode = run_command_list(cmd, -1, 0);
 		if (rcode != 0) {
-			printf("error: dtb-mapping.conf not exit! \n");
-			return;
+			/* load recovery dtb-mapping.conf */
+			sprintf(cmd, "ext4load mmc 0:%d 0x%x recovery_dtb/dtb-mapping.conf",
+				get_partition_id(partname), X2_DTB_CONFIG_ADDR);
+			printf("command is %s\n", cmd);
+			rcode = run_command_list(cmd, -1, 0);
+			if (rcode !=0) {
+				printf("error: dtb-mapping.conf not exit! \n");
+				return;
+			}
 		}
 	} else {
 #ifdef CONFIG_X2_NAND_BOOT
@@ -689,19 +696,21 @@ static void x2_env_and_boardid_init(void)
 	if (x2_src_boot == PIN_2ND_EMMC) {
 		x2_kernel_conf =  (struct x2_kernel_hdr *)X2_DTB_CONFIG_ADDR;
 		s = x2_mmc_dtb_load(board_id, x2_kernel_conf);
+		printf("fdtimage = %s\n", s);
+		env_set("fdtimage", s);
+
 		x2_mmc_env_init();
 	} else {
 #ifdef  CONFIG_X2_NAND_BOOT
+		/* load nand kernel and dtb */
 		x2_kernel_conf =  (struct x2_kernel_hdr *)X2_DTB_CONFIG_ADDR;
-		s = x2_nand_dtb_load(board_id, x2_kernel_conf);
+		x2_nand_dtb_load(board_id, x2_kernel_conf);
 		x2_nand_kernel_load(x2_kernel_conf);
 #else
-		s = x2_nor_kernel_load();
+		/* load nor kernel and dtb */
+		x2_nor_kernel_load();
 #endif
 	}
-
-	printf("fdtimage = %s\n", s);
-	env_set("fdtimage", s);
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
