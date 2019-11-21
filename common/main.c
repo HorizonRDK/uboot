@@ -348,6 +348,8 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 {
 	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
 	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage};";
+	char logo[64] = "ext4load mmc 0:3 ${logo_addr} logo.rgb";
+	char logo_addr[16];
 
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
@@ -357,6 +359,8 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 	char *s;
 	char count;
 
+	snprintf(logo_addr, sizeof(logo_addr), "0x%x", X2_USABLE_RAM_TOP);
+	env_set("logo_addr", logo_addr);
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
 
@@ -417,7 +421,9 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 	/* init env mmcload */
 	mmcload[26] = hex_to_char(kernel_id);
 	tmp[15] = mmcload[26];
+	logo[15] = mmcload[26];
 	strcat(mmcload, tmp);
+	strcat(mmcload, logo);
 	env_set("mmcload", mmcload);
 
 	/* int  env mem_size */
