@@ -16,7 +16,7 @@
 
 #define SECTOR_SIZE (512)
 #ifdef CONFIG_X2_NAND_BOOT
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 131072
 #else
 #define BUFFER_SIZE SECTOR_SIZE
 #endif

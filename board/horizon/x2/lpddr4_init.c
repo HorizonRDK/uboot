@@ -14,7 +14,8 @@
 #include <asm/arch/x2_share.h>
 #include <asm/arch/x2_dev.h>
 
-#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
+				|| defined(CONFIG_X2_NAND_BOOT)
 struct dram_cfg_param lpddr4_ddrc_mono[] = {
 	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
 	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
@@ -134,7 +135,8 @@ static unsigned int spl_gpio_get(void)
 	return PIN_BOARD_SEL(reg_x, reg_y);
 }
 
-#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
+				|| defined(CONFIG_X2_NAND_BOOT)
 static int spl_board_id_verify(unsigned int board_id)
 {
 	int i = 0;
@@ -167,7 +169,8 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 {
 	int i = 0;
 	unsigned int gpio_id = 0;
-#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
+				|| defined(CONFIG_X2_NAND_BOOT)
 	unsigned int size = 0;
 	unsigned int board_id = g_binfo.board_id;
 #endif
@@ -180,7 +183,8 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 
 	gpio_id = spl_gpio_get();
 	printf("gpio_id: %02x \n", gpio_id);
-#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT)
+#if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
+				|| defined(CONFIG_X2_NAND_BOOT)
 	if (board_id == X2_GPIO_MODE) {
 		gpio_id = spl_gpio_get();
 
@@ -856,4 +860,3 @@ void ddr_init(struct dram_timing_info *dram_timing)
 #endif /* CONFIG_X2_PM */
        }
 }
-
