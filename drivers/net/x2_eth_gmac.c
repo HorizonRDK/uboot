@@ -43,6 +43,7 @@
 #include <asm/io.h>
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 #include <asm/arch/x2_sysctrl.h>
+#include "../arch/arm/cpu/armv8/x2/x2_info.h"
 
 /* GPIO PIN MUX */
 #if defined(CONFIG_TARGET_X2_FPGA) || defined(CONFIG_TARGET_X2)
