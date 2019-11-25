@@ -113,6 +113,9 @@ static void system_sdram_size_init(void)
 		break;
 	}
 
+	if ((board_id == X2_MONO_BOARD_ID) && (x2_src_boot == PIN_2ND_SF))
+		sys_sdram_size = 0x20000000; /* 512M */
+
 	//START4[prj_j2quad]
 	//QUAD alike board force setting src as emmc even for nor+eMMC case
 	if (board_id==QUAD_BOARD_ID)
