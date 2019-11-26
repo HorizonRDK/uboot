@@ -283,7 +283,7 @@ static void x2_nand_dtb_load(unsigned int board_id,
 			}
 
 			nand_dtb_image_load(config->dtb[i].dtb_addr,
-				config->dtb[i].dtb_size, false);
+				config->dtb[i].dtb_size, gz_flag);
 
 			x2_nand_env_init();
 			break;
