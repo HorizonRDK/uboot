@@ -41,6 +41,7 @@
 #include <wait_bit.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <asm/arch-x2/x2_sysctrl.h>
 #include "../arch/arm/cpu/armv8/x2/x2_info.h"
 /* GPIO PIN MUX */
 #define PIN_MUX_BASE    0xA6003000
