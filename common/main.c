@@ -350,7 +350,6 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
 	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage};";
 	char logo[64] = "ext4load mmc 0:3 ${logo_addr} logo.rgb";
-	char logo_addr[16];
 
 	char rootfs[32] = "system";
 	char kernel[32] = "kernel";
@@ -360,8 +359,8 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 	char *s;
 	char count;
 
-	snprintf(logo_addr, sizeof(logo_addr), "0x%x", X2_USABLE_RAM_TOP);
-	env_set("logo_addr", logo_addr);
+	//snprintf(logo_addr, sizeof(logo_addr), "0x%x", X2_USABLE_RAM_TOP);
+	env_set("logo_addr", "0x1800000");
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
 
