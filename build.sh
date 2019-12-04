@@ -188,16 +188,15 @@ function set_uboot_config()
     if [ "$IMAGE_TYPE" = "nand"  ] | [ "$bootmode" = "nand" ];then
         sed -i 's/# CONFIG_CMD_UBI is not set/CONFIG_CMD_UBI=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
         sed -i 's/# CONFIG_CMD_UBIFS is not set/CONFIG_CMD_UBIFS=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
-        sed -i 's/# CONFIG_CMD_MTDPARTS is not set/CONFIG_CMD_MTDPARTS=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
     else
         sed -i 's/CONFIG_CMD_UBI=y/# CONFIG_CMD_UBI is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
         sed -i 's/CONFIG_CMD_UBIFS=y/# CONFIG_CMD_UBIFS is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
-        sed -i 's/CONFIG_CMD_MTDPARTS=y/# CONFIG_CMD_MTDPARTS is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
         sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
         sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=y/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $TOPDIR/uboot/configs/hr_x2_defconfig
     fi
+    sed -i 's/# CONFIG_CMD_MTDPARTS is not set/CONFIG_CMD_MTDPARTS=y/g' $TOPDIR/uboot/configs/hr_x2_defconfig
 }
 
 function usage()

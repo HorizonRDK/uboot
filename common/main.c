@@ -923,6 +923,65 @@ U_BOOT_CMD(
 	"-mem_modify 0x40000000"
 );
 
+static int nand_write_partition(char *partition, int partition_offset,
+				int partition_size)
+{
+	int ret;
+	char cmd[128];
+	snprintf(cmd, sizeof(cmd), "mtd erase %s", partition);
+	ret = run_command(cmd, 0);
+	if (ret)
+		printf("mtd erase partition %s failed\n", partition);
+	snprintf(cmd, sizeof(cmd), "mtd write %s %x 0x0 %x", partition,
+				partition_offset, partition_size);
+	printf("%s\n", cmd);
+	ret = run_command(cmd, 0);
+	if (ret)
+		printf("mtd write partition %s failed\n", partition);
+}
+
+static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
+	int argc, char * const argv[])
+{
+	int ret;
+	u32 img_addr, img_size;
+	u32 bl_size, sys_size, rootfs_size;
+	u32 sys_offset, rootfs_offset;
+	char *s1 = NULL;
+	char *s2 = NULL;
+	if (argc != 3) {
+		printf("image_addr and img_size must be given\n");
+		return 1;
+	}
+	s1 = argv[1];
+	s2 = argv[2];
+	img_addr = (u32)simple_strtoul(s1, NULL, 16);
+	img_size = (u32)simple_strtoul(s2, NULL, 16);
+	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
+	bl_size = 0x260000;
+	sys_size = 0x560000;
+	rootfs_size = img_size - bl_size - sys_size;
+	sys_offset = img_addr + bl_size;
+	rootfs_offset = sys_offset + sys_size;
+	ret = 0;
+#ifdef CONFIG_X2_NAND_BOOT
+	run_command("ubi detach", 0);
+#else
+	env_set("mtdids", "spi-nand0=hr_nand");
+	env_set("mtdparts", "mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs)");
+#endif
+	ret = nand_write_partition("bootloader", img_addr, bl_size);
+	ret = nand_write_partition("sys", sys_offset, sys_size);
+	ret = nand_write_partition("rootfs", rootfs_offset, rootfs_size);
+	return ret;
+}
+
+U_BOOT_CMD(
+	burn_nand,	3,	0,	burn_nand_flash,
+	"Burn decompresssed Image at [addr] with [size] in bytes(hex) to nand flash",
+	"-burn_nand [addr] [size]"
+);
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
