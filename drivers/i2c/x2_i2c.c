@@ -15,9 +15,11 @@ DECLARE_GLOBAL_DATA_PTR;
 #define WAIT_IDLE_TIMEOUT	200
 #define I2C_TIMEOUT_MS		500
 
-#define PERISYS_CLKEN	0x150
+#define PERISYS_CLKEN	0xA1000154
 #define X2_RESET_CTL	0xA1000450
 
+#define X2_PIN_CTL_0	0xA6003000
+#define X2_PIN_CTL_4	0xA6003040
 
 static int x2_i2c_wait_idle(struct x2_i2c_bus *priv)
 {
@@ -502,14 +504,14 @@ static void x2_i2c_reset(struct x2_i2c_bus *priv)
 	
 
 	value = readl(priv->x2_reset);
-	value |= 1 << 11;
+	value |= 1 << (priv->bus_num + 11);
 	writel(value, priv->x2_reset);
 		
 
 	udelay(2000);
 
 	value = readl(priv->x2_reset);
-	value &= ~(1 << 11);
+	value &= ~(1 << (priv->bus_num + 11));
 	writel(value, priv->x2_reset);
 }
 static int x2_i2c_probe_chip(struct udevice *bus, uint chip, uint chip_flags)
@@ -546,33 +548,78 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 	struct x2_i2c_bus *priv = dev_get_priv(dev);
 	int node;
 	int value;
+	int bus_nr;
+	int ret = 0;
 
 	node = dev_of_offset(dev);
 	priv->regs = (struct x2_i2c_regs_s *)devfdt_get_addr(dev);
 
+	ret = dev_read_alias_seq(dev, &bus_nr);
+	if (ret < 0) {
+		printf("%s,Could not get alias for %s:%d\n", __func__, dev->name, ret);
+		return ret;
+	}
+	
+	priv->bus_num = bus_nr;
 
-	priv->perisys_clk = (void __iomem *)(0xA1000150);
+	switch (priv->bus_num) {
+	case 0:
+		priv->pin_first = 9;
+		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_0);
+		priv->i2c_func = 0;
+		break;
+	case 1: 
+		priv->pin_first = 11;
+		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_0);
+		priv->i2c_func = 1;
+		break;
 
-	priv->pin_ctl = (void __iomem *)(0xA6003000);
+	case 2:
+		priv->pin_first = 14;
+		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_4);
+		priv->i2c_func = 1;
+		break;
+
+	case 3:
+		priv->pin_first =  4;
+		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_4);
+		priv->i2c_func = 2;
+		break;
+
+	defaut:
+		printf("%s:bus_num:%d error\n", __func__, priv->bus_num);
+	
+	}
+	priv->perisys_clk = (void __iomem *)(PERISYS_CLKEN);
+
+
 	priv->x2_reset = (void __iomem *)(X2_RESET_CTL);
 
 	value = readl(priv->perisys_clk);
-//	printf("%s, peri_clk:0x%x\n", __func__, value);	
-	value = readl(priv->pin_ctl);	
-//	printf("%s, pin value:0x%x\n", __func__,value);
-	value &= ~(0x3 << 9);
-	value |= (0x0 << 9);
-	value = 0x300000;
-	writel(value, priv->pin_ctl);
+	value |= (1 << (11 + priv->bus_num));
+	writel(value, priv->perisys_clk);
 
-	value = readl(priv->pin_ctl);	
+//	printf("%s, peri_clk:0x%x\n", __func__, value);	
+//	value = readl(priv->pin_ctl);	
+//	printf("%s, pin value:0x%x\n", __func__,value);
+//	value &= ~(0x3 << 9);
+//	value |= (0x0 << 9);
+	
+//	value = 0x300000;
+//	writel(value, priv->pin_ctl);
+
+//	value = readl(priv->pin_ctl);	
 	
 //	printf("%s, pin value:0x%x\n", __func__,value);
-	value &= ~(0x3 << 10);
-	value |= (0x0 << 10);
-	value = 0;
-	writel(value, priv->pin_ctl);
+//	value &= ~(0x3 << 10);
+//	value |= (0x0 << 10);
+//	value = 0;
+//	writel(value, priv->pin_ctl);
 	
+	value = readl(priv->pin_ctl);
+	value &= (0x3 << priv->pin_first);
+	value |= (priv->i2c_func << priv->pin_first);
+	writel(value, priv->pin_ctl); 
 	
 	priv->clock_freq = fdtdec_get_int(blob, node, "clock-frequency", 100000);	
 

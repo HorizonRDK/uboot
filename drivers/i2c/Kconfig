@@ -380,6 +380,12 @@ config SYS_I2C_S3C24X0
 	help
 	  Support for Samsung I2C controller as Samsung SoCs.
 
+config HOBOT_X2_I2C
+	bool "Horizon X2 I2C driver"
+	depends on ARCH_X2 && DM_I2C
+	help
+	  Support for horizon robtics I2C controller
+
 config SYS_I2C_STM32F7
 	bool "STMicroelectronics STM32F7 I2C support"
 	depends on (STM32F7 || STM32H7 || ARCH_STM32MP) && DM_I2C

@@ -226,8 +226,10 @@ struct x2_i2c_bus {
 	u8 op_flags;
 	void __iomem *perisys_clk;	
 	void __iomem *pin_ctl;	
-
+	
 	void __iomem *x2_reset;
+	int pin_first;
+	u8 i2c_func;
 };
 
 #endif

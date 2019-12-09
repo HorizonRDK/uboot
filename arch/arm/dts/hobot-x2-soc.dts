@@ -23,6 +23,10 @@
 		bif	= &bifsd;
 		mmc0    = &sdmmc;
 		mmc1   = &sd;
+		i2c0	= &i2c0;
+		i2c1	= &i2c1;
+		i2c2	= &i2c2;
+		i2c3	= &i2c3;
 	};
 
 	chosen {
@@ -111,6 +115,21 @@
 		reg = <0x69>;
 	};
 };
+
+&i2c1 {
+	status = "okay";
+};
+
+
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
 &sd {
 	status = "okay";
 };
