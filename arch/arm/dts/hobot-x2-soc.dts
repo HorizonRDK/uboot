@@ -97,6 +97,20 @@
 &sdmmc {
 	status = "okay";
 };
+
+&i2c0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	
+	tmp75c@48 {
+		reg = <0x48>;
+	};
+
+	mpq@69 {
+		reg = <0x69>;
+	};
+};
 &sd {
 	status = "okay";
 };
