@@ -197,31 +197,6 @@ unsigned int x2_gpio_to_borad_id(unsigned int gpio_id)
 	return 0xff;
 }
 
-static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
-	bool flag)
-{
-	char cmd[256] = { 0 };
-	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
-
-	if (!flash)
-		return;
-
-	if (flag == false) {
-		spi_flash_read(flash, addr, leng, (void *)dtb_addr);
-	} else {
-		spi_flash_read(flash, DTB_MAPPING_ADDR + NOR_SECTOR_SIZE,
-			NOR_SECTOR_SIZE * 4, (void *)gz_addr);
-
-		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
-		run_command_list(cmd, -1, 0);
-
-		gz_addr = dtb_addr + addr;
-		if (gz_addr != dtb_addr)
-			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
-	}
-}
-
 #ifdef CONFIG_X2_NAND_BOOT
 static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
 	bool flag)
@@ -267,7 +242,7 @@ static void x2_nand_dtb_load(unsigned int board_id,
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
-		return NULL;
+		return;
 	}
 
 	if (config->dtb[0].dtb_addr == 0)
@@ -279,7 +254,7 @@ static void x2_nand_dtb_load(unsigned int board_id,
 
 			if ((config->dtb[i].dtb_addr == 0x0) && (gz_flag == false)) {
 				printf("error: dtb %s not exit\n", s);
-				return NULL;
+				return;
 			}
 
 			nand_dtb_image_load(config->dtb[i].dtb_addr,
@@ -295,6 +270,22 @@ static void x2_nand_dtb_load(unsigned int board_id,
 
 	printf("fdtimage = %s\n", s);
 	env_set("fdtimage", s);
+}
+
+static void x2_nand_kernel_load(struct x2_kernel_hdr *config)
+{
+	ulong gz_addr;
+	bool load_imggz = true;
+	int ret;
+	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+	ret = 0;
+
+	/* load Image.gz */
+	ret = ubi_volume_read("kernel", (void *)gz_addr, 0);
+
+	if (ret) {
+		printf("Load from ubi volume failed with error: -%d!\n", ret);
+	}
 }
 #endif
 
@@ -432,6 +423,32 @@ static void x2_bootargs_init(unsigned int rootfs_id)
 	}
 }
 
+#ifndef CONFIG_X2_NAND_BOOT
+static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
+	bool flag)
+{
+	char cmd[256] = { 0 };
+	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+
+	if (!flash)
+		return;
+
+	if (flag == false) {
+		spi_flash_read(flash, addr, leng, (void *)dtb_addr);
+	} else {
+		spi_flash_read(flash, DTB_MAPPING_ADDR + NOR_SECTOR_SIZE,
+			NOR_SECTOR_SIZE * 4, (void *)gz_addr);
+
+		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
+		run_command_list(cmd, -1, 0);
+
+		gz_addr = dtb_addr + addr;
+		if (gz_addr != dtb_addr)
+			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
+	}
+}
+
 static void x2_nor_env_init(void)
 {
 	char *tmp;
@@ -509,7 +526,7 @@ static void x2_nor_kernel_load(void)
 
 	if (flash == NULL) {
 		printf("Error: flash init failed\n");
-		return NULL;
+		return;
 	}
 
 	load_imggz = x2_nor_ota_upflag_check();
@@ -529,7 +546,7 @@ static void x2_nor_kernel_load(void)
 	s = (char *)kernel_hdr->magic;
 	if (strcmp(s, "FLASH0") != 0) {
 		printf("Error: kernel magic check failed !\n");
-		return NULL;
+		return;
 	}
 
 	/* init boorargs and bootcmd */
@@ -546,68 +563,6 @@ static void x2_nor_kernel_load(void)
 
 	printf("fdtimage = %s\n", s);
 	env_set("fdtimage", s);
-}
-
-#ifdef CONFIG_X2_NAND_BOOT
-static void x2_nand_kernel_load(struct x2_kernel_hdr *config)
-{
-	ulong gz_addr;
-	bool load_imggz = true;
-	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-
-	/* TODO: Change to use ubi methods */
-#ifdef CONFIG_X2_DUAL_BOOT
-	char upmode[16] = { 0 };
-	char boot_reason[64] = { 0 };
-	char rootfs[32] = "system";
-	char kernel[32] = "kernel";
-	char count;
-	unsigned int ret1, ret2;
-	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
-		VEEPROM_RESET_REASON_SIZE);
-
-	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
-			VEEPROM_UPDATE_MODE_SIZE);
-
-	if ((strcmp(upmode, "golden") == 0)) {
-		if (strcmp(boot_reason, "normal") == 0) {
-			/* boot_reason is 'normal', normal boot */
-			printf("uboot: normal boot \n");
-
-			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
-					VEEPROM_COUNT_SIZE);
-			if (count <= 0) {
-				/* system boot failed, enter recovery mode */
-				ota_recovery_mode_set();
-
-				if (recovery_sys_enable)
-					load_imggz = false;
-			}
-		} else if (strcmp(boot_reason, "recovery") == 0) {
-			/* boot_reason is 'recovery', enter recovery mode */
-			env_set("bootdelay", "0");
-			load_imggz = false;
-		} else {
-			/* check update_success flag */
-			if (ota_check_update_success_flag()) {
-				load_imggz = false;
-			} else {
-				/* ota partition status check */
-				ret1 = ota_uboot_update_check(rootfs);
-				ret2 = ota_uboot_update_check(kernel);
-				if ((ret1 == 1) || (ret2 == 1))
-					load_imggz = false;
-			}
-		}
-	}
-#endif
-	if (load_imggz) {
-		/* load Image.gz */
-		ubi_volume_read("kernel", (void *)gz_addr, 0);
-	} else {
-		/* load recovery.gz */
-		ubi_volume_read("recovery", (void *)gz_addr, 0);
-	}
 }
 #endif
 
@@ -925,7 +880,7 @@ U_BOOT_CMD(
 static int nand_write_partition(char *partition, int partition_offset,
 				int partition_size)
 {
-	int ret;
+	int ret = 0;
 	char cmd[128];
 	snprintf(cmd, sizeof(cmd), "mtd erase %s", partition);
 	ret = run_command(cmd, 0);
@@ -937,6 +892,7 @@ static int nand_write_partition(char *partition, int partition_offset,
 	ret = run_command(cmd, 0);
 	if (ret)
 		printf("mtd write partition %s failed\n", partition);
+	return ret;
 }
 
 static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
@@ -958,7 +914,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	img_size = (u32)simple_strtoul(s2, NULL, 16);
 	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
 	bl_size = 0x260000;
-	sys_size = 0x560000;
+	sys_size = 0xA00000;
 	rootfs_size = img_size - bl_size - sys_size;
 	sys_offset = img_addr + bl_size;
 	rootfs_offset = sys_offset + sys_size;
@@ -969,9 +925,9 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	env_set("mtdids", "spi-nand0=hr_nand");
 	env_set("mtdparts", "mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs)");
 #endif
-	ret = nand_write_partition("bootloader", img_addr, bl_size);
-	ret = nand_write_partition("sys", sys_offset, sys_size);
-	ret = nand_write_partition("rootfs", rootfs_offset, rootfs_size);
+	ret |= nand_write_partition("bootloader", img_addr, bl_size);
+	ret |= nand_write_partition("sys", sys_offset, sys_size);
+	ret |= nand_write_partition("rootfs", rootfs_offset, rootfs_size);
 	return ret;
 }
 
