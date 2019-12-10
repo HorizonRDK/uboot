@@ -352,7 +352,7 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 		return 0;
 
 	if (size == 0) {
-		printf("No size specified -> Using max size (%lld)\n", vol->used_bytes);
+		/* printf("No size specified -> Using max size (%lld)\n", vol->used_bytes); */
 		size = vol->used_bytes;
 	}
 
@@ -450,6 +450,11 @@ static int ubi_dev_scan(struct mtd_info *info, char *ubidev,
 	return 0;
 }
 
+int ubi_if_attached(char *partname, size_t name_len)
+{
+	return ubi_dev.selected & !strncmp(ubi_dev.part_name, partname, name_len);
+}
+
 int ubi_detach(void)
 {
 	if (mtdparts_init() != 0) {
@@ -487,7 +492,8 @@ int ubi_part(char *part_name, const char *vid_header_offset)
 	struct mtd_device *dev;
 	struct part_info *part;
 	u8 pnum;
-
+	if(ubi_if_attached(part_name, strlen(part_name)))
+		return 0;
 	ubi_detach();
 	/*
 	 * Search the mtd device number where this partition

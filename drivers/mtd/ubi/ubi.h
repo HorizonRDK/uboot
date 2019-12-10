@@ -40,12 +40,16 @@
 /* UBI name used for character devices, sysfs, etc */
 #define UBI_NAME_STR "ubi"
 
+/* Uncomment the following line to enable more info */
+/* #define UBI_DEBUG */
+
+#ifdef UBI_DEBUG
 /* Normal UBI messages */
-#ifdef CONFIG_UBI_SILENCE_MSG
-#define ubi_msg(ubi, fmt, ...)
-#else
 #define ubi_msg(ubi, fmt, ...) printk(UBI_NAME_STR "%d: " fmt "\n", \
 					 ubi->ubi_num, ##__VA_ARGS__)
+#else
+/* Silent ubi_msg */
+#define ubi_msg(ubi, fmt, ...)
 #endif
 
 /* UBI warning messages */
