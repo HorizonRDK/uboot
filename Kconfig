@@ -400,10 +400,17 @@ config SPL_FIT_GENERATOR
 	  source file used to build the U-Boot FIT image file. This gets
 	  passed a list of supported device tree file stub names to
 	  include in the generated image.
-
 endif # SPL
 
 endif # FIT
+
+if SPL
+config SPL_GPIO_ID
+        bool "enable gpio id function"
+        default n
+        help
+          This option enable the SPL gpio id function.
+endif # SPL
 
 config IMAGE_FORMAT_LEGACY
 	bool "Enable support for the legacy image format"

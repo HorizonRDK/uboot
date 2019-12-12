@@ -97,10 +97,12 @@ static unsigned int x2_board_id[] = {
 	0x300, 0x301, 0x302, 0x303, 0x304, 0x400, 0x401, 0x104, 0x105, 0x106
 };
 
+#if defined(CONFIG_SPL_GPIO_ID)
 static unsigned int x2_gpio_id[] = {
 	0xff, 0xff, 0x30, 0x20, 0x10, 0x00, 0x3C, 0xff, 0xff, 0xff,
 	0xff, 0x34, 0x36, 0x35, 0x37, 0xff, 0xff, 0xff, 0xff, 0xff
 };
+#endif
 #endif
 
 #if 0
@@ -125,18 +127,9 @@ static void lpddr4_cfg_umctl2(struct dram_cfg_param *ddrc_cfg, int num)
 	}
 }
 
-static unsigned int spl_gpio_get(void)
-{
-	unsigned int reg_x, reg_y;
-
-	reg_x = reg32_read(X2_GPIO_BASE + GPIO_GRP5_REG);
-	reg_y = reg32_read(X2_GPIO_BASE + GPIO_GRP4_REG);
-
-	return PIN_BOARD_SEL(reg_x, reg_y);
-}
-
 #if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
 				|| defined(CONFIG_X2_NAND_BOOT)
+
 static int spl_board_id_verify(unsigned int board_id)
 {
 	int i = 0;
@@ -147,6 +140,17 @@ static int spl_board_id_verify(unsigned int board_id)
 	}
 
 	return -1;
+}
+
+#if defined(CONFIG_SPL_GPIO_ID)
+static unsigned int spl_gpio_get(void)
+{
+	unsigned int reg_x, reg_y;
+
+	reg_x = reg32_read(X2_GPIO_BASE + GPIO_GRP5_REG);
+	reg_y = reg32_read(X2_GPIO_BASE + GPIO_GRP4_REG);
+
+	return PIN_BOARD_SEL(reg_x, reg_y);
 }
 
 static unsigned int spl_gpio_to_borad_id(unsigned int gpio_id)
@@ -164,11 +168,14 @@ static unsigned int spl_gpio_to_borad_id(unsigned int gpio_id)
 	return 0xff;
 }
 #endif
+#endif
 
 static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 {
 	int i = 0;
+#if defined(CONFIG_SPL_GPIO_ID)
 	unsigned int gpio_id = 0;
+#endif
 #if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
 				|| defined(CONFIG_X2_NAND_BOOT)
 	unsigned int size = 0;
@@ -180,11 +187,13 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 		reg32_write(ddrp_cfg->reg, ddrp_cfg->val);
 		ddrp_cfg++;
 	}
-
-	gpio_id = spl_gpio_get();
-	printf("gpio_id: %02x \n", gpio_id);
 #if defined(CONFIG_X2_MMC_BOOT) || defined(CONFIG_X2_NOR_BOOT) \
 				|| defined(CONFIG_X2_NAND_BOOT)
+
+#if defined(CONFIG_SPL_GPIO_ID)
+	gpio_id = spl_gpio_get();
+	printf("gpio_id: %02x \n", gpio_id);
+
 	if (board_id == X2_GPIO_MODE) {
 		gpio_id = spl_gpio_get();
 
@@ -197,11 +206,18 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 		}
 	} else {
 		if (spl_board_id_verify(board_id) != 0) {
-			printf("error: board id %02x not support \n", board_id);
-                        printf("default using DDR SOM configuration ! \n");
+		printf("error: board id %02x not support, using DDR"
+			" SOM configuration \n", board_id);
                         board_id = 0x103;
 		}
 	}
+#else
+	if (spl_board_id_verify(board_id) != 0) {
+		printf("error: board id %02x not support, using DDR"
+			" SOM configuration \n", board_id);
+                board_id = 0x103;
+	}
+#endif
 
 	switch (board_id) {
 	case X2_SVB_BOARD_ID:

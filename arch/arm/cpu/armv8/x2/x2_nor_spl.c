@@ -609,7 +609,6 @@ static void nor_pre_load(struct x2_info_hdr *pinfo,
 }
 
 static unsigned int nor_start_sector = NOR_VEEPROM_START_SECTOR;
-static char nor_buffer[64];
 
 int nor_veeprom_read(int offset, char *buf, int size)
 {
@@ -617,13 +616,8 @@ int nor_veeprom_read(int offset, char *buf, int size)
 
 	cur_sector = nor_start_sector + (offset / NOR_PAGE_SIZE);
 
-	memset(nor_buffer, 0, sizeof(nor_buffer));
-
-	spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)nor_buffer,
-		sizeof(nor_buffer));
-	flush_cache((ulong)nor_buffer, sizeof(nor_buffer));
-
-	memcpy(buf, nor_buffer + offset, size);
+	spi_flash_read(cur_sector * NOR_PAGE_SIZE, (void *)buf, size);
+	flush_cache((ulong)buf, size);
 
 	return 0;
 }
@@ -631,6 +625,7 @@ int nor_veeprom_read(int offset, char *buf, int size)
 int nor_veeprom_write(int offset, const char *buf, int size)
 {
 	uint64_t cur_sector = 0;
+	char nor_buffer[64];
 
 	cur_sector = nor_start_sector + (offset / NOR_PAGE_SIZE);
 	int operate_count = 0;
