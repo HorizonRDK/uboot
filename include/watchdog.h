@@ -78,4 +78,11 @@ int init_func_watchdog_reset(void);
 #if defined(CONFIG_MPC85xx) && !defined(__ASSEMBLY__)
 	void init_85xx_watchdog(void);
 #endif
+
+#if defined(CONFIG_X2_WATCHDOG)
+	void x2_wdt_init_hw(void);
+	void x2_wdt_start(void);
+	void x2_wdt_stop(void);
+#endif
+
 #endif /* _WATCHDOG_H_ */

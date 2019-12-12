@@ -213,6 +213,11 @@ err:
 
 void cli_loop(void)
 {
+#ifdef CONFIG_X2_WATCHDOG
+	char *cmd = "watchdog off";
+	run_command(cmd, 0);
+#endif
+
 #ifdef CONFIG_HUSH_PARSER
 	parse_file_outer();
 	/* This point is never reached */

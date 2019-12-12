@@ -173,6 +173,7 @@ obj-$(CONFIG_X86) += x86/
 obj-$(CONFIG_ARCH_MVEBU) += mvebu/
 
 obj-y += ota.o
+obj-$(CONFIG_X2_WATCHDOG) += watchdog.o
 endif # !CONFIG_SPL_BUILD
 
 # core command

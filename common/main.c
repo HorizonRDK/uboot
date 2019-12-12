@@ -950,6 +950,7 @@ void main_loop(void)
 		panic("system ubi image load failed!\n");
 	}
 #endif
+
 #ifdef X2_AUTOBOOT
 		boot_stage_mark(2);
 		wait_start();

@@ -111,4 +111,8 @@ config XILINX_TB_WATCHDOG
 	   Select this to enable Xilinx Axi watchdog timer, which can be found on some
 	   Xilinx Microblaze Platforms.
 
+config X2_WATCHDOG
+        bool "Hobot X2 SoCs watchdog support"
+        help
+           Select this to include support for the watchdog timer
 endmenu

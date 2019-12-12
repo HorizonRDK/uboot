@@ -16,6 +16,10 @@
 #include <asm/arch/x2_pmu.h>
 #include <veeprom.h>
 
+#if defined(CONFIG_X2_WATCHDOG)
+#include <watchdog.h>
+#endif
+
 #include "x2_info.h"
 #include "x2_mmc_spl.h"
 #include "x2_ap_spl.h"
@@ -86,6 +90,11 @@ void board_init_f(ulong dummy)
 #elif defined(CONFIG_X2_NAND_BOOT)
 	spl_nand_init();
 	udelay(40);
+#endif
+
+#if defined(CONFIG_X2_WATCHDOG)
+	x2_wdt_init_hw();
+	x2_wdt_start();
 #endif
 
 #if defined(CONFIG_X2_MMC_BOOT)
