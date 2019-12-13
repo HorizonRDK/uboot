@@ -92,7 +92,8 @@ void board_init_f(ulong dummy)
 	udelay(40);
 #endif
 
-#if defined(CONFIG_X2_WATCHDOG)
+#if defined(CONFIG_X2_WATCHDOG) && \
+	!(defined(CONFIG_X2_AP_BOOT) || defined(CONFIG_X2_YMODEM_BOOT))
 	x2_wdt_init_hw();
 	x2_wdt_start();
 #endif
