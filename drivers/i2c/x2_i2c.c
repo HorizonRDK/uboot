@@ -13,7 +13,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 #define X2_I2C_FIFO_SIZE	16
 #define WAIT_IDLE_TIMEOUT	200
-#define I2C_TIMEOUT_MS		500
+#define I2C_TIMEOUT_MS		100
 
 #define PERISYS_CLKEN	0xA1000154
 #define X2_RESET_CTL	0xA1000450
@@ -162,7 +162,8 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 		writel(ctl_reg.all, &priv->regs->ctl);
 		x2_i2c_unmask_int(priv);
 
-		start = get_timer(0);
+	    udelay(1000);
+    	start = get_timer(0);
 		while (1) {
 			int_status.all = readl(&priv->regs->srcpnd);
 			err = int_status.bit.nack | int_status.bit.sterr | int_status.bit.al|
@@ -186,7 +187,7 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 				goto i2c_exit;
 			}
 
-			udelay(1);
+			udelay(1000);
 		}
 		for (i = 0; i < bytes_xferred; i++) {
 			status.all = readl(&priv->regs->status);
@@ -276,6 +277,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 
 		x2_i2c_unmask_int(priv);
 		//开始轮寻
+        udelay(1000);
 		start = get_timer(0);
 		while (1) {
 			int_status.all = readl(&priv->regs->srcpnd);
@@ -296,7 +298,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 				err = -ETIMEDOUT;
 				goto i2c_exit;
 			}
-			udelay(1);
+			udelay(1000);
 		}
 
 		bytes_remain_len -= i;
@@ -478,7 +480,7 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 				goto i2c_exit;
                         }
 
-                        udelay(10);
+                        udelay(1000);
                 }
 
 i2c_exit:
@@ -508,7 +510,7 @@ static void x2_i2c_reset(struct x2_i2c_bus *priv)
 	writel(value, priv->x2_reset);
 		
 
-	udelay(2000);
+	udelay(1000);
 
 	value = readl(priv->x2_reset);
 	value &= ~(1 << (priv->bus_num + 11));
