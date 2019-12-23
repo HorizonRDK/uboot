@@ -1,0 +1,15 @@
+if TARGET_X3_FPGA
+
+config SYS_BOARD
+	default "x3_fpga"
+
+config SYS_VENDOR
+	default "hobot"
+
+config SYS_SOC
+	default "x3-fpga"
+
+config SYS_CONFIG_NAME
+	default "x3_fpga"
+
+endif

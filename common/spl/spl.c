@@ -503,9 +503,9 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
 
 	bootcount_inc();
 
-#if defined(X2_SWINFO_BOOT_OFFSET)
-	extern int x2_swinfo_boot_spl_check(void);
-	x2_swinfo_boot_spl_check();
+#if defined(HB_SWINFO_BOOT_OFFSET)
+	extern int hb_swinfo_boot_spl_check(void);
+	hb_swinfo_boot_spl_check();
 #endif
 
 	memset(&spl_image, '\0', sizeof(spl_image));

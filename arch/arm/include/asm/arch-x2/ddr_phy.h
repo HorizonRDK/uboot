@@ -1,7 +1,7 @@
 #ifndef __ASM_ARCH_X2_DDR_PHY_H__
 #define __ASM_ARCH_X2_DDR_PHY_H__
 
-#include <asm/arch/x2_reg.h>
+#include <asm/arch/hb_reg.h>
 
 #define DDRP_DBYTE3_TXDQDLYTG0_R5_P3               DDRP_BASE_ADDR + 0xc4d700
 #define DDRP_DBYTE3_TXDQDLYTG1_R5_P3               DDRP_BASE_ADDR + 0xc4d704

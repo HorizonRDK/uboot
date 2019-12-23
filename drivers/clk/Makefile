@@ -32,4 +32,4 @@ obj-$(CONFIG_SANDBOX) += clk_sandbox.o
 obj-$(CONFIG_SANDBOX) += clk_sandbox_test.o
 obj-$(CONFIG_STM32H7) += clk_stm32h7.o
 obj-$(CONFIG_CLK_TI_SCI) += clk-ti-sci.o
-obj-${CONFIG_CLK_X2} += hobot/
+obj-${CONFIG_CLK_HB} += hobot/

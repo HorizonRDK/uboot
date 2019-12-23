@@ -2,8 +2,8 @@
 
 function choose()
 {
-    local tmp="include/configs/.x2_config.h"
-    local target="include/configs/x2_config.h"
+    local tmp="include/configs/.hb_config.h"
+    local target="include/configs/hb_config.h"
     local conftmp=".config_tmp"
 
     echo "*********************************************************************"
@@ -11,47 +11,47 @@ function choose()
     echo "*********************************************************************"
     cp .config $conftmp
 
-    echo "#ifndef __X2_CONFIG_H__" > $tmp
-    echo "#define __X2_CONFIG_H__" >> $tmp
+    echo "#ifndef __HB_CONFIG_H__" > $tmp
+    echo "#define __HB_CONFIG_H__" >> $tmp
 
     if [ "$bootmode" = "ap" ];then
-        echo "#define CONFIG_X2_AP_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        echo "#define CONFIG_HB_AP_BOOT" >> $tmp
+        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "uart" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_YMODEM_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
+        echo "#define CONFIG_HB_YMODEM_BOOT" >> $tmp
+        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=y" >> $conftmp
     elif [ "$bootmode" = "nor" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_NOR_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
+        echo "#define CONFIG_HB_NOR_BOOT" >> $tmp
+        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "nand" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_NAND_BOOT" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_MMC_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
+        echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
+        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "emmc" ];then
-        echo "/* #define CONFIG_X2_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_YMODEM_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NAND_BOOT */" >> $tmp
-        echo "/* #define CONFIG_X2_NOR_BOOT */" >> $tmp
-        echo "#define CONFIG_X2_MMC_BOOT" >> $tmp
+        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
+        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
+        echo "#define CONFIG_HB_MMC_BOOT" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     else
@@ -100,7 +100,7 @@ function choose()
         exit 1
     fi
 
-    echo "#endif /* __X2_CONFIG_H__ */" >> $tmp
+    echo "#endif /* __HB_CONFIG_H__ */" >> $tmp
 
     mv $tmp $target
     mv $conftmp .config

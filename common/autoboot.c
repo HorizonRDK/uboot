@@ -14,8 +14,6 @@
 #include <post.h>
 #include <u-boot/sha256.h>
 #include <bootcount.h>
-#include <asm/arch/ddr.h>
-#include <asm/arch/x2_pmu.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -29,8 +27,6 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* Stored value of bootdelay, used by autoboot_command() */
 static int stored_bootdelay;
-static int stored_dumptype;
-extern unsigned int sys_sdram_size;
 
 #if defined(CONFIG_AUTOBOOT_KEYED)
 #if defined(CONFIG_AUTOBOOT_STOP_STR_SHA256)
@@ -291,151 +287,12 @@ static void process_fdt_options(const void *blob)
 #endif /* CONFIG_OF_CONTROL && CONFIG_SYS_TEXT_BASE */
 }
 
-#if defined(X2_SWINFO_BOOT_OFFSET)
-static int x2_swinfo_boot_uboot_check(void)
-{
-	uint32_t s_magic, s_boot, s_f = 0;
-	void *s_addr;
-
-	s_magic = readl((void*)X2_SWINFO_MEM_ADDR);
-	if (s_magic == X2_SWINFO_MEM_MAGIC) {
-		s_addr = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_BOOT_OFFSET);
-		s_f = 1;
-	} else {
-		s_addr = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_BOOT_OFFSET);
-	}
-	s_boot = readl(s_addr) & 0xF;
-	if (s_boot == X2_SWINFO_BOOT_UBOOTONCE ||
-		s_boot == X2_SWINFO_BOOT_UBOOTWAIT) {
-		puts("wait for swinfo boot: ");
-		if (s_boot == X2_SWINFO_BOOT_UBOOTONCE) {
-			puts("ubootonce\n");
-			writel(s_boot & (~0xF), s_addr);
-			if (s_f)
-				flush_dcache_all();
-		} else {
-			puts("ubootwait\n");
-		}
-		return 1;
-	}
-
-	return 0;
-}
-#endif
-
-#if defined(X2_SWINFO_DUMP_OFFSET)
-static int x2_swinfo_dump_check(void)
-{
-	uint32_t s_magic, s_boot, s_dump;
-	void *s_addrb, *s_addrd;
-	uint8_t d_ip[5];
-	char dump[128];
-	char *s = dump;
-	const char *dcmd, *ddev;
-	uint32_t dmmc, dpart;
-
-	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
-	if (s_magic == X2_SWINFO_MEM_MAGIC) {
-		s_addrb = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_BOOT_OFFSET);
-		s_addrd = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_DUMP_OFFSET);
-	} else {
-		s_addrb = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_BOOT_OFFSET);
-		s_addrd = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_DUMP_OFFSET);
-	}
-	s_boot = readl(s_addrb);
-	s_dump = readl(s_addrd);
-	if (s_boot == X2_SWINFO_BOOT_UDUMPTF ||
-		s_boot == X2_SWINFO_BOOT_UDUMPEMMC) {
-		stored_dumptype = 1;
-		if (s_boot == X2_SWINFO_BOOT_UDUMPTF) {
-			ddev = "tfcard";
-			dcmd = "fatwrite";
-			dmmc = 1;
-			dpart = 1;
-		} else {
-			ddev = "emmc";
-			dcmd = "ext4write";
-			dmmc = 0;
-			dpart = get_partition_id("userdata");
-		}
-		printf("swinfo dump ddr 0x%x -> %s:%d\n", sys_sdram_size, ddev, dpart);
-		s += sprintf(s, "mmc rescan; ");
-		s += sprintf(s, "%s mmc %d:%d 0x0 /dump_ddr_%x.img 0x%x",
-				dcmd, dmmc, dpart, sys_sdram_size, sys_sdram_size);
-		env_set("dumpcmd", dump);
-	} else if (s_dump) {
-		stored_dumptype = 2;
-		d_ip[0] = (s_dump >> 24) & 0xff;
-		d_ip[1] = (s_dump >> 16) & 0xff;
-		d_ip[2] = (s_dump >> 8) & 0xff;
-		d_ip[3] = s_dump & 0xff;
-		d_ip[4] = (d_ip[3] == 1) ? 10 : 1;
-		printf("swinfo dump ddr 0x%x %d.%d.%d.%d -> %d\n",
-			   sys_sdram_size, d_ip[0], d_ip[1], d_ip[2],
-			   d_ip[4], d_ip[3]);
-		s += sprintf(s, "setenv ipaddr %d.%d.%d.%d;",
-					 d_ip[0], d_ip[1], d_ip[2], d_ip[4]);
-		s += sprintf(s, "setenv serverip %d.%d.%d.%d;",
-					 d_ip[0], d_ip[1], d_ip[2], d_ip[3]);
-		s += sprintf(s, "tput 0x0 0x%x dump_ddr_%x.img",
-					 sys_sdram_size, sys_sdram_size);
-		env_set("dumpcmd", dump);
-	} else {
-		stored_dumptype = 0;
-	}
-
-	return stored_dumptype;
-}
-
-static int x2_swinfo_dump_donecheck(int retc)
-{
-	uint32_t s_magic, s_boot, s_f = 0;
-	void *s_addrb, *s_addrd;
-
-	if (retc) {
-		printf("swinfo dump ddr error %d.\n", retc);
-		return retc;
-	}
-
-	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
-	if (s_magic == X2_SWINFO_MEM_MAGIC) {
-		s_addrb = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_BOOT_OFFSET);
-		s_addrd = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_DUMP_OFFSET);
-		s_f = 1;
-	} else {
-		s_addrb = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_BOOT_OFFSET);
-		s_addrd = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_DUMP_OFFSET);
-	}
-	if (stored_dumptype == 1) {
-		s_boot = readl(s_addrb);
-		writel(s_boot & (~0xF), s_addrb);
-	} else if (stored_dumptype == 2) {
-		writel(0x00, s_addrd);
-	} else {
-		s_f = 0;
-	}
-	if (s_f)
-		flush_dcache_all();
-
-	printf("swinfo dump ddr done.\n");
-	return 0;
-}
-#endif
-
 const char *bootdelay_process(void)
 {
 	char *s;
 	int bootdelay;
 
 	bootcount_inc();
-
-#if defined(X2_SWINFO_DUMP_OFFSET)
-	if(x2_swinfo_dump_check()) {
-		s = env_get("dumpcmd");
-		stored_bootdelay = 0;
-		return s;
-	}
-#endif
 
 	s = env_get("bootdelay");
 	bootdelay = s ? (int)simple_strtol(s, NULL, 10) : CONFIG_BOOTDELAY;
@@ -470,22 +327,10 @@ const char *bootdelay_process(void)
 
 void autoboot_command(const char *s)
 {
-	int retc;
 	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
-
-#if defined(X2_SWINFO_BOOT_OFFSET)
-	if(x2_swinfo_boot_uboot_check())
+	/*enter main_loop when need dump mem.add by hobot*/
+	if (env_get("ubootwait") != NULL)
 		return;
-#endif
-
-	if (stored_bootdelay == 0 && s) {
-		retc = run_command_list(s, -1, 0);
-#if defined(X2_SWINFO_DUMP_OFFSET)
-		if(stored_dumptype)
-			x2_swinfo_dump_donecheck(retc);
-#endif
-		return;
-	}
 
 	if (stored_bootdelay != -1 && s && !abortboot(stored_bootdelay)) {
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)

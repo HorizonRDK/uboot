@@ -1,4 +1,4 @@
-config X2_BIFSD
+config HB_BIFSD
 	bool "Bif SD device driver support"
 	default y
         help

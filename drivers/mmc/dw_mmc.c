@@ -95,7 +95,7 @@ static void dwmci_prepare_data(struct dwmci_host *host,
 static int dwmci_data_transfer(struct dwmci_host *host, struct mmc_data *data)
 {
 	int ret = 0;
-	u32 timeout = 240000;
+	u32 timeout = 480000;
 	u32 mask, size, i, len = 0;
 	u32 *buf = NULL;
 	ulong start = get_timer(0);
@@ -197,7 +197,7 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 	ALLOC_CACHE_ALIGN_BUFFER(struct dwmci_idmac, cur_idmac,
 				 data ? DIV_ROUND_UP(data->blocks, 8) : 0);
 	int ret = 0, flags = 0, i;
-	unsigned int timeout = 500;
+	unsigned int timeout = 1000;
 	u32 retry = 100000;
 	u32 mask, ctrl;
 	ulong start = get_timer(0);

@@ -213,7 +213,7 @@ err:
 
 void cli_loop(void)
 {
-#ifdef CONFIG_X2_WATCHDOG
+#ifdef CONFIG_HB_WATCHDOG
 	char *cmd = "watchdog off";
 	run_command(cmd, 0);
 #endif

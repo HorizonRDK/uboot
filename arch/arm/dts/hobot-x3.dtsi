@@ -1,0 +1,109 @@
+#include "hobot-clk-x3.dtsi"
+/ {
+	compatible = "hobot,x3";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	uart0: serial@a5000000 {
+			u-boot,dm-pre-reloc;
+			compatible = "hobot,hb-uart";
+			status = "disabled";
+			clocks = <&uart_div_mclk>;
+			reg = <0x0 0xA5000000 0x0 0x1000>;
+		};
+
+	qspi: qspi@B0000000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hb,qspi";
+		status = "ok";
+		num-cs = <1>;
+		clocks = <&sys_qspi_aclk>;
+		reg = <0x0 0xB0000000 0x0 0x1000>;
+	};
+
+	gmac: ethernet@A5014000 {
+		compatible = "hobot,hb-gmac";
+		reg = <0x0 0xA5014000 0x0 0x2000>;
+		phy-mode = "rmii";
+		status = "disabled";
+	};
+
+	spi0: spi@A5004000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-spi";
+		status = "disabled";
+		reg = <0x0 0xA5004000 0x0 0x1000>;
+	};
+
+	spi1: spi@A5005000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-spi";
+		status = "disabled";
+		reg = <0x0 0xA5005000 0x0 0x1000>;
+	};
+
+	spi2: spi@A5006000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-spi";
+		status = "disabled";
+		reg = <0x0 0xA5006000 0x0 0x1000>;
+	};
+
+	pwm0: pwm@A500D000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-pwm";
+		status = "disabled";
+		reg = <0x0 0xA500D000 0x0 0x1000>;
+	};
+
+	pwm1: pwm@A500E000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-pwm";
+		status = "disabled";
+		reg = <0x0 0xA500E000 0x0 0x1000>;
+	};
+
+	pwm2: pwm@A500F000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,x2-pwm";
+		status = "disabled";
+		reg = <0x0 0xA500F000 0x0 0x1000>;
+	};
+
+	bifsd: bifsd@A1007000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,bifsd";
+		status = "disabled";
+		reg = <0x0 0xA1007000 0x0 0x1000>;
+	};
+
+	sdmmc:dwmmc@A5010000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,hb-dw-mshc";
+		bus-width = <4>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		non-removable;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 52000000>;
+		clocks = <&sd0_div_clk>, <&sd0_div_cclk>, <&sd0_cclk>;
+		reg = <0x0 0xA5010000 0x0 0x1000>;
+		};
+
+	sd:dwmmc@A5011000 {
+		compatible = "hobot,hb-dw-mshc";
+		bus-width = <4>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 20000000>;
+		clocks = <&sd1_div_clk>, <&sd1_div_cclk>, <&sd1_cclk>;
+		reg = <0x0 0xA5011000 0x0 0x1000>;
+		};
+	};

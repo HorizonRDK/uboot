@@ -10,7 +10,7 @@
 #include <mmc.h>
 #include <sparse_format.h>
 #include <image-sparse.h>
-#include <asm/arch/x2_mmc.h>
+#include <asm/arch/hb_mmc.h>
 
 static int curr_device = -1;
 

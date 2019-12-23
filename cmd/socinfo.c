@@ -13,20 +13,20 @@
 #include <x2_fuse_regs.h>
 
 #include "socinfo.h"
-#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+#include <hb_info.h>
 
 #define SCRATCHPAD	1024
 
 static int find_fdt(unsigned long fdt_addr);
 static int valid_fdt(struct fdt_header **blobp);
-extern unsigned int x2_src_boot;
+extern unsigned int hb_src_boot;
 
-void set_x2_fdt_addr(ulong addr)
+void set_hb_fdt_addr(ulong addr)
 {
 	void *buf;
 
 	buf = map_sysmem(addr, 0);
-	x2_dtb = buf;
+	hb_dtb = buf;
 	env_set_hex("fdtaddr", addr);
 }
 
@@ -122,7 +122,7 @@ static int find_fdt(unsigned long fdt_addr)
 	blob = map_sysmem(fdt_addr, 0);
 	if (!valid_fdt(&blob))
 		return 1;
-	set_x2_fdt_addr(fdt_addr);
+	set_hb_fdt_addr(fdt_addr);
 	return 0;
 }
 
@@ -139,11 +139,11 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	char *prop_boot = "boot_mode";
 	char *prop_socuid = "socuid";
 	unsigned int board_id;
-	struct x2_info_hdr *x2_board_type;
+	struct hb_info_hdr *hb_board_type;
 	unsigned long dtb_addr;
 
-	x2_board_type = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
-	board_id = x2_board_type ->board_id;
+	hb_board_type = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
+	board_id = hb_board_type ->board_id;
 
 	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
 	ret = find_fdt(dtb_addr);
@@ -152,7 +152,7 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 		return 1;
 	}
 
-	nodeoffset = fdt_path_offset (x2_dtb, pathp);
+	nodeoffset = fdt_path_offset (hb_dtb, pathp);
 	if (nodeoffset < 0) {
 		/*
 		 * Not found or something else bad happened.
@@ -163,7 +163,7 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	}
 
 	/* set boardid */
-	ptmp = fdt_getprop(x2_dtb, nodeoffset, prop, &len);
+	ptmp = fdt_getprop(hb_dtb, nodeoffset, prop, &len);
 	if (len > SCRATCHPAD) {
 		printf("prop (%d) doesn't fit in scratchpad!\n",
 				len);
@@ -178,14 +178,14 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 
 	len = strlen(data) + 1;
 
-	ret = fdt_setprop(x2_dtb, nodeoffset, prop, data, len);
+	ret = fdt_setprop(hb_dtb, nodeoffset, prop, data, len);
 	if (ret < 0) {
 		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;
 	}
 
 	/* set bootmode */
-	ptmp = fdt_getprop(x2_dtb, nodeoffset, prop_boot, &len);
+	ptmp = fdt_getprop(hb_dtb, nodeoffset, prop_boot, &len);
 	if (len > SCRATCHPAD) {
 		printf("prop (%d) doesn't fit in scratchpad!\n",
 				len);
@@ -195,17 +195,17 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	if (ptmp != NULL)
 		memcpy(data, ptmp, len);
 
-	sprintf(data, "%d", x2_src_boot);
+	sprintf(data, "%d", hb_src_boot);
 	len = strlen(data) + 1;
 
-	ret = fdt_setprop(x2_dtb, nodeoffset, prop_boot, data, len);
+	ret = fdt_setprop(hb_dtb, nodeoffset, prop_boot, data, len);
 	if (ret < 0) {
 		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;
 	}
 
 	/* set socuid */
-	ptmp = fdt_getprop(x2_dtb, nodeoffset, prop_socuid, &len);
+	ptmp = fdt_getprop(hb_dtb, nodeoffset, prop_socuid, &len);
 	if (len > SCRATCHPAD) {
 		printf("prop (%d) doesn't fit in scratchpad!\n",
 				len);
@@ -220,7 +220,7 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	}
 
 	len = strlen(data) + 1;
-	ret = fdt_setprop(x2_dtb, nodeoffset, prop_socuid, data, len);
+	ret = fdt_setprop(hb_dtb, nodeoffset, prop_socuid, data, len);
 	if (ret < 0) {
 		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;

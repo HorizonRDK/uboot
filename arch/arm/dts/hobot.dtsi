@@ -6,7 +6,7 @@
 
 	uart0: serial@a5000000 {
 			u-boot,dm-pre-reloc;
-			compatible = "hobot,x2-uart";
+			compatible = "hobot,hb-uart";
 			status = "disabled";
 			clocks = <&uart_div_mclk>;
 			reg = <0x0 0xA5000000 0x0 0x1000>;
@@ -50,7 +50,7 @@
 
 	qspi: qspi@B0000000 {
 		u-boot,dm-pre-reloc;
-		compatible = "x2,qspi";
+		compatible = "hb,qspi";
 		status = "ok";
 		num-cs = <1>;
 		clocks = <&sys_qspi_aclk>;
@@ -58,7 +58,7 @@
 	};
 
 	gmac: ethernet@A5014000 {
-		compatible = "hobot,x2-gmac";
+		compatible = "hobot,hb-gmac";
 		reg = <0x0 0xA5014000 0x0 0x2000>;
 		phy-mode = "rmii";
 		status = "disabled";
@@ -115,7 +115,7 @@
 
 	sdmmc:dwmmc@A5010000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-dw-mshc";
+		compatible = "hobot,hb-dw-mshc";
 		bus-width = <4>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
@@ -130,7 +130,7 @@
 		};
 
 	sd:dwmmc@A5011000 {
-		compatible = "hobot,x2-dw-mshc";
+		compatible = "hobot,hb-dw-mshc";
 		bus-width = <4>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;

@@ -11,11 +11,11 @@
 #include <spi_flash.h>
 #include <veeprom.h>
 #include <ubi_uboot.h>
-#include <configs/x2_config.h>
-#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+#include <configs/hb_config.h>
+#include <hb_info.h>
 
 #define SECTOR_SIZE (512)
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 #define BUFFER_SIZE 131072
 #else
 #define BUFFER_SIZE SECTOR_SIZE
@@ -27,12 +27,12 @@ static unsigned int start_sector;
 static unsigned int end_sector;
 static char buffer[BUFFER_SIZE];
 static int curr_device = -1;
-extern unsigned int x2_src_boot;
+extern unsigned int hb_src_boot;
 
 extern struct spi_flash *flash;
 struct mmc *emmc = NULL;
 
-#ifndef CONFIG_X2_NAND_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 /* init nor flash device  */
 static void init_nor_device(void)
 {
@@ -66,15 +66,15 @@ static int dw_init(int flag)
 {
 	int ret = 0;
 
-	if (x2_src_boot == PIN_2ND_SF) {
-#ifdef CONFIG_X2_NOR_BOOT
+	if (hb_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_HB_NOR_BOOT
 		init_nor_device();
 		if (!flash) {
 			printf("Failed to initialize SPI flash\n");
 			ret = -1;
 		}
 #endif
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 		if (ubi_part("sys", NULL)) {
 			printf("Failed to initialize veeprom ubi volumn\n");
 			ret = -1;
@@ -103,8 +103,8 @@ static int dw_read(unsigned int cur_sector)
 {
 	int ret = 0;
 
-	if (x2_src_boot == PIN_2ND_SF) {
-#ifdef CONFIG_X2_NOR_BOOT
+	if (hb_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_HB_NOR_BOOT
 		if (!flash)
 			return -1;
 
@@ -129,8 +129,8 @@ static int dw_write(unsigned int cur_sector)
 {
 	int ret = 0;
 
-	if (x2_src_boot == PIN_2ND_SF) {
-#ifdef CONFIG_X2_NOR_BOOT
+	if (hb_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_HB_NOR_BOOT
 		if (!flash)
 			return -1;
 
@@ -172,8 +172,8 @@ static int is_parameter_valid(int offset, int size)
 /* init veeprom mmc blocks */
 int veeprom_init(void)
 {
-	if (x2_src_boot == PIN_2ND_SF) {
-#ifdef CONFIG_X2_NOR_BOOT
+	if (hb_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_HB_NOR_BOOT
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		init_nor_device();
@@ -182,7 +182,7 @@ int veeprom_init(void)
 			return -1;
 		}
 #endif
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 	if (ubi_part("sys", NULL)) {
 		printf("Failed to initialize veeprom ubi volumn\n");
 		return -1;
@@ -210,8 +210,8 @@ int veeprom_init(void)
 
 void veeprom_exit(void)
 {
-	if (x2_src_boot == PIN_2ND_SF) {
-#ifdef CONFIG_X2_NOR_BOOT
+	if (hb_src_boot == PIN_2ND_SF) {
+#ifdef CONFIG_HB_NOR_BOOT
 		spi_flash_free(flash);
 #endif
 	} else {
@@ -248,7 +248,7 @@ int veeprom_format(void)
 
 int veeprom_read(int offset, char *buf, int size)
 {
-#ifndef CONFIG_X2_NAND_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 	int sector_left = 0;
 	int sector_right = 0;
 	int cur_sector = 0;
@@ -268,7 +268,7 @@ int veeprom_read(int offset, char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_read("veeprom", buffer, 0);
 	flush_cache((ulong)buffer, 2048);
@@ -303,7 +303,7 @@ int veeprom_read(int offset, char *buf, int size)
 
 int veeprom_write(int offset, const char *buf, int size)
 {
-#ifndef CONFIG_X2_NAND_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 	int sector_left = 0;
 	int sector_right = 0;
 	int cur_sector = 0;
@@ -323,7 +323,7 @@ int veeprom_write(int offset, const char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
 	ubi_volume_read("veeprom", buffer, 0);
 	flush_cache((ulong)buffer, 2048);
@@ -365,7 +365,7 @@ int veeprom_write(int offset, const char *buf, int size)
 
 int veeprom_clear(int offset, int size)
 {
-#ifndef CONFIG_X2_NAND_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 	int sector_left = 0;
 	int sector_right = 0;
 	int cur_sector = 0;
@@ -385,7 +385,7 @@ int veeprom_clear(int offset, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_write("veeprom", buffer, sizeof(buffer));
 #else

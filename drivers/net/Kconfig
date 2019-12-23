@@ -90,12 +90,12 @@ config DWC_ETH_QOS
 	  supports the specific configuration used in NVIDIA's Tegra186 chip,
 	  but should be extensible to other combinations quite easily.
 
-config X2_ETH_GMAC
-	bool "Hobot X2 Ethernet device support"
+config HB_ETH_GMAC
+	bool "Hobot Ethernet device support"
 	depends on DM_ETH
 	select PHYLIB
 	help
-	  This driver supports the X2 Ethernet IP block.
+	  This driver supports the hobot Ethernet IP block.
 
 config E1000
 	bool "Intel PRO/1000 Gigabit Ethernet support"

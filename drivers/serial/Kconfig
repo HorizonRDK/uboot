@@ -284,10 +284,10 @@ config DEBUG_UART_ZYNQ
 	  will need to provide parameters to make this work. The driver will
 	  be available until the real driver-model serial is running.
 
-config DEBUG_UART_X2
-	bool "Hobot X2 Debug Uart"
+config DEBUG_UART_HB
+	bool "Hobot HB Debug Uart"
 	help
-	  Select this to enable a debug UART using the serial_x2 driver. You
+	  Select this to enable a debug UART using the serial_hb driver. You
 	  will need to provide parameters to make this work. The driver will
 	  be available until the real driver-model serial is running.
 
@@ -655,11 +655,11 @@ config PXA_SERIAL
 	  If you have a machine based on a Marvell XScale PXA2xx CPU you
 	  can enable its onboard serial ports by enabling this option.
 
-config X2_SERIAL
-	bool "Hobot X2 serial port support"
+config HB_SERIAL
+	bool "Hobot serial port support"
 	depends on DM_SERIAL
 	help
-	  hobot x2 uart supported
+	  hobot uart supported
 
 config STI_ASC_SERIAL
 	bool "STMicroelectronics on-chip UART"

@@ -1054,26 +1054,41 @@ config TARGET_POPLAR
 	  making it capable of running any commercial set-top solution based on
 	  Linux or Android.
 
-config TARGET_X2_FPGA
-	bool "Support Hbot's x2 fpga"
+config ARCH_HOBOT
+	bool "Support hobot (Horizon) SoCs"
 	select ARM64
 	select SUPPORT_SPL
 	select OF_CONTROL
+	help
+	  Support hobot (Horizon) SoCs
+
+config FPGA_HOBOT
+	bool "Support Hbot's fpga"
+	depends on ARCH_HOBOT
+	help
+	  Support hobot (Horizon) FPGAs
+
+config TARGET_X2_FPGA
+	bool "Support Hbot's x2 fpga"
+	depends on FPGA_HOBOT
 	help
 	  Support for Hbot's x2 fpga.
 
-config TARGET_X2A_FPGA
-	bool "support Hobot X2A FPGA"
-	select ARM64
-	select OF_CONTROL
+config TARGET_X3_FPGA
+	bool "support Hobot X3 FPGA"
+	depends on FPGA_HOBOT
 	help
-	  support for hobot x2a fpga
+	  support for hobot x3 fpga
+
+config TARGET_X3_FPGA_HAPS
+	bool "support Hobot X3 FPGA HAPS"
+	depends on TARGET_X3_FPGA
+	help
+	  support for hobot x3 fpga haps
 
 config TARGET_X2
 	bool "Support Horizon X2"
-	select ARM64
-	select SUPPORT_SPL
-	select OF_CONTROL
+	depends on ARCH_HOBOT
 	select SPL_BOARD_INIT if SPL
 	help
 	  Support for Horizon X2.
@@ -1538,9 +1553,9 @@ source "board/xilinx/Kconfig"
 source "board/xilinx/zynq/Kconfig"
 source "board/xilinx/zynqmp/Kconfig"
 source "board/zipitz2/Kconfig"
-source "board/horizon/x2_fpga/Kconfig"
-source "board/horizon/x2a_fpga/Kconfig"
-source "board/horizon/x2/Kconfig"
+source "board/hobot/x2_fpga/Kconfig"
+source "board/hobot/x3_fpga/Kconfig"
+source "board/hobot/x2/Kconfig"
 
 source "arch/arm/Kconfig.debug"
 

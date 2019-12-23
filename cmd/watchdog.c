@@ -22,11 +22,11 @@ static int do_watchdog_config(cmd_tbl_t *cmdtp, int flag, int argc,
 	config = argv[1];
 
 	if (strcmp(config, "on") == 0) {
-		x2_wdt_init_hw();
-		x2_wdt_start();
+		hb_wdt_init_hw();
+		hb_wdt_start();
 		printf("enable watchdog success !\n");
 	} else if (strcmp(config, "off") == 0) {
-		x2_wdt_stop();
+		hb_wdt_stop();
 		printf("disable watchdog success !\n");
 	} else {
 		printf("error: flag %s not support! \n", config);

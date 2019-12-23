@@ -1,8 +1,8 @@
 #include <common.h>
 #include <asm/io.h>
-#include <asm/arch/x2_pmu.h>
+#include <asm/arch/hb_pmu.h>
 
-#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+#include <hb_info.h>
 
 static const char *swinfo_boot_desp[] = {
 	"normal", "splonce", "ubootonce",
@@ -19,17 +19,17 @@ static int do_swinfo(cmd_tbl_t *cmdtp, int flag, int argc,
 		if (strcmp(argv[1], "reg") == 0)
 			s_magic = 0;
 		else if (strcmp(argv[1], "mem") == 0)
-			s_magic = X2_SWINFO_MEM_MAGIC;
+			s_magic = HB_SWINFO_MEM_MAGIC;
 		else
-			s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
+			s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
 	} else {
-		s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
+		s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
 	}
-	if (s_magic == X2_SWINFO_MEM_MAGIC) {
-		s_addr = (void *)(X2_SWINFO_MEM_ADDR);
+	if (s_magic == HB_SWINFO_MEM_MAGIC) {
+		s_addr = (void *)(HB_SWINFO_MEM_ADDR);
 		printf("swinfo: mem -- %p\n", s_addr);
 	} else {
-		s_addr = (void *)(X2_PMU_SW_REG_00);
+		s_addr = (void *)(HB_PMU_SW_REG_00);
 		printf("swinfo: reg -- %p\n", s_addr);
 	}
 
@@ -41,14 +41,14 @@ static int do_swinfo(cmd_tbl_t *cmdtp, int flag, int argc,
 		printf("%02X: %08X %08X %08X %08X\n", i << 2,
 				s_val[0], s_val[1], s_val[2], s_val[3]);
 	}
-#ifdef X2_SWINFO_BOOT_OFFSET
-	s_val[0] = readl(s_addr + X2_SWINFO_BOOT_OFFSET) & 0xF;
+#ifdef HB_SWINFO_BOOT_OFFSET
+	s_val[0] = readl(s_addr + HB_SWINFO_BOOT_OFFSET) & 0xF;
 	i = ARRAY_SIZE(swinfo_boot_desp);
 	i = (s_val[0] < i) ? s_val[0] : (i - 1);
 	printf("swinfo boot: %d %s\n", s_val[0], swinfo_boot_desp[i]);
 #endif
-#ifdef X2_SWINFO_DUMP_OFFSET
-	s_val[0] = readl(s_addr + X2_SWINFO_DUMP_OFFSET);
+#ifdef HB_SWINFO_DUMP_OFFSET
+	s_val[0] = readl(s_addr + HB_SWINFO_DUMP_OFFSET);
 	if (s_val[0]) {
 		s_val[3] = s_val[0] & 0xFF;
 		s_val[2] = (s_val[0] >> 8) & 0xFF;
@@ -71,13 +71,13 @@ static int do_swinfo_sel(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	if (argc > 1) {
 		if (strcmp(argv[1], "reg") == 0)
-			writel(0x0, X2_SWINFO_MEM_ADDR);
+			writel(0x0, HB_SWINFO_MEM_ADDR);
 		else if (strcmp(argv[1], "mem") == 0)
-			writel(X2_SWINFO_MEM_MAGIC, X2_SWINFO_MEM_ADDR);
+			writel(HB_SWINFO_MEM_MAGIC, HB_SWINFO_MEM_ADDR);
 		flush_dcache_all();
 	}
-	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
-	if (s_magic == X2_SWINFO_MEM_MAGIC)
+	s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
+	if (s_magic == HB_SWINFO_MEM_MAGIC)
 		printf("swinfo sel: mem\n");
 	else
 		printf("swinfo sel: reg\n");
@@ -89,7 +89,7 @@ static int do_swinfo_reg(cmd_tbl_t *cmdtp, int flag,
 		int argc, char * const argv[])
 {
 	u32 s_rw, s_i, s_o, s_valr, s_valw;
-	void *s_addr = (void *)(X2_PMU_SW_REG_00);
+	void *s_addr = (void *)(HB_PMU_SW_REG_00);
 
 	switch (argc) {
 	case 1:
@@ -140,7 +140,7 @@ static int do_swinfo_mem(cmd_tbl_t *cmdtp, int flag,
 		int argc, char * const argv[])
 {
 	u32 s_rw, s_i, s_o, s_valr, s_valw;
-	void *s_addr = (void *)(X2_SWINFO_MEM_ADDR);
+	void *s_addr = (void *)(HB_SWINFO_MEM_ADDR);
 
 	switch (argc) {
 	case 1:
@@ -170,7 +170,7 @@ static int do_swinfo_mem(cmd_tbl_t *cmdtp, int flag,
 		s_rw = readl(s_addr);
 		writel(s_valw, s_addr);
 		if (s_i != 0) /* auto magic */
-			writel(X2_SWINFO_MEM_MAGIC, X2_SWINFO_MEM_ADDR);
+			writel(HB_SWINFO_MEM_MAGIC, HB_SWINFO_MEM_ADDR);
 		flush_dcache_all();
 		s_valr = readl(s_addr);
 		if (s_valr == s_valw) {
@@ -190,19 +190,19 @@ static int do_swinfo_mem(cmd_tbl_t *cmdtp, int flag,
 	return CMD_RET_SUCCESS;
 }
 
-#ifdef X2_SWINFO_BOOT_OFFSET
+#ifdef HB_SWINFO_BOOT_OFFSET
 static int do_swinfo_boot(cmd_tbl_t *cmdtp, int flag,
 		int argc, char * const argv[])
 {
 	u32 s_magic, s_val, s_rw, s_f;
 	void *s_addr;
 
-	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
-	if (s_magic == X2_SWINFO_MEM_MAGIC) {
-		s_addr = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_BOOT_OFFSET);
+	s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
+	if (s_magic == HB_SWINFO_MEM_MAGIC) {
+		s_addr = (void *)(HB_SWINFO_MEM_ADDR + HB_SWINFO_BOOT_OFFSET);
 		s_f = 1;
 	} else {
-		s_addr = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_BOOT_OFFSET);
+		s_addr = (void *)(HB_PMU_SW_REG_00 + HB_SWINFO_BOOT_OFFSET);
 	}
 
 	switch (argc) {
@@ -237,19 +237,19 @@ static int do_swinfo_boot(cmd_tbl_t *cmdtp, int flag,
 }
 #endif
 
-#ifdef X2_SWINFO_DUMP_OFFSET
+#ifdef HB_SWINFO_DUMP_OFFSET
 static int do_swinfo_dump(cmd_tbl_t *cmdtp, int flag,
 		int argc, char * const argv[])
 {
 	u32 s_magic, s_val[4], s_rw, s_f;
 	void *s_addr;
 
-	s_magic = readl((void *)X2_SWINFO_MEM_ADDR);
-	if (s_magic == X2_SWINFO_MEM_MAGIC) {
-		s_addr = (void *)(X2_SWINFO_MEM_ADDR + X2_SWINFO_DUMP_OFFSET);
+	s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
+	if (s_magic == HB_SWINFO_MEM_MAGIC) {
+		s_addr = (void *)(HB_SWINFO_MEM_ADDR + HB_SWINFO_DUMP_OFFSET);
 		s_f = 1;
 	} else {
-		s_addr = (void *)(X2_PMU_SW_REG_00 + X2_SWINFO_DUMP_OFFSET);
+		s_addr = (void *)(HB_PMU_SW_REG_00 + HB_SWINFO_DUMP_OFFSET);
 	}
 
 	switch (argc) {
@@ -290,10 +290,10 @@ static cmd_tbl_t cmd_swinfo[] = {
 	U_BOOT_CMD_MKENT(sel, 2, 1, do_swinfo_sel, "", ""),
 	U_BOOT_CMD_MKENT(reg, 3, 1, do_swinfo_reg, "", ""),
 	U_BOOT_CMD_MKENT(mem, 3, 1, do_swinfo_mem, "", ""),
-#ifdef X2_SWINFO_BOOT_OFFSET
+#ifdef HB_SWINFO_BOOT_OFFSET
 	U_BOOT_CMD_MKENT(boot, 2, 1, do_swinfo_boot, "", ""),
 #endif
-#ifdef X2_SWINFO_DUMP_OFFSET
+#ifdef HB_SWINFO_DUMP_OFFSET
 	U_BOOT_CMD_MKENT(dump, 2, 1, do_swinfo_dump, "", ""),
 #endif
 };
@@ -323,10 +323,10 @@ U_BOOT_CMD(
 	"swinfo sel [reg/mem] - select reg/mem\n"
 	"swinfo reg [index [value]] - get/set reg\n"
 	"swinfo mem [index [value]] - get/set mem\n"
-#ifdef X2_SWINFO_BOOT_OFFSET
+#ifdef HB_SWINFO_BOOT_OFFSET
 	"swinfo boot [type] - get/set boot info\n"
 #endif
-#ifdef X2_SWINFO_DUMP_OFFSET
+#ifdef HB_SWINFO_DUMP_OFFSET
 	"swinfo dump [iphex] - get/set dump ip in hex\n"
 #endif
 	);

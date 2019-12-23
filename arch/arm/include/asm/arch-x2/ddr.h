@@ -1,12 +1,12 @@
-#ifndef __ASM_ARCH_X2_DDR_H__
-#define __ASM_ARCH_X2_DDR_H__
+#ifndef __ASM_ARCH_HB_DDR_H__
+#define __ASM_ARCH_HB_DDR_H__
 
 #include <asm/io.h>
 #include <asm/types.h>
-#include <asm/arch/x2_reg.h>
+#include <asm/arch/hb_reg.h>
 
-#include "../../../cpu/armv8/x2/x2_info.h"
-#include "../../../cpu/armv8/x2/x2_mmc_spl.h"
+#include <hb_info.h>
+//#include <asm/arch/hb_mmc_spl.h>
 
 /* ddr controller registers */
 #define DDRC_MSTR             (DDRC_BASE_ADDR + 0x00)
@@ -383,5 +383,5 @@ static inline void reg32setbit(unsigned long addr, u32 bit)
 
 void ddr_init(struct dram_timing_info *timing_info);
 
-#endif /* __ASM_ARCH_X2_DDR_H__ */
+#endif /* __ASM_ARCH_HB_DDR_H__ */
 

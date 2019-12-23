@@ -53,23 +53,6 @@ _bss_end_ofs:
 	.quad	__bss_end - _start
 
 reset:
-
-	ldr x21, =0xA6000274
-	ldr w23, [x21]
-	cbnz w23, skip_smc
-#ifdef CONFIG_SPL_BUILD
-.globl smc_hack
-
-	mov	x21, x0
-	mov	x22, x1
-	mov	x0, #0x12
-	ldr	x1, =smc_hack
-	smc	#0
-	mov	x0, x21
-	mov	x1, x22
-#endif /* CONFIG_SPL_BUILD */
-
-skip_smc:
 	/* Allow the board to save important registers */
 	b	save_boot_params
 .globl	save_boot_params_ret
@@ -164,10 +147,6 @@ pie_fixup_done:
 
 	/* Processor specific initialization */
 	bl	lowlevel_init
-
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_X2_BIFSD)
-	bl  hr_gic_irq_init
-#endif /* !CONFIG_SPL_BUILD */
 
 #if defined(CONFIG_ARMV8_SPIN_TABLE) && !defined(CONFIG_SPL_BUILD)
 	branch_if_master x0, x1, master_cpu
@@ -363,57 +342,6 @@ lowlevel_in_el1:
 	mov	lr, x29			/* Restore LR */
 	ret
 ENDPROC(lowlevel_init)
-
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_X2_BIFSD)
-WEAK(hr_gic_irq_init)
-    mov x29, lr            /* Save LR */
-
-    msr DAIFSet, #0x8
-
-    ldr x0, =GICD_BASE
-    mov w1, #~0
-    str w1, [x0, #0x104]
-
-/* config interrupt priority */
-
-	ldr x0, =GICD_BASE
-    ldr w1, =GICD_PRIORITY_PARAM
-    str w1,[x0, #0x420]
-    str w1,[x0, #0x424]
-    str w1,[x0, #0x428]
-    str w1,[x0, #0x42C]
-    str w1,[x0, #0x430]
-    str w1,[x0, #0x434]
-    str w1,[x0, #0x438]
-
-/* config Target to Core0 */
-    ldr x0, =GICD_BASE
-    ldr w1, =GICD_TARGET_PARM
-
-    str w1,[x0, #0x820]
-    str w1,[x0, #0x824]
-    str w1,[x0, #0x828]
-    str w1,[x0, #0x82C]
-    str w1,[x0, #0x830]
-    str w1,[x0, #0x834]
-    str w1,[x0, #0x838]
-    str w1,[x0, #0x83C]
-    str w1,[x0, #0x840]
-    str w1,[x0, #0x844]
-    str w1,[x0, #0x848]
-    str w1,[x0, #0x84C]
-    str w1,[x0, #0x850]
-    str w1,[x0, #0x854]
-    str w1,[x0, #0x858]
-    str w1,[x0, #0x85C]
-
-	msr SPSel, #1
-    msr DAIFClr, #0x7
-
-    mov lr, x29            /* Restore LR */
-    ret
-ENDPROC(hr_gic_irq_init)
-#endif /* !CONFIG_SPL_BUILD */
 
 WEAK(smp_kick_all_cpus)
 	/* Kick secondary cpus up by SGI 0 interrupt */

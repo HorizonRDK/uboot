@@ -79,10 +79,10 @@ int init_func_watchdog_reset(void);
 	void init_85xx_watchdog(void);
 #endif
 
-#if defined(CONFIG_X2_WATCHDOG)
-	void x2_wdt_init_hw(void);
-	void x2_wdt_start(void);
-	void x2_wdt_stop(void);
+#if defined(CONFIG_HB_WATCHDOG)
+	void hb_wdt_init_hw(void);
+	void hb_wdt_start(void);
+	void hb_wdt_stop(void);
 #endif
 
 #endif /* _WATCHDOG_H_ */

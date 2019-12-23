@@ -249,12 +249,12 @@ config ZYNQMP_GQSPI
 	  This option is used to enable ZynqMP QSPI controller driver which
 	  is used to communicate with qspi flash devices.
 
-config X2_QSPI
-	bool "X2 QSPI driver"
+config HB_QSPI
+	bool "Hobot QSPI driver"
 	help
-	  Enable the X2 Quad-SPI (QSPI) driver. This driver can be
+	  Enable the HB Quad-SPI (QSPI) driver. This driver can be
 	  used to access the SPI NOR flash on platforms embedding this
-	  X2 QSPI IP core. This IP is used to connect the flash in
+	  HB QSPI IP core. This IP is used to connect the flash in
 	  4-bit qspi, 8-bit dual stacked and shared 4-bit dual parallel.
 
 endif # if DM_SPI

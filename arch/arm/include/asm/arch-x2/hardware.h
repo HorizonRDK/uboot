@@ -8,7 +8,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H__
 #define __ASM_ARCH_HARDWARE_H__
 
-#define X2_OSC_CLK				(24000000)
+#define HB_OSC_CLK			(24000000)
 #define X2_PLL_PERF_CLK			(1500000000)
-
 #endif /* __ASM_ARCH_HARDWARE_H__ */

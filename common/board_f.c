@@ -11,9 +11,8 @@
 
 #include <common.h>
 #include <console.h>
-#include <cpu.h>
-#include <dm.h>
 #include <environment.h>
+#include <dm.h>
 #include <fdtdec.h>
 #include <fs.h>
 #include <i2c.h>
@@ -25,7 +24,6 @@
 #include <relocate.h>
 #include <spi.h>
 #include <status_led.h>
-#include <sysreset.h>
 #include <timer.h>
 #include <trace.h>
 #include <video.h>
@@ -141,57 +139,6 @@ static int display_text_info(void)
 
 	return 0;
 }
-
-#ifdef CONFIG_SYSRESET
-static int print_resetinfo(void)
-{
-	struct udevice *dev;
-	char status[256];
-	int ret;
-
-	ret = uclass_first_device_err(UCLASS_SYSRESET, &dev);
-	if (ret) {
-		debug("%s: No sysreset device found (error: %d)\n",
-		      __func__, ret);
-		/* Not all boards have sysreset drivers available during early
-		 * boot, so don't fail if one can't be found.
-		 */
-		return 0;
-	}
-
-	if (!sysreset_get_status(dev, status, sizeof(status)))
-		printf("%s", status);
-
-	return 0;
-}
-#endif
-
-#if defined(CONFIG_DISPLAY_CPUINFO) && CONFIG_IS_ENABLED(CPU)
-static int print_cpuinfo(void)
-{
-	struct udevice *dev;
-	char desc[512];
-	int ret;
-
-	ret = uclass_first_device_err(UCLASS_CPU, &dev);
-	if (ret) {
-		debug("%s: Could not get CPU device (err = %d)\n",
-		      __func__, ret);
-		return ret;
-	}
-
-	ret = cpu_get_desc(dev, desc, sizeof(desc));
-	if (ret) {
-		debug("%s: Could not get CPU description (err = %d)\n",
-		      dev->name, ret);
-		return ret;
-	}
-
-	printf("%s", desc);
-
-	return 0;
-}
-#endif
 
 static int announce_dram_init(void)
 {
@@ -802,31 +749,6 @@ __weak int arch_cpu_init_dm(void)
 	return 0;
 }
 
-int boot_stage_mark(int stage)
-{
-        int ret = 0;
-
-        switch (stage) {
-        case 0:
-                writel(BOOT_STAGE0_VAL, BIF_SHARE_REG_OFF);
-                break;
-        case 1:
-                writel(BOOT_STAGE1_VAL, BIF_SHARE_REG_OFF);
-                break;
-        case 2:
-                writel(BOOT_STAGE2_VAL, BIF_SHARE_REG_OFF);
-                break;
-        case 3:
-                writel(BOOT_STAGE3_VAL, BIF_SHARE_REG_OFF);
-                break;
-        default :
-                ret = -EINVAL;
-                break;
-        }
-
-        return ret;
-}
-
 static const init_fnc_t init_sequence_f[] = {
 	setup_mon_len,
 #ifdef CONFIG_OF_CONTROL
@@ -867,9 +789,6 @@ static const init_fnc_t init_sequence_f[] = {
 	display_text_info,	/* show debugging info if required */
 #if defined(CONFIG_PPC) || defined(CONFIG_SH) || defined(CONFIG_X86)
 	checkcpu,
-#endif
-#if defined(CONFIG_SYSRESET)
-	print_resetinfo,
 #endif
 #if defined(CONFIG_DISPLAY_CPUINFO)
 	print_cpuinfo,		/* display cpu info (and speed) */
@@ -973,30 +892,11 @@ static const init_fnc_t init_sequence_f[] = {
 	NULL,
 };
 
-/* GPIO PIN MUX */
-#define PIN_MUX_BASE    0xA6003000
-#define GPIO1_CFG (PIN_MUX_BASE + 0x10)
-
-static int bif_change_reset2gpio(void)
-{
-	unsigned int reg_val;
-
-	/*set gpio1[15] GPIO function*/
-	reg_val = readl(GPIO1_CFG);
-	reg_val |= 0xc0000000;
-	writel(reg_val, GPIO1_CFG);
-	return 0;
-}
-
 void board_init_f(ulong boot_flags)
 {
 	gd->flags = boot_flags;
 	gd->have_console = 0;
-	bif_change_reset2gpio();
-	writel(0xFED10000, BIF_SHARE_REG_BASE);
-#ifdef X2_AUTOBOOT
-        boot_stage_mark(0);
-#endif
+
 	if (initcall_run_list(init_sequence_f))
 		hang();
 

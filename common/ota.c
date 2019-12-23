@@ -32,13 +32,12 @@
 #include <veeprom.h>
 #include <ota.h>
 #include <spi_flash.h>
-#include "../arch/arm/cpu/armv8/x2/x2_info.h"
-#include "../include/configs/x2.h"
+#include <hb_info.h>
 
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
 static int curr_device = 0;
-extern unsigned int x2_src_boot;
+extern unsigned int hb_src_boot;
 extern struct spi_flash *flash;
 extern bool recovery_sys_enable;
 
@@ -383,7 +382,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 			return CMD_RET_USAGE;
 		}
 	} else {
-		boot_mode = x2_src_boot;
+		boot_mode = hb_src_boot;
 	}
 	partition_name = argv[1];
 
@@ -435,7 +434,7 @@ void ota_update_set_bootdelay(char *boot_reason)
 
 int ota_normal_boot(bool boot_flag, char *partition)
 {
-	if (x2_src_boot == PIN_2ND_SF) {
+	if (hb_src_boot == PIN_2ND_SF) {
 		return 0;
 	} else {
 		if (boot_flag == 1) {
@@ -508,7 +507,7 @@ void ota_recovery_mode_set(bool upflag)
 				VEEPROM_RESET_REASON_SIZE);
 		}
 
-		if (x2_src_boot == PIN_2ND_EMMC) {
+		if (hb_src_boot == PIN_2ND_EMMC) {
 			/* env bootfile set*/
 			s = "recovery.gz\0";
 			env_set("bootfile", s);
@@ -628,7 +627,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 			ota_update_failed_output(boot_reason, partition);
 	}
 
-	if (x2_src_boot == PIN_2ND_SF) {
+	if (hb_src_boot == PIN_2ND_SF) {
 		if (boot_flag == boot_bak)
 			return 1;
 		else
@@ -641,7 +640,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 	}
 }
 
-uint32_t x2_do_cksum(const uint8_t *buff, uint32_t len)
+uint32_t hb_do_cksum(const uint8_t *buff, uint32_t len)
 {
 	uint32_t result = 0;
 	uint32_t i = 0;
@@ -658,7 +657,7 @@ static void write_bootinfo(void)
 	int ret;
 	char cmd[256] = {0};
 
-	sprintf(cmd, "mmc write 0x%x 0 0x1", X2_BOOTINFO_ADDR);
+	sprintf(cmd, "mmc write 0x%x 0 0x1", HB_BOOTINFO_ADDR);
 	ret = run_command_list(cmd, -1, 0);
 	debug("cmd:%s, ret:%d\n", cmd, ret);
 
@@ -666,32 +665,32 @@ static void write_bootinfo(void)
 		printf("write bootinfo success!\n");
 }
 
-static void bootinfo_cs_spl(char * addr, unsigned int size, struct x2_info_hdr * pinfo)
+static void bootinfo_cs_spl(char * addr, unsigned int size, struct hb_info_hdr * pinfo)
 {
 	unsigned int csum;
 
-	csum = x2_do_cksum((unsigned char *)addr, size);
+	csum = hb_do_cksum((unsigned char *)addr, size);
 	pinfo->boot_csum = csum;
 	debug("---------, addr:%p, size:%u, 0x%x\n", addr, size, size);
 	debug("boot_csum: 0x%x\n", csum);
 	debug("---------\n");
 }
-static void bootinfo_cs_all(struct x2_info_hdr * pinfo)
+static void bootinfo_cs_all(struct hb_info_hdr * pinfo)
 {
 	unsigned int csum;
 
 	pinfo->info_csum = 0;
-	csum = x2_do_cksum((unsigned char *)pinfo, sizeof(*pinfo));
+	csum = hb_do_cksum((unsigned char *)pinfo, sizeof(*pinfo));
 	pinfo->info_csum = csum;
 	debug("info_csum: 0x%x\n", csum);
 }
 static void bootinfo_update_spl(char * addr, unsigned int spl_size)
 {
-	struct x2_info_hdr *pinfo;
+	struct hb_info_hdr *pinfo;
 	unsigned int max_size = 0x6e00; /* CONFIG_SPL_MAX_SIZE in spl */
 
 	debug("spl_size:%u, 0x%x\n", spl_size, spl_size);
-	pinfo = (struct x2_info_hdr *) X2_BOOTINFO_ADDR;
+	pinfo = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
 	if (spl_size >= max_size)
 		pinfo->boot_size = max_size;
 	else

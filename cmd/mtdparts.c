@@ -90,7 +90,7 @@
 #endif
 
 DECLARE_GLOBAL_DATA_PTR;
-#ifdef CONFIG_X2_NAND_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
 #define NAND_NAME "spi-nand"
 #define NAND_NAME_LEN 8
 #define NOR_NAME "spi-nor"

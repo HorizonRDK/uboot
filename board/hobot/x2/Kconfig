@@ -1,0 +1,26 @@
+if TARGET_X2
+
+config ARCH_X2
+	bool
+        default y
+
+config SYS_BOARD
+	default "x2"
+
+config SYS_VENDOR
+	default "hobot"
+
+config SYS_SOC
+	default "x2"
+
+config SYS_CONFIG_NAME
+	default "x2"
+
+config DDR_BOOT
+        bool "Support boot from ddr for x2 fpga board(tmp)"
+        default n
+        help
+        ┆ Enabling this will make a U-Boot can load kernel image and dtb image
+        ┆ from DDR.
+
+endif

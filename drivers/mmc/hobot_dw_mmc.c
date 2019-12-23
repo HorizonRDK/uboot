@@ -14,9 +14,9 @@
 #include <pwrseq.h>
 #include <syscon.h>
 #include <linux/err.h>
-#include <asm/arch/x2_mmc.h>
+#include <asm/arch/hb_mmc.h>
 #include <mmc.h>
-#include "../arch/arm/cpu/armv8/x2/x2_info.h"
+#include <hb_info.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -28,7 +28,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 struct hobot_mmc_plat {
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
-	struct dtd_hobot_x2_dw_mshc dtplat;
+	struct dtd_hobot_hb_dw_mshc dtplat;
 #endif
 	struct mmc_config cfg;
 	struct mmc mmc;
@@ -43,10 +43,12 @@ struct hobot_dwmmc_priv {
 	bool fifo_mode;
 	u32 minmax[2];
 };
+
 static void sdio0_pin_mux_config(void)
 {
     unsigned int reg_val;
-    struct x2_info_hdr* boot_info = (struct x2_info_hdr*) X2_BOOTINFO_ADDR;
+#ifdef CONFIG_TARGET_X2
+    struct hb_info_hdr* boot_info = (struct hb_info_hdr*) HB_BOOTINFO_ADDR;
 
     /* GPIO46-GPIO49 GPIO50-GPIO58 */
     reg_val = readl(GPIO3_CFG);
@@ -57,8 +59,17 @@ static void sdio0_pin_mux_config(void)
     reg_val = readl(GPIO5_CFG);
     reg_val &= 0xFFFFF000;
     writel(reg_val, GPIO5_CFG);
+#else
+	unsigned long int i;
 
-	if (boot_info->board_id == X2_DEV_BOARD_ID) {
+	for (i = SD0_CLK; i <= SD0_WPROT; i += 4) {
+		reg_val = readl(i);
+		reg_val &= 0xFFFFFFFC;
+		writel(reg_val, i);
+	}
+#endif
+#if 0
+	if (boot_info->board_id == HB_DEV_BOARD_ID) {
 		/* For x2 dev 3.3v voltage*/
 		reg_val = readl(GPIO7_CFG);
 		reg_val |= 0x00003000;
@@ -81,10 +92,11 @@ static void sdio0_pin_mux_config(void)
 		reg_val &= 0xffffefff;
 		writel(reg_val, GPIO5_DIR);
 	}
+#endif
 }
 static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 {
-#if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X2A_FPGA)
+#if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 
@@ -136,12 +148,12 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 	struct dwmci_host *host = &priv->host;
 	struct udevice *pwr_dev __maybe_unused;
-	unsigned long clock;
+	unsigned long clock __attribute__((unused));
 	int ret;
 
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 
-	struct dtd_hobot_x2_dw_mshc *dtplat = &plat->dtplat;
+	struct dtd_hobot_hb_dw_mshc *dtplat = &plat->dtplat;
 
 	host->name = dev->name;
 	host->ioaddr = map_sysmem(dtplat->reg[0], dtplat->reg[1]);
@@ -158,7 +170,7 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		return ret;
 
 #else
-#if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X2A_FPGA)
+#if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 
 	ret = clk_get_by_index(dev, 0, &priv->div1_clk);
 	if (ret < 0) {
@@ -261,7 +273,7 @@ static int hobot_dwmmc_bind(struct udevice *dev)
 }
 
 static const struct udevice_id hobot_dwmmc_ids[] = {
-	{ .compatible = "hobot,x2-dw-mshc" },
+	{ .compatible = "hobot,hb-dw-mshc" },
 	{ }
 };
 U_BOOT_DRIVER(hobot_dwmmc_drv) = {

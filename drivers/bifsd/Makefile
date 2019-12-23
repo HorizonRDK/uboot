@@ -6,5 +6,5 @@
 #
 
 # BIFSD
-obj-$(CONFIG_X2_BIFSD)			+= x2_bifsd.o
-obj-$(CONFIG_X2_BIFSD)			+= x2_bifsd_isr.o
+obj-$(CONFIG_HB_BIFSD)			+= hb_bifsd.o
+obj-$(CONFIG_HB_BIFSD)			+= hb_bifsd_isr.o

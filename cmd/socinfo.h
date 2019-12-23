@@ -4,7 +4,7 @@
 #include <linux/libfdt.h>
 #include <fdt_support.h>
 
-static struct fdt_header *x2_dtb;
+static struct fdt_header *hb_dtb;
 
 int set_boardid(void);
 

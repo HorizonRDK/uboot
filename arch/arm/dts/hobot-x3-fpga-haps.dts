@@ -1,0 +1,30 @@
+/*
+ * dts file for Hobot X3 HAPS FPGA
+ *
+ * (C) Copyright 2017 - 2020, Hobot, Inc.
+ *
+ *
+ * SPDX-License-Identifier:     GPL-2.0+
+ */
+
+/dts-v1/;
+#include "hobot-x3-fpga.dts"
+
+/ {
+	model = "Hobot X3 Fpga Haps Board";
+};
+
+&gmac {
+        status = "okay";
+        #address-cells = <0x1>;
+        #size-cells = <0x0>;
+        phyaddr = <7>;
+
+        phy-mode = "rgmii";
+        phy1: ethernet-phy@7 {
+                //compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
+                compatible = "Marvell 88E1118R","ethernet-phy-ieee802.3-c22";
+                reg = <7>;
+        };
+};
+

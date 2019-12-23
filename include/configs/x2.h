@@ -21,7 +21,7 @@
 
 /* Support spl */
 #ifdef CONFIG_SPL_BUILD
-#include "x2_config.h"
+#include "hb_config.h"
 
 #define CONFIG_SPL_TEXT_BASE   0x80000000
 
@@ -63,13 +63,13 @@
 /* The option for som board */
 /* #define CONFIG_X2_SOM_BOARD */
 /* #define CONFIG_X2_MONO_BOARD */
-#ifdef CONFIG_X2_MMC_BOOT
+#ifdef CONFIG_HB_MMC_BOOT
 #define CONFIG_X2_PM
 #endif
 
 #else
 
-#ifdef CONFIG_X2_BIFSD
+#ifdef CONFIG_HB_BIFSD
 /* Generic Interrupt Controller Definitions */
 #define CONFIG_GICV2
 #define GICD_BASE	0x90001000
@@ -83,7 +83,7 @@
 
 #define HR_TIMER
 #define HR_TIMER_BASE 0xA1002000
-#endif /*  CONFIG_X2_BIFSD */
+#endif /*  CONFIG_HB_BIFSD */
 
 
 #define CONFIG_PHY_MARVELL
@@ -93,18 +93,7 @@
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
 #define CONFIG_SYS_TEXT_BASE		0x02100000		/* Offset is 33MB*/
-#define X2_USABLE_RAM_TOP			0x03100000		/* Top is 49MB*/
-
-#define X2_SWINFO_MEM_ADDR			0x020ff000
-#define X2_SWINFO_MEM_MAGIC			0x57534248
-#define X2_SWINFO_BOOT_OFFSET		0x4
-#define X2_SWINFO_DUMP_OFFSET		0x8
-#define X2_SWINFO_BOOT_SPLONCE		0x1
-#define X2_SWINFO_BOOT_UBOOTONCE	0x2
-#define X2_SWINFO_BOOT_SPLWAIT		0x3
-#define X2_SWINFO_BOOT_UBOOTWAIT	0x4
-#define X2_SWINFO_BOOT_UDUMPTF		0x5
-#define X2_SWINFO_BOOT_UDUMPEMMC	0x6
+#define X2_USABLE_RAM_TOP		0x03100000		/* Top is 49MB*/
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000
@@ -126,6 +115,8 @@
 /* #define CONFIG_BOOTCOMMAND	"run ${bootmode}" */
 #define CONFIG_SF_DUAL_FLASH
 
+#define X2_RESERVED_USER_SIZE	SZ_16K		/* reserved in top of TBL <= 24K */
+#define HB_RESERVED_USER_ADDR	(X2_USABLE_RAM_TOP - X2_RESERVED_USER_SIZE)
 /*
  * Do not preserve environment
  * #if !defined(CONFIG_ENV_IS_IN_FAT)
@@ -146,7 +137,8 @@
 
 #ifdef CONFIG_SYS_SKIP_RELOC
 #define SZ_66K				0x00010800 /* TBL table + board info + global data */
-#define CONFIG_SYS_INIT_SP_ADDR     (X2_USABLE_RAM_TOP - SZ_66K - CONFIG_SYS_MALLOC_LEN - CONFIG_ENV_SIZE)
+#define CONFIG_SYS_INIT_SP_ADDR     (X2_USABLE_RAM_TOP - SZ_66K \
+					- CONFIG_SYS_MALLOC_LEN - CONFIG_ENV_SIZE)
 #else
 #define CONFIG_SYS_INIT_SP_ADDR     (CONFIG_SYS_TEXT_BASE + SZ_1M)
 #endif
@@ -203,7 +195,7 @@
     "load_addr=" __stringify(LOAD_ADDR) "\0"
 #endif
 
-/* #define X2_AUTOBOOT */
+/* #define HB_AUTOBOOT */
 
 #define BIF_SHARE_REG_OFF       0xA1006010
 #define BOOT_STAGE0_VAL         0x5a

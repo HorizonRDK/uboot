@@ -10,9 +10,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_X2_BIFSD)
+#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_HOBOT_BIFSD)
 #include <asm/gic.h>
-#include <asm/arch/x2_bifsd.h>
+#include <asm/arch/hb_bifsd.h>
 
 /**
  * * generic_handle_irq - Invoke the handler for a particular irq
@@ -26,7 +26,7 @@ static void generic_handle_irq(unsigned int hwirq, struct pt_regs *regs)
 	switch(irq)
 	{
 		case BIFSD_IRQ_NUM:
-			x2_bifsd_isr();
+			hb_bifsd_isr();
 			break;
 		default :
 			break;
@@ -145,7 +145,7 @@ void do_sync(struct pt_regs *pt_regs, unsigned int esr)
  */
 void do_irq(struct pt_regs *pt_regs, unsigned int esr)
 {
-#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_X2_BIFSD)
+#if !defined(CONFIG_SPL_BUILD) && defined(CONFIG_HOBOT_BIFSD)
 	gic_handle_irq(pt_regs);
 #else
 	efi_restore_gd();

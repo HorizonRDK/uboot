@@ -171,14 +171,6 @@ config SPI_BOOT
 	  Enabling this will make a U-Boot binary that is capable of being
 	  booted via SPI flash. This is not a must, some SoCs need this,
 	  some not.
-
-config DDR_BOOT
-	bool "Support boot from ddr for x2 fpga board(tmp)"
-	default n
-	help
-	  Enabling this will make a U-Boot can load kernel image and dtb image
-	  from DDR.
-
 endmenu
 
 config BOOTDELAY

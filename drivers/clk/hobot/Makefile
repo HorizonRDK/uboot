@@ -1,7 +1,7 @@
-obj-${CONFIG_CLK_X2}		+= fixed-clk.o
-obj-${CONFIG_CLK_X2}		+= laintpll.o
-obj-${CONFIG_CLK_X2}		+= fracpll.o
-obj-${CONFIG_CLK_X2}		+= mux.o
-obj-${CONFIG_CLK_X2}		+= divider.o
-obj-${CONFIG_CLK_X2}		+= gate.o
-obj-${CONFIG_CLK_X2}		+= fixed-factor.o
+obj-${CONFIG_CLK_HB}		+= fixed-clk.o
+obj-${CONFIG_CLK_HB}		+= laintpll.o
+obj-${CONFIG_CLK_HB}		+= fracpll.o
+obj-${CONFIG_CLK_HB}		+= mux.o
+obj-${CONFIG_CLK_HB}		+= divider.o
+obj-${CONFIG_CLK_HB}		+= gate.o
+obj-${CONFIG_CLK_HB}		+= fixed-factor.o

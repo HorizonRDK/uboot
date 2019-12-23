@@ -18,7 +18,7 @@ obj-y += bootretry.o
 endif
 
 # cipher
-obj-y += x2a_crypt.o
+obj-y += x3_crypt.o
 
 # # boards
 obj-y += board_f.o
