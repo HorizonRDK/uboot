@@ -30,42 +30,42 @@
 
 	spi0: spi@A5004000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-spi";
+		compatible = "hobot,hb-spi";
 		status = "disabled";
 		reg = <0x0 0xA5004000 0x0 0x1000>;
 	};
 
 	spi1: spi@A5005000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-spi";
+		compatible = "hobot,hb-spi";
 		status = "disabled";
 		reg = <0x0 0xA5005000 0x0 0x1000>;
 	};
 
 	spi2: spi@A5006000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-spi";
+		compatible = "hobot,hb-spi";
 		status = "disabled";
 		reg = <0x0 0xA5006000 0x0 0x1000>;
 	};
 
 	pwm0: pwm@A500D000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-pwm";
+		compatible = "hobot,hb-pwm";
 		status = "disabled";
 		reg = <0x0 0xA500D000 0x0 0x1000>;
 	};
 
 	pwm1: pwm@A500E000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-pwm";
+		compatible = "hobot,hb-pwm";
 		status = "disabled";
 		reg = <0x0 0xA500E000 0x0 0x1000>;
 	};
 
 	pwm2: pwm@A500F000 {
 		u-boot,dm-pre-reloc;
-		compatible = "hobot,x2-pwm";
+		compatible = "hobot,hb-pwm";
 		status = "disabled";
 		reg = <0x0 0xA500F000 0x0 0x1000>;
 	};

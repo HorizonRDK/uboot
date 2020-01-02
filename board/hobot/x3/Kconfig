@@ -1,0 +1,15 @@
+if TARGET_X3
+
+config SYS_BOARD
+	default "x3"
+
+config SYS_VENDOR
+	default "hobot"
+
+config SYS_SOC
+	default "x3"
+
+config SYS_CONFIG_NAME
+	default "x3"
+
+endif
