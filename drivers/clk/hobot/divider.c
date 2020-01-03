@@ -117,7 +117,7 @@ static int div_clk_probe(struct udevice *dev)
 }
 
 static const struct udevice_id div_clk_match[] = {
-	{ .compatible = "x2,div-clk"},
+	{ .compatible = "hobot,div-clk"},
 	{}
 };
 

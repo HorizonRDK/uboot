@@ -6,43 +6,78 @@
 #include "clk-common.h"
 
 struct gate_platdata {
-	phys_addr_t state_reg;
+	phys_addr_t clken_sta_reg;
+	uint clken_sta_bit;
+	uint clken_sta_field;
+	phys_addr_t clkoff_sta_reg;
+	uint clkoff_sta_bit;
+	uint clkoff_sta_field;
 	phys_addr_t enable_reg;
+	uint enable_bit;
+	uint enable_field;
 	phys_addr_t disable_reg;
-	uint state_bits;
-	uint enable_bits;
-	uint disable_bits;
+	uint disable_bit;
+	uint disable_field;
 };
 
 int gate_clk_enable(struct clk *clk)
 {
-	unsigned int val, status;
+	unsigned int val, val1, status0, status1, reg_val;
 	struct gate_platdata *plat = dev_get_platdata(clk->dev);
 
-	val = readl(plat->state_reg);
-	status = (val & (0x1 << plat->state_bits)) >> plat->state_bits;
+	val = readl(plat->clken_sta_reg);
+	status0 = (val & (1 << plat->clken_sta_bit)) >> plat->clken_sta_bit;
 
-	if(!status){
-		writel((0x1 << plat->enable_bits), plat->enable_reg);
-		/*CLK_DEBUG("gate enable, val:0x%x, reg:0x%x", plat->enable_bits, plat->enable_reg);*/
+	/* determining if clkoff_sta_reg exists */
+	if (plat->clkoff_sta_bit != 32) {
+		val1 = readl(plat->clkoff_sta_reg);
+		status1 = (val1 & (1 << plat->clkoff_sta_bit))
+		>> plat->clkoff_sta_bit;
+
+		if (status0 == 0 || status1 == 1) {
+			reg_val = 1 << plat->enable_bit;
+			writel(reg_val, plat->enable_reg);
+		/*CLK_DEBUG("gate enable, val:0x%x, reg:0x%x",
+			plat->enable_bit, plat->enable_reg);*/
+		}
+	} else {
+		if (!status0) {
+			reg_val = 1 << plat->enable_bit;
+			writel(reg_val, plat->enable_reg);
+		/*CLK_DEBUG("gate enable, val:0x%x, reg:0x%x",
+			plat->enable_bit, plat->enable_reg);*/
+		}
 	}
-
 	return 0;
 }
 
 int gate_clk_disable(struct clk *clk)
 {
-	unsigned int val, status;
+	unsigned int val, val1, status0, status1, reg_val;
 	struct gate_platdata *plat = dev_get_platdata(clk->dev);
 
-	val = readl(plat->state_reg);
-	status = (val & (0x1 << plat->state_bits)) >> plat->state_bits;
+	val = readl(plat->clken_sta_reg);
+	status0 = (val & (1 << plat->clken_sta_bit)) >> plat->clken_sta_bit;
+	/* determining if clkoff_sta_reg exists */
+	if (plat->clkoff_sta_bit != 32) {
+		val1 = readl(plat->clkoff_sta_reg);
+		status1 = (val1 & (1 << plat->clkoff_sta_bit))
+		>> plat->clkoff_sta_bit;
 
-	if(status){
-		writel((0x1 << plat->disable_bits), plat->disable_reg);
-		/*CLK_DEBUG("gate disable, val:0x%x, reg:0x%x", plat->disable_bits, plat->disable_reg);*/
+		if (status0 == 1 && status1 == 0) {
+			reg_val = 1 << plat->disable_bit;
+			writel(reg_val, plat->disable_reg);
+		/*CLK_DEBUG("gate disable, val:0x%x, reg:0x%x",
+			plat->disable_bits, plat->disable_reg);*/
+		}
+	} else {
+		if (status0) {
+			reg_val = 1 << plat->disable_bit;
+			writel(reg_val, plat->disable_reg);
+		/*CLK_DEBUG("gate disable, val:0x%x, reg:0x%x",
+			plat->disable_bit, plat->disable_reg);*/
+		}
 	}
-
 	return 0;
 }
 
@@ -72,7 +107,7 @@ static struct clk_ops gate_clk_ops = {
 
 static int gate_clk_probe(struct udevice *dev)
 {
-	uint reg[3];
+	uint reg[4];
 	phys_addr_t reg_base;
 	ofnode node;
 	struct gate_platdata *plat = dev_get_platdata(dev);
@@ -85,29 +120,52 @@ static int gate_clk_probe(struct udevice *dev)
 
 	reg_base = ofnode_get_addr(node);
 
-	if(ofnode_read_u32_array(dev->node, "offset", reg, 3)) {
+	if(ofnode_read_u32_array(dev->node, "offset", reg, 4)) {
 		CLK_DEBUG("Node '%s' has missing 'offset' property\n", ofnode_get_name(dev->node));
 		return -ENOENT;
 	}
-	plat->state_reg = reg_base + reg[0];
+	plat->clken_sta_reg = reg_base + reg[0];
 	plat->enable_reg = reg_base + reg[1];
 	plat->disable_reg = reg_base + reg[2];
+	plat->clkoff_sta_reg = reg_base + reg[3];
 
-	if(ofnode_read_u32_array(dev->node, "bits", reg, 3)) {
+	if(ofnode_read_u32_array(dev->node, "bits", reg, 4)) {
 		CLK_DEBUG("Node '%s' has missing 'bits' property\n", ofnode_get_name(dev->node));
 		return -ENOENT;
 	}
-	plat->state_bits = reg[0];
-	plat->enable_bits = reg[1];
-	plat->disable_bits = reg[2];
+	plat->clken_sta_bit = reg[0];
+	plat->enable_bit = reg[1];
+	plat->disable_bit = reg[2];
+	plat->clkoff_sta_bit = reg[3];
+
+	if (plat->clkoff_sta_reg != reg_base) {
+		if(ofnode_read_u32_array(dev->node, "field", reg, 4)) {
+			CLK_DEBUG("Node '%s' has missing 'field' property\n",
+				ofnode_get_name(dev->node));
+			return -ENOENT;
+		}
+		plat->clken_sta_field = reg[0];
+		plat->enable_field = reg[1];
+		plat->disable_field = reg[2];
+		plat->clkoff_sta_field = reg[3];
+	} else {
+		if(ofnode_read_u32_array(dev->node, "field", reg, 3)) {
+			CLK_DEBUG("Node '%s' has missing 'field' property\n",
+				ofnode_get_name(dev->node));
+			return -ENOENT;
+		}
+		plat->clken_sta_field = reg[0];
+		plat->enable_field = reg[1];
+		plat->disable_field = reg[2];
+	}
 
 	CLK_DEBUG("gate %s probe done, state:0x%llx, enable:0x%llx, disable:0x%llx\n",
-			dev->name, plat->state_reg, plat->enable_reg, plat->disable_reg);
+			dev->name, plat->clken_sta_reg, plat->enable_reg, plat->disable_reg);
 	return 0;
 }
 
 static const struct udevice_id gate_clk_match[] = {
-	{ .compatible = "x2,gate-clk"},
+	{ .compatible = "hobot,gate-clk"},
 	{}
 };
 

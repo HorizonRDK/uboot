@@ -1008,8 +1008,8 @@
 			#clock-cells = <0>;
 			compatible = "x2,gate-clk";
 			clocks = <&sd0_div_cclk>;
-			offset = <0x150 0x154 0x158>;
-			bits = <15 15 15>;
+			offset = <0x150 0x154 0x158 0x0>;
+			bits = <15 15 15 32>;
 			field = <0x1 0x1 0x1>;
 		};
 
@@ -1038,8 +1038,8 @@
 			#clock-cells = <0>;
 			compatible = "x2,gate-clk";
 			clocks = <&sd1_div_cclk>;
-			offset = <0x150 0x154 0x158>;
-			bits = <16 16 16>;
+			offset = <0x150 0x154 0x158 0x0>;
+			bits = <16 16 16 32>;
 			field = <0x1 0x1 0x1>;
 		};
 

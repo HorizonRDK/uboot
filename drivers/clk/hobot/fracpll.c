@@ -109,7 +109,7 @@ static int fracpll_clk_probe(struct udevice *dev)
 }
 
 static const struct udevice_id fracpll_clk_match[] = {
-	{ .compatible = "x2,fracpll-clk"},
+	{ .compatible = "hobot,fracpll-clk"},
 	{}
 };
 

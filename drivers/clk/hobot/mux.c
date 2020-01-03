@@ -105,7 +105,7 @@ static int mux_clk_probe(struct udevice *dev)
 }
 
 static const struct udevice_id mux_clk_match[] = {
-	{ .compatible = "x2,mux-clk"},
+	{ .compatible = "hobot,mux-clk"},
 	{}
 };
 

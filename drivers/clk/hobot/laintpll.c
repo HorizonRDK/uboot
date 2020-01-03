@@ -98,7 +98,7 @@ static int laintpll_clk_probe(struct udevice *dev)
 }
 
 static const struct udevice_id laintpll_clk_match[] = {
-	{ .compatible = "x2,laintpll-clk"},
+	{ .compatible = "hobot,laintpll-clk"},
 	{}
 };
 

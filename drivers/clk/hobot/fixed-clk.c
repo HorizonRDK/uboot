@@ -36,7 +36,7 @@ static int fixed_clk_probe(struct udevice *dev)
 }
 
 static const struct udevice_id fixed_clk_match[] = {
-	{ .compatible = "x2,fixed-clk"},
+	{ .compatible = "hobot,fixed-clk"},
 	{}
 };
 
