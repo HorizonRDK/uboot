@@ -34,7 +34,7 @@ int gpio_clk_disable(struct clk *clk)
 	val = readl(plat->reg);
 	status = (val & (1 << plat->bit)) >> plat->bit;
 
-	if (status) {
+	if (!status) {
 		reg_val |= 1 << plat->bit;
 		writel(reg_val, plat->reg);
 	/*CLK_DEBUG("gate disable, val:0x%x, reg:0x%x", plat->bit, plat->reg);*/
