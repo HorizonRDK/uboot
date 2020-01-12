@@ -25,7 +25,7 @@
 
 	chosen {
 		bootargs = "";
-		stdout-path = "serial0:115200n8";
+//		stdout-path = "serial0:921600n8";
 	};
 
 	memory@0 {
@@ -78,12 +78,12 @@
         status = "okay";
         #address-cells = <0x1>;
         #size-cells = <0x0>;
-        phyaddr = <3>;
+        phyaddr = <0xe>;
 
 	phy-mode = "rgmii";
 	phy0: ethernet-phy@0 {
 		compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
-		reg = <0>;
+		reg = <0xe>;
 	};
 };
 &bifsd {
