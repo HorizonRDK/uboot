@@ -97,6 +97,7 @@ static int print_cpuinfo(void)
 }
 #endif
 
+#ifdef HB_AUTOBOOT
 static int boot_stage_mark(int stage)
 {
         int ret = 0;
@@ -121,6 +122,7 @@ static int boot_stage_mark(int stage)
 
         return ret;
 }
+#endif
 
 static int bif_change_reset2gpio(void)
 {
@@ -1374,7 +1376,9 @@ int board_early_init_f(void)
 
 int last_stage_init(void)
 {
-//	disable_cnn();
+#ifndef CONFIG_FPGA_HOBOT
+	disable_cnn();
+#endif
 #ifdef CONFIG_MMC
 	veeprom_init();
 #endif
