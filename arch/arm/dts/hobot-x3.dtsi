@@ -25,6 +25,8 @@
 		compatible = "hobot,hb-gmac";
 		reg = <0x0 0xA5014000 0x0 0x2000>;
 		phy-mode = "rmii";
+		clocks = <&eth0_ephy_2nddiv_clk>, <&eth0_prediv_clk>, <&eth0_clk>;
+		clock-names = "phy_ref_clk", "mac_pre_div_clk", "mac_div_clk";
 		status = "disabled";
 	};
 

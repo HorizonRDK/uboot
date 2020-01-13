@@ -54,7 +54,6 @@
 #define GPIO4_DIR (PIN_MUX_BASE + 0x48)
 #define GPIO4_VAL (PIN_MUX_BASE + 0x4C)
 #else
-#define	PIN_MUX_BASE	0xA6004000
 #define	GPIO_EPHY_CLK	(PIN_MUX_BASE + 0x98)
 #define	GPIO_MDCK	(PIN_MUX_BASE+0x9C)
 #define GPIO_MDIO (PIN_MUX_BASE +0xA0)
@@ -73,9 +72,6 @@
 #endif
 /* Core registers */
 
-#define ETH_1000M_DIV (0)
-#define ETH_100M_DIV (4)
-#define SET_ETH_DIV_CLK(div, x) ((x & (~0x00000700)) + (div << 8))
 #define EQOS_MAC_REGS_BASE 0x000
 struct eqos_mac_regs {
     uint32_t configuration;				/* 0x000 */
@@ -488,7 +484,6 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret;
-    unsigned int reg_val;
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -616,7 +611,6 @@ static int eqos_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, duplex, speed;
-	unsigned int mdiv = readl(HB_ETH0_CLK_CTRL);
 
     debug("%s(dev=%p):\n", __func__, dev);
 
@@ -635,11 +629,13 @@ static int eqos_adjust_link(struct udevice *dev)
     switch (speed) {
     case SPEED_1000:
         ret = eqos_set_gmii_speed(dev);
-	writel(SET_ETH_DIV_CLK(ETH_1000M_DIV, mdiv), HB_ETH0_CLK_CTRL);
+        clk_set_rate(&eqos->clk_tx, 125 * 1000000UL);
+        debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     case SPEED_100:
         ret = eqos_set_mii_speed_100(dev);
-	writel(SET_ETH_DIV_CLK(ETH_100M_DIV, mdiv), HB_ETH0_CLK_CTRL);
+        clk_set_rate(&eqos->clk_tx, 25 * 1000000UL);
+        debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     case SPEED_10:
         ret = eqos_set_mii_speed_10(dev);
@@ -765,7 +761,7 @@ static int eqos_start(struct udevice *dev)
     writel(val, &eqos->mac_regs->us_tic_counter);
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
-#ifdef CONFIG_TARGET_X3_FPGA
+#if defined CONFIG_TARGET_X3 || defined CONFIG_TARGET_X3_FPGA
 
 	phy_mode = fdt_getprop(blob, node, "phy-mode", NULL);
 	if (phy_mode)
@@ -1296,10 +1292,9 @@ static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, type;
-    unsigned int reg_val;
+    unsigned int reg_addr, reg_val;
     struct hb_info_hdr* boot_info;
-	int i;
-	unsigned char reg;
+	unsigned long mclk;
 
     debug("%s(dev=%p):\n", __func__, dev);
 	boot_info = (struct hb_info_hdr*) HB_BOOTINFO_ADDR;
@@ -1319,14 +1314,31 @@ static int eqos_probe(struct udevice *dev)
 	reg_val |= 0x00800080;
 	writel(reg_val, GPIO4_DIR);
     }
+#elif defined(CONFIG_TARGET_X3)
+	/* GPIO_EPHY_CLK as reset gpio, oths as eth pin */
+	reg_val = readl(GPIO_EPHY_CLK);
+	reg_val |= 0x03;
+	writel(reg_val, GPIO_EPHY_CLK);
+	for (reg_addr = GPIO_MDCK; reg_addr <= GPIO_RGMII_TX_EN; reg_addr += 4) {
+		reg_val = readl(reg_addr);
+		reg_val &= ~(0x03);
+		writel(reg_val, reg_addr);
+	}
+	/* reset phy: GPIO_EPHY_CLK(GPIO2[6]) */
+	reg_val = readl(GPIO_BASE + 0x28);
+	reg_val |= (1<<22);
+	reg_val &= ~(1<<6);
+	writel(reg_val, GPIO_BASE + 0x28);
+	mdelay(10);
+	reg_val |= (1<<6);
+	writel(reg_val, GPIO_BASE + 0x28);
 #else
-	// printf("%s, before gpio\n",__func__);
-		for (i = 0x98; i < 0xD4; i += 4) {
-			reg = readl(PIN_MUX_BASE + i);
-			reg &= ~(0x03);
-			writel(reg, PIN_MUX_BASE +i);
-		}
-		// printf("%s, after gpio\n",__func__);
+	reg_val = readl(GPIO_EPHY_CLK);
+	for (reg_addr = GPIO_EPHY_CLK; reg_addr <= GPIO_RGMII_TX_EN; reg_addr += 4) {
+		reg_val = readl(reg_addr);
+		reg_val &= ~(0x03);
+		writel(reg_val, reg_addr);
+	}
 #endif
     eqos->dev = dev;
     eqos->config = (void *)dev_get_driver_data(dev);
@@ -1339,6 +1351,27 @@ static int eqos_probe(struct udevice *dev)
     eqos->mac_regs = (void *)(eqos->regs + EQOS_MAC_REGS_BASE);
     eqos->mtl_regs = (void *)(eqos->regs + EQOS_MTL_REGS_BASE);
     eqos->dma_regs = (void *)(eqos->regs + EQOS_DMA_REGS_BASE);
+
+	ret = clk_get_by_name(dev, "mac_pre_div_clk", &eqos->clk_master_bus);
+	if (ret) {
+		pr_err("clk_get_by_name(%s) failed", "mac_pre_div_clk");
+		return -ENODEV;
+	}
+	ret = clk_get_by_name(dev, "mac_div_clk", &eqos->clk_tx);
+	if (ret) {
+		pr_err("clk_get_by_name(%s) failed", "mac_div_clk");
+		return -ENODEV;
+	}
+	ret = clk_get_by_name(dev, "phy_ref_clk", &eqos->clk_ptp_ref);
+	if (ret) {
+		pr_err("clk_get_by_name(%s) failed", "phy_ref_clk");
+		return -ENODEV;
+	}
+
+	clk_set_rate(&eqos->clk_master_bus, 125 * 1000000UL);
+	mclk = clk_get_rate(&eqos->clk_master_bus);
+	if (mclk != 125 * 1000000UL)
+		pr_warn("warnning: mac_pre_div_clk = %lu", mclk);
 
     ret = eqos_probe_resources_core(dev);
     if (ret < 0) {

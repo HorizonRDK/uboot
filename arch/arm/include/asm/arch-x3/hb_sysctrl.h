@@ -7,6 +7,10 @@
 #include <asm/arch/hardware.h>
 #include <asm/arch/hb_reg.h>
 
+#define HB_SYSPLL_FREQ_CTRL			(SYSCTRL_BASE + 0x010)
+#define HB_SYSPLL_PD_CTRL			(SYSCTRL_BASE + 0x014)
+#define HB_SYSPLL_STATUS			(SYSCTRL_BASE + 0x018)
+
 #define HB_CNNPLL_FREQ_CTRL			(SYSCTRL_BASE + 0x020)
 #define HB_CNNPLL_PD_CTRL			(SYSCTRL_BASE + 0x024)
 #define HB_CNNPLL_STATUS			(SYSCTRL_BASE + 0x028)
@@ -42,10 +46,12 @@
 
 #define HB_SD0_CCLK_CTRL			(SYSCTRL_BASE + 0x320)
 
-#define HB_ETH0_CLK_CTRL                (SYSCTRL_BASE + 0x340)
+#define HB_ETH0_CLK_CTRL                (SYSCTRL_BASE + 0x380)
+#define HB_ETH0_MODE_CTRL               (SYSCTRL_BASE + 0x384)
 
 #define HB_SYSC_CNNSYS_SW_RSTEN		(SYSCTRL_BASE + 0x420)
 #define HB_SYSC_DDRSYS_SW_RSTEN		(SYSCTRL_BASE + 0x430)
+#define HB_SYSC_PERISYS_SW_RSTEN	(SYSCTRL_BASE + 0x450)
 
 /* DDRPLL_FREQ_CTRL */
 #define FBDIV_BITS(x)		((x & 0xFFF) << 0)
@@ -79,6 +85,7 @@
 #define DDRCLK_SEL_BIT		(1 << 12)
 #define VIOCLK_SEL_BIT		(1 << 16)
 #define PERICLK_SEL_BIT		(1 << 20)
+#define SYSCLK_SEL_BIT		(1 << 24)
 
 static inline unsigned int hb_get_peripll_clk(void)
 {

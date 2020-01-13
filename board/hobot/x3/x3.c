@@ -7,12 +7,61 @@
 
 #include <asm/armv8/mmu.h>
 #include <asm/arch/hb_reg.h>
+#include <asm/arch/hb_sysctrl.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 unsigned int sys_sdram_size = 0x80000000; /* 2G */
 bool recovery_sys_enable = true;
 unsigned int hb_src_boot = 1;
+
+#define MHZ(x)	((x) * 1000000UL)
+
+/* Update Peri PLL */
+void switch_sys_pll(ulong pll_val)
+{
+	unsigned int value;
+	unsigned int try_num = 5;
+
+	value = readl(HB_PLLCLK_SEL) & (~SYSCLK_SEL_BIT);
+	writel(value, HB_PLLCLK_SEL);
+
+	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
+		HB_SYSPLL_PD_CTRL);
+
+	switch (pll_val) {
+		case MHZ(1200):
+			value = FBDIV_BITS(100) | REFDIV_BITS(1) |
+				POSTDIV1_BITS(2) | POSTDIV2_BITS(1);
+			break;
+		case MHZ(1500):
+		default:
+			value = FBDIV_BITS(125) | REFDIV_BITS(1) |
+				POSTDIV1_BITS(2) | POSTDIV2_BITS(1);
+			break;
+	}
+
+	writel(value, HB_SYSPLL_FREQ_CTRL);
+
+	value = readl(HB_SYSPLL_PD_CTRL);
+	value &= ~(PD_BIT | FOUTPOST_DIV_BIT);
+	writel(value, HB_SYSPLL_PD_CTRL);
+
+	while (!(value = readl(HB_SYSPLL_STATUS) & LOCK_BIT)) {
+		if (try_num <= 0) {
+			break;
+		}
+
+		udelay(100);
+		try_num--;
+	}
+
+	value = readl(HB_PLLCLK_SEL);
+	value |= SYSCLK_SEL_BIT;
+	writel(value, HB_PLLCLK_SEL);
+
+	return;
+}
 
 static struct mm_region x3_mem_map[] = {
 	{
@@ -56,6 +105,7 @@ int dram_init(void)
 
 int board_init(void)
 {
+	switch_sys_pll(MHZ(1500));
 	return 0;
 }
 

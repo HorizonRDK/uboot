@@ -392,11 +392,11 @@
 			u-boot,dm-pre-reloc;
 			#clock-cells = <0>;
 			compatible = "hobot,div-clk";
-			clocks = <&cpu_mux_clk>;
+			clocks = <&sys_pllmux_clk>;
 			offset = <0x380>;
 			bits = <12>;
 			field = <5>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		eth0_ephy_2nddiv_clk: eth0_ephy_2nddiv_clk {
@@ -407,7 +407,7 @@
 			offset = <0x380>;
 			bits = <20>;
 			field = <3>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		cx_div_dbgclk: cx_div_dbgclk {
@@ -1317,7 +1317,7 @@
 			offset = <0x380>;
 			bits = <0>;
 			field = <5>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		eth0_clk: eth0_clk {
@@ -1328,7 +1328,7 @@
 			offset = <0x380 0x150 0x154 0x158 0x258>;
 			bits = <8 17 17 17 4>;
 			field = <3 1 1 1 1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		i2s0_prediv_mclk: i2s0_prediv_mclk {
