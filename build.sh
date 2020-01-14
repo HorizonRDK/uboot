@@ -65,12 +65,14 @@ function choose()
         echo "#define CONFIG_X2_LPDDR4_3200 (3200)" >> $tmp
     elif [ "$ddr_frequency" = "2133" ];then
         echo "#define CONFIG_X2_LPDDR4_2133 (2133)" >> $tmp
+    elif [ "$ddr_frequency" = "4266" ];then
+        echo "#define CONFIG_X2_LPDDR4_4266 (4266)" >> $tmp
     else
         echo "#define CONFIG_X2_LPDDR4_2666 (2666)" >> $tmp
     fi
 
     echo "" >> $tmp
-    if [ "$board" = "som" -o "$board" = "s202" ];then
+    if [ "$board" = "som" -o "$board" = "s202" -o "$board" = "cvb" -o "$board" = "dvb" ];then
         echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
         echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
         echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
@@ -240,6 +242,8 @@ do
                 ddr_frequency="3200"
             elif [ "$arg" = "2133" ];then
                 ddr_frequency="2133"
+            elif [ "$arg" = "4266" ];then
+                ddr_frequency="4266"
             else
                 usage
                 exit 1
