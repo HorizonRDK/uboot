@@ -1,0 +1,522 @@
+#!/bin/bash
+
+# ./mktool [d/n/f/c/s/u/e/a/A/r/q/Q/g/l/x/X/v/#/h] [out]
+# for u-boot of XJ3.
+# by lmg at 20200114.
+
+# params for make.
+ARCH=arm
+CROSS_COMPILE=aarch64-linux-gnu-
+MAKEJ=8
+MAKE="make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}"
+
+# make cp path.
+#MKCP_PATH="../out/images $HOME/servers/nfs/x3_images ${HOME}/verify_sys/image"
+MKCP_PATH="../out/images"
+
+# all support config list.
+CfgCur=""
+CfgDef="x3_soc"
+CfgList="x3_soc x3_fpga x3_fpga_haps"
+
+# default params define.
+DefCfgPre=""
+DefCfgPost="_defconfig"
+DefOut="../out/uboot"
+Uimage="u-boot.bin"
+#UimageEx="spl/u-boot-spl.bin"
+
+# Run Value.
+MakeQuiet=0
+MakeGitV=0
+
+# string fun value.
+StrFromS=""
+StrFromI=0
+
+# function of sel string from list.
+# result to ${StrFromS} and ${StrFromI}.
+# $1 - string name.
+# $2 - string default.
+# $3 - string list.
+# $4 - string current.
+# $? - 0-OK,1-ERROR.
+function StrFromList() {
+	# list all config for select.
+	echo "Please input index for $1:"
+	StrI=1
+	StrDefI=1
+	for Str in $3; do
+		if [ "${Str}" == "$2" ]; then
+			StrDesp="    (Default)"
+			StrDefI=${StrI}
+		else
+			StrDesp=""
+		fi
+		if [ ${Str} == "$4" ]; then
+			echo "* ${StrI}) ${Str}${StrDesp}"
+		else
+			echo "  ${StrI}) ${Str}${StrDesp}"
+		fi
+		StrI=`expr ${StrI} + 1`
+	done
+	# read input select.
+	read StrIr
+	if [ -z "${StrIr}" ]; then
+		if [ -z "$4" ]; then
+			echo "$1 Default: $2"
+			StrFromS=$2
+			StrFromI=$StrDefI
+		else
+			echo "$1 Not change: $4"
+			StrFromS=$4
+			StrFromI=0
+			return 1
+		fi
+	elif [ ${StrIr} -lt 1 ] || [ ${StrIr} -ge ${StrI} ]; then
+		echo "$1 Default: $2"
+		StrFromS=$2
+		StrFromI=$StrDefI
+	else
+		StrI=1
+		for Str in $3; do
+			if [ ${StrI} -eq ${StrIr} ]; then
+				StrFromS=${Str}
+				break
+			fi
+			StrI=`expr ${StrI} + 1`
+		done
+		StrFromI=$StrIr
+	fi
+	# return result.
+	return 0
+}
+
+# function of get CfgCur from output dir link.
+# see ${CfgCur}.
+# $? - none.
+function GetCfgCur() {
+	if [ -h "${DefOut}" ]; then
+		CfgCur=`readlink ${DefOut}`
+		CfgCur=`basename ${CfgCur}`
+		CfgCur=${CfgCur##*.}
+	else
+		CfgCur=""
+	fi
+}
+
+# function of set CfgCur for output dir post ".xxx".
+# $1 - set config with index(start 1) from CfgList.
+# $? - 0-OK,1-ERROR.
+function SetCfgCur() {
+	SetRet=0
+	CfgI=1
+	CfgSel=""
+	for Cfg in ${CfgList}; do
+		if [ ${CfgI} -eq ${1} ]; then
+			CfgSel=${Cfg}
+		fi
+		CfgI=`expr ${CfgI} + 1`
+	done
+	if [ -z ${CfgSel} ]; then
+		echo "ERR: Config -> index ${1}"
+	else
+		if [ -h ${DefOut} ] || [ -d ${DefOut} ]; then
+			rm -fr ${DefOut}
+		fi
+		mkdir -p "${DefOut}.${CfgSel}"
+		ln -s "$(basename ${DefOut}).${CfgSel}" "${DefOut}"
+		CfgCur=${CfgSel}
+		echo "OK: Config -> ${CfgCur}"
+		SetRet=1
+	fi
+	return $SetRet
+}
+
+
+# function of sel CfgCur from CfgList.
+# $? - 0-OK,1-ERROR.
+function SelCfgCur() {
+	StrFromList "Config" "${CfgDef}" "${CfgList}" "${CfgCur}"
+	if [ $? -eq 0 ]; then
+		SetCfgCur ${StrFromI}
+	fi
+	return $?
+}
+
+# function of show CfgList and CfgCur.
+# $? - none.
+function ShowCfgInfo() {
+	echo "Config list: ${CfgList}"
+	GetCfgCur
+	if [ -z "${CfgCur}" ]; then
+		echo "Config cur*: null"
+	else
+		echo "Config cur*: ${CfgCur}"
+	fi
+}
+
+# get build output dir with $2
+if [ $# -ge 2 ] ; then
+	OutDir="$2"
+else
+	OutDir="${DefOut}"
+fi
+if [ "${OutDir}" == "." ]; then
+	OutCfg=""
+else
+	OutCfg="O=${OutDir}"
+fi
+
+# mkconfig value.
+MkConfig=${OutDir}/.mkconfig
+MkCfgName=""
+MkCfgList=""
+MkCfgValD=""
+MkCfgValG=""
+
+# function of get config from mkconfig.
+# $1 - config name.
+# $? - echo config string.
+function MkConfigGet() {
+	if [ -z "$1" ] || [ ! -f ${MkConfig} ]; then
+		echo ""
+	else
+		grep "^$1=" ${MkConfig} |awk -F "=" '{print $2}'
+	fi
+}
+
+# function of set config to mkconfig.
+# $1 - config name.
+# $2 - config value.
+# $? - 0-OK, 1-ERROR.
+function MkConfigSet() {
+	if [ -z "$1" ]; then
+		return 1
+	else
+		if [ ! -f ${MkConfig} ]; then
+			echo "$1=$2" > ${MkConfig}
+		else
+			sed -i "/^$1=/d" ${MkConfig}
+			echo "$1=$2" >> ${MkConfig}
+		fi
+		return 0
+	fi
+}
+
+# function of setup one config for mkconfig.
+# auto get value to ${MkCfgValG}.
+# $1 - config name, for ${MkCfgName}.
+# $2 - config list, for ${MkCfgList}.
+# $3 - config default, for ${MkCfgValD}.
+function MkConfigEnv() {
+	MkCfgName="$1"
+	MkCfgList="$2"
+	MkCfgValD="$3"
+	MkCfgValG=$(MkConfigGet $1)
+}
+
+# all support mkconfig list.
+MkConfigs="board mode ddr reset"
+
+# functions for those extra configs' env.
+board_MkEnv() {
+	MkConfigEnv "board" "som svb mono" "svb"
+}
+mode_MkEnv() {
+	MkConfigEnv "mode" "ap ymodem nor mmc" "ymodem"
+}
+ddr_MkEnv() {
+	MkConfigEnv "ddr" "3200 2666 2133 2400" "2666"
+}
+reset_MkEnv() {
+	MkConfigEnv "reset" "_null reset" "_null"
+}
+
+# functions for those extra configs' do.
+UbsplConfig="include/configs/x2_config.h"
+UboardConfig="include/configs/x2.h"
+UimageExRn="spl.bin"
+# function of sed string for file.
+# $1 - file.
+# $2 - from pre string.
+# $3 - from post string.
+# $4 - to string.
+# $5 - to Up?
+# $6 - search in.
+# $? - 0-OK, 1-ERROR.
+_config_MkDo() {
+	if [ ! -z "$5" ] && [ $5 -gt 0 ]; then
+		typeset -u MkToStr
+	fi
+	MkCfgFrom="^$2.*$3"
+	MkToStr="$4"
+	if [ "${MkToStr}" == "_NULL" ] || [ "${MkToStr}" == "_null" ]; then
+		sed -e "$6s/${MkCfgFrom}//" -i $1
+	else
+		MkCfgTo="$2${MkToStr}$3"
+		if [ -z "$(grep "${MkCfgFrom}" $1)" ]; then
+			sed -e "$6s/^#endif/${MkCfgTo}\n#endif/" -i $1
+		else
+			if [ -z "$(grep "^${MkCfgTo}" $1)" ]; then
+				sed -e "$6s/${MkCfgFrom}/${MkCfgTo}/" -i $1
+			fi
+		fi
+	fi
+	return 0
+}
+board_MkDo() {
+	UimageExRn=`echo ${UimageExRn} |sed -e "s/\./-${MkCfgValG}\./"`
+	_config_MkDo ${UbsplConfig} "#define CONFIG_X2_" "_BOARD" "${MkCfgValG}" 1
+}
+mode_MkDo() {
+	UimageExRn=`echo ${UimageExRn} |sed -e "s/\./-${MkCfgValG}\./"`
+	_config_MkDo ${UbsplConfig} "#define CONFIG_X2_" "_BOOT" "${MkCfgValG}" 1
+	if [ ${MkCfgValG} == "ymodem" ]; then
+		sed -e "s/YMODEM_SUPPORT=n/YMODEM_SUPPORT=y/" -i ${OutDir}/.config
+	else
+		sed -e "s/YMODEM_SUPPORT=y/YMODEM_SUPPORT=n/" -i ${OutDir}/.config
+	fi
+}
+ddr_MkDo() {
+	UimageExRn=`echo ${UimageExRn} |sed -e "s/\./-${MkCfgValG}\./"`
+	_config_MkDo ${UbsplConfig} "#define CONFIG_X2_LPDDR4_" "" "${MkCfgValG} (${MkCfgValG})" 1
+}
+reset_MkDo() {
+	_config_MkDo ${UboardConfig} "#define X2_AUTO" "" "${MkCfgValG}" 1 "170,$"
+}
+
+# function of mkconfig change.
+# $? - 0-OK,1-ERROR.
+function MkConfigChange() {
+	for Mk in ${MkConfigs}; do
+		${Mk}_MkEnv
+		StrFromList "${MkCfgName}" "${MkCfgValD}" "${MkCfgList}" "${MkCfgValG}"
+		if [ $? -eq 0 ]; then
+			MkCfgValG=${StrFromS}
+			MkConfigSet "${MkCfgName}" "${MkCfgValG}"
+			if [ $? -eq 0 ]; then
+				echo "OK: ${MkCfgName} -> ${MkCfgValG}"
+			else
+				echo "ERR: ${MkCfgName} -> ${MkCfgValG}"
+			fi
+		fi
+	done
+}
+
+# function of mkconfig prepare.
+# $? - 0-OK,1-ERROR.
+function MkConfigPrepare() {
+	for Mk in ${MkConfigs}; do
+		${Mk}_MkEnv
+		if [ -z "${MkCfgValG}" ]; then
+			MkCfgValG=${MkCfgValD}
+			MkConfigSet "${MkCfgName}" "${MkCfgValG}"
+		fi
+		echo "[EV] ${MkCfgName}: ${MkCfgValG}"
+		${Mk}_MkDo
+	done
+}
+
+#function of pre do for git
+function GitPreDo() {
+	if [ ${MakeGitV} -eq 0 ] && [ -d .git ]; then
+		echo "[MV] git repo novalid"
+		mv .git .git-novalid
+	fi
+}
+
+#function of post do for git
+function GitPostDo() {
+	if [ ${MakeGitV} -eq 0 ] && [ -d .git-novalid ]; then
+		echo "[MV] git repo backup"
+		mv .git-novalid .git
+	fi
+}
+
+# function of make target.
+# $@ - make targets and config.
+# $? - 0-OK,1-ERROR,exit.
+function MakeTarget() {
+	echo "[MK] $@"
+	if [ ${MakeQuiet} -gt 1 ]; then
+		${MAKE} ${OutCfg} $@ >/dev/null 2>&1
+	elif [ ${MakeQuiet} -gt 0 ]; then
+		${MAKE} ${OutCfg} $@ >/dev/null
+	else
+		${MAKE} ${OutCfg} $@
+	fi
+	MakeRet=$?
+	if [ ! ${MakeRet} -eq 0 ]; then
+		echo "[**] make $@ error"
+		GitPostDo
+		exit ${MakeRet}
+	fi
+	return ${MakeRet}
+}
+
+# make envs.
+MkTargets=
+MkTarNull=ue
+
+# prepare for make.
+if [ $# -ge 1 ] ; then
+	MAKEJI=`echo $1 |tr -cd "[0-9]"`
+	if [ ! -z "${MAKEJI}" ] && [ ${MAKEJI} -gt 0 ]; then
+		MAKEJ=${MAKEJI}
+	fi
+	MkTargets=`echo $1 |tr -cd "[a-z][A-Z]"`
+	if [ "$1" == "--help" ] || [ "$1" == "-h" ] || [ "$1" == "h" ]; then
+		echo "./`basename $0` [d/n/f/c/s/u/e/a/A/r/q/Q/g/l/x/X/v/#/h] [out]"
+		echo "     [d] - make distclean"
+		echo "     [n] - make clean"
+		echo "     [f] - make defconfig"
+		echo "     [c] - make menuconfig"
+		echo "     [s] - save defconfig"
+		echo "     [u] - make uboot(${Uimage})"
+		echo "     [e] - make uboot-ex(${UimageEx})"
+		echo "     [a] - make target for above: ue"
+		echo "     [A] - make target for above: nue"
+		echo "     [r] - make rebuild for all above: dfue"
+		echo "     [q] - make quiet only warnning/error"
+		echo "     [Q] - make quiet force"
+		echo "     [g] - make change git repo: ${MakeGitV}"
+		echo "     [l] - list all support config"
+		echo "     [x] - change config for current"
+		echo "     [X] - change mkconfig for make"
+		echo "     [v] - make with VERBOSE=1"
+		echo "     [#] - make with -j#, default: -j${MAKEJ}"
+		echo "     [h] - show this help doc"
+		echo "     [out] - out path, default: ${DefOut}"
+		echo "     null  - default: ${MkTarNull}"
+		exit 0
+	elif [ -z "${MkTargets}" ]; then
+		MkTargets=${MkTarNull}
+	elif [ "${MkTargets}" == "q" ]; then
+		MkTargets=${MkTarNull}
+		MakeQuiet=1
+	elif [ "${MkTargets}" == "Q" ]; then
+		MkTargets=${MkTarNull}
+		MakeQuiet=2
+	elif [ "${MkTargets}" == "g" ]; then
+		MkTargets=${MkTarNull}
+		MakeGitV=`expr 1 - ${MakeGitV}`
+	elif [ "${MkTargets}" == "v" ]; then
+		MkTargets=${MkTarNull}
+		MAKE="${MAKE} VERBOSE=1"
+	else
+		if [ ! -z "${OutCfg}" ]; then
+			if [[ "${MkTargets}" =~ "l"  ]]; then
+				MkTargets=${MkTargets//l/}
+				ShowCfgInfo
+			else
+				GetCfgCur
+			fi
+			if [[ "${MkTargets}" =~ "x"  ]]; then
+				MkTargets=${MkTargets//x/}
+				SelCfgCur
+			fi
+			if [[ "${MkTargets}" =~ "X"  ]]; then
+				MkTargets=${MkTargets//X/}
+				MkConfigChange
+			fi
+			if [ -z "${CfgCur}" ]; then
+				SelCfgCur
+			fi
+		fi
+		if [[ "${MkTargets}" =~ "a" ]]; then
+			MkTargets=${MkTargets//a/ue}
+		fi
+		if [[ "${MkTargets}" =~ "A" ]]; then
+			MkTargets=${MkTargets//A/nue}
+		fi
+		if [[ "${MkTargets}" =~ "r" ]]; then
+			MkTargets=${MkTargets//r/dfue}
+		fi
+		if [[ "${MkTargets}" =~ "q"  ]]; then
+			MkTargets=${MkTargets//q/}
+			MakeQuiet=1
+		fi
+		if [[ "${MkTargets}" =~ "Q"  ]]; then
+			MkTargets=${MkTargets//Q/}
+			MakeQuiet=2
+		fi
+		if [[ "${MkTargets}" =~ "g"  ]]; then
+			MkTargets=${MkTargets//g/}
+			MakeGitV=`expr 1 - ${MakeGitV}`
+		fi
+		if [[ "${MkTargets}" =~ "v" ]]; then
+			MkTargets=${MkTargets//v/}
+			MAKE="${MAKE} VERBOSE=1"
+		fi
+	fi
+else
+	MkTargets=${MkTarNull}
+fi
+if [ -z "${MkTargets}" ]; then
+	exit 0
+fi
+
+# prepare config for make.
+if [ ! -z "${OutCfg}" ]; then
+	GetCfgCur
+	if [ -z "${CfgCur}" ]; then
+		SelCfgCur
+	fi
+	DefCfg="${DefCfgPre}${CfgCur}${DefCfgPost}"
+else
+	DefCfg="${DefCfgPre}${CfgDef}${DefCfgPost}"
+fi
+
+# do make.
+MAKE="${MAKE} -j${MAKEJ}"
+echo "[MT] ${MAKE} ${OutCfg}"
+echo "[MG] ${CfgCur}: ${MkTargets}"
+if [[ "${MkTargets}" =~ "d"  ]]; then
+	MakeTarget distclean
+fi
+if [[ "${MkTargets}" =~ "n"  ]]; then
+	MakeTarget clean
+fi
+if [[ "${MkTargets}" =~ "f"  ]] || [ ! -f ${OutDir}/.config ]; then
+	MakeTarget ${DefCfg}
+fi
+if [[ "${MkTargets}" =~ "c"  ]]; then
+	MakeTarget menuconfig
+fi
+if [[ "${MkTargets}" =~ "s"  ]]; then
+	if [ -f ${OutDir}/.config ]; then
+		echo "[MK] save ${DefCfg}"
+		cp -f ${OutDir}/.config configs/${DefCfg}
+	else
+		echo "[MK] save ${DefCfg} error"
+	fi
+fi
+GitPreDo
+if [[ "${MkTargets}" =~ "u" ]]; then
+	MakeTarget ${Uimage}
+	if [ ! -z "${MKCP_PATH}" ]; then
+		for MKCP in ${MKCP_PATH}; do
+			mkdir -p ${MKCP}
+			echo "[CP] ${Uimage} >>> ${MKCP}"
+			for Ui in ${Uimage}; do
+				cp -f ${OutDir}/${Ui} ${MKCP}/
+			done
+		done
+	fi
+fi
+if [[ "${MkTargets}" =~ "e" ]]; then
+	MakeTarget ${UimageEx}
+	if [ ! -z "${MKCP_PATH}" ]; then
+		for MKCP in ${MKCP_PATH}; do
+			mkdir -p ${MKCP}
+			echo "[CP] ${UimageEx} >>> ${MKCP}/${UimageExRn}"
+			for Ui in ${UimageEx}; do
+				cp -f ${OutDir}/${Ui} ${MKCP}/${UimageExRn}
+			done
+		done
+	fi
+fi
+GitPostDo
+
+exit ${MakeRet}
