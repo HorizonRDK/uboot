@@ -78,12 +78,13 @@
         status = "okay";
         #address-cells = <0x1>;
         #size-cells = <0x0>;
-        phyaddr = <0xe>;
+        phyaddr = <0xe>; //for dvb
+        #phyaddr = <0x0>; //for cvb
 
 	phy-mode = "rgmii";
 	phy0: ethernet-phy@0 {
 		compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
-		reg = <0xe>;
+		reg = <0x0>;
 	};
 };
 &bifsd {

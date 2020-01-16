@@ -485,6 +485,7 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret;
 
+
     debug("%s(dev=%p):\n", __func__, dev);
 
 
@@ -611,7 +612,6 @@ static int eqos_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, duplex, speed;
-
     debug("%s(dev=%p):\n", __func__, dev);
 
 	duplex = (eqos->is_88e6321) ? 1 : eqos->phy->duplex;
@@ -631,11 +631,13 @@ static int eqos_adjust_link(struct udevice *dev)
         ret = eqos_set_gmii_speed(dev);
         clk_set_rate(&eqos->clk_tx, 125 * 1000000UL);
         debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
+        printf("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     case SPEED_100:
         ret = eqos_set_mii_speed_100(dev);
         clk_set_rate(&eqos->clk_tx, 25 * 1000000UL);
         debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
+        printf("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     case SPEED_10:
         ret = eqos_set_mii_speed_10(dev);
@@ -648,7 +650,6 @@ static int eqos_adjust_link(struct udevice *dev)
         pr_err("eqos_set_*mii_speed*() failed: %d", ret);
         return ret;
     }
-
 
     ret = eqos_set_tx_clk_speed_tegra186(dev);
     if (ret < 0) {
@@ -724,8 +725,10 @@ static int eqos_start(struct udevice *dev)
     int phy_addr = 0;
 	const char *phy_mode;
 	int fl_node;
-    debug("%s(dev=%p):\n", __func__, dev);
+ 
+   debug("%s(dev=%p):\n", __func__, dev);
 
+ 
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
 
@@ -1332,6 +1335,17 @@ static int eqos_probe(struct udevice *dev)
 	mdelay(10);
 	reg_val |= (1<<6);
 	writel(reg_val, GPIO_BASE + 0x28);
+
+
+#if 0    
+    /*modify pin voltage to 1.8v*/
+    reg_val = 0;
+    reg_val = readl(IO_MODE_CTRL);
+    reg_val |= (3 << 10);
+    writel(reg_val, IO_MODE_CTRL);
+    printf("%s, reg_val:0x%x, io_mode_ctrl:0x%lx\n", __func__, reg_val, readl(IO_MODE_CTRL));
+#endif
+
 #else
 	reg_val = readl(GPIO_EPHY_CLK);
 	for (reg_addr = GPIO_EPHY_CLK; reg_addr <= GPIO_RGMII_TX_EN; reg_addr += 4) {
@@ -1367,11 +1381,12 @@ static int eqos_probe(struct udevice *dev)
 		pr_err("clk_get_by_name(%s) failed", "phy_ref_clk");
 		return -ENODEV;
 	}
-
+#if 1
 	clk_set_rate(&eqos->clk_master_bus, 125 * 1000000UL);
 	mclk = clk_get_rate(&eqos->clk_master_bus);
 	if (mclk != 125 * 1000000UL)
 		pr_warn("warnning: mac_pre_div_clk = %lu", mclk);
+#endif
 
     ret = eqos_probe_resources_core(dev);
     if (ret < 0) {

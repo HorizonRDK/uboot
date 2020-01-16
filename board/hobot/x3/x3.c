@@ -106,6 +106,7 @@ int dram_init(void)
 int board_init(void)
 {
 	switch_sys_pll(MHZ(1500));
+//	switch_sys_pll(MHZ(1200));
 	return 0;
 }
 
