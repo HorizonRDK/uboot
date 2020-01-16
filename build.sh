@@ -121,7 +121,7 @@ function build()
         exit 1
     }
 
-    choose
+#    choose
 
     make -j${N} || {
         echo "make failed"

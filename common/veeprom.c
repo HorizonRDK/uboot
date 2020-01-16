@@ -27,7 +27,6 @@ static unsigned int start_sector;
 static unsigned int end_sector;
 static char buffer[BUFFER_SIZE];
 static int curr_device = -1;
-extern unsigned int hb_src_boot;
 
 extern struct spi_flash *flash;
 struct mmc *emmc = NULL;
@@ -65,8 +64,9 @@ struct mmc *init_mmc_device(int dev, bool force_init)
 static int dw_init(int flag)
 {
 	int ret = 0;
+	int boot_mode = hb_boot_mode_get();
 
-	if (hb_src_boot == PIN_2ND_SF) {
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 #ifdef CONFIG_HB_NOR_BOOT
 		init_nor_device();
 		if (!flash) {
@@ -102,8 +102,9 @@ static int dw_init(int flag)
 static int dw_read(unsigned int cur_sector)
 {
 	int ret = 0;
+	int boot_mode = hb_boot_mode_get();
 
-	if (hb_src_boot == PIN_2ND_SF) {
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 #ifdef CONFIG_HB_NOR_BOOT
 		if (!flash)
 			return -1;
@@ -128,8 +129,9 @@ static int dw_read(unsigned int cur_sector)
 static int dw_write(unsigned int cur_sector)
 {
 	int ret = 0;
+	int boot_mode = hb_boot_mode_get();
 
-	if (hb_src_boot == PIN_2ND_SF) {
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 #ifdef CONFIG_HB_NOR_BOOT
 		if (!flash)
 			return -1;
@@ -172,7 +174,9 @@ static int is_parameter_valid(int offset, int size)
 /* init veeprom mmc blocks */
 int veeprom_init(void)
 {
-	if (hb_src_boot == PIN_2ND_SF) {
+	int boot_mode = hb_boot_mode_get();
+
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 #ifdef CONFIG_HB_NOR_BOOT
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
@@ -210,7 +214,9 @@ int veeprom_init(void)
 
 void veeprom_exit(void)
 {
-	if (hb_src_boot == PIN_2ND_SF) {
+	int boot_mode = hb_boot_mode_get();
+
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 #ifdef CONFIG_HB_NOR_BOOT
 		spi_flash_free(flash);
 #endif

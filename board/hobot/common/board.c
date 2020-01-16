@@ -36,7 +36,6 @@
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT
 extern unsigned int sys_sdram_size;
-extern unsigned int hb_src_boot;
 extern bool recovery_sys_enable;
 #endif
 #if defined(HB_SWINFO_DUMP_OFFSET) && !defined(CONFIG_FPGA_HOBOT)
@@ -531,7 +530,8 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 static void hb_bootargs_init(unsigned int rootfs_id)
 {
 	char *s;
-	unsigned int len = 0, i;
+	unsigned int len = 0, i, offset;
+	char cmd[256] = { 0 };
 
 	/* init bootargs */
 	s = env_get("bootargs");
@@ -545,10 +545,21 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 		}
 	}
 
+	strcpy(cmd, s);
+
 	if (i < len) {
-		s[i + 18] = hex_to_char(rootfs_id);
-		env_set("bootargs", s);
+		if (rootfs_id < 10) {
+			cmd[i + 18] = hex_to_char(rootfs_id);
+		} else {
+			cmd[i + 18] = hex_to_char(rootfs_id/10);
+			cmd[i + 19] = hex_to_char(rootfs_id%10);
+
+			offset = i + 19;
+
+			memcpy(cmd + offset + 1, s + offset, len - offset);
+		}
 	}
+	env_set("bootargs", cmd);
 }
 
  static void hb_mmc_env_init(void)
@@ -558,7 +569,7 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 	char logo[64] = "ext4load mmc 0:3 ${logo_addr} logo.rgb";
 
 	char rootfs[32] = "system";
-	char kernel[32] = "kernel";
+	char kernel[32] = "boot";
 	char upmode[16] = { 0 };
 	unsigned int rootfs_id, kernel_id;
 	char boot_reason[64] = { 0 };
@@ -784,10 +795,10 @@ static void hb_nor_kernel_load(void)
 static void hb_dtb_mapping_load(void)
 {
 	int rcode = 0;
-	char partname[] = "kernel";
+	char partname[] = "boot";
 	char cmd[256] = { 0 };
 
-	if (hb_src_boot == PIN_2ND_EMMC) {
+	if (hb_boot_mode_get() == PIN_2ND_EMMC) {
 		/* load dtb-mapping.conf */
 		snprintf(cmd, sizeof(cmd), "ext4load mmc 0:%d 0x%x dtb-mapping.conf",
 		get_partition_id(partname), HB_DTB_CONFIG_ADDR);
@@ -818,9 +829,14 @@ static void hb_env_and_boardid_init(void)
 	struct hb_kernel_hdr *hb_kernel_conf;
 	char *s = NULL;
 	char boot_reason[64] = { 0 };
+	char command[256] = "mmc read ";
 
 	/* load config dtb_mapping */
 	hb_dtb_mapping_load();
+
+	/* load bootinfo */
+	sprintf(command, "%s %x %x %x", command, HB_BOOTINFO_ADDR, 0, 1);
+	run_command_list(command, -1, 0);
 
 	hb_board_type = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
 	gpio_id = hb_gpio_get();
@@ -861,7 +877,7 @@ static void hb_env_and_boardid_init(void)
 	printf("final/board_id = %02x\n", board_id);
 
 	/* mmc or nor env init */
-	if (hb_src_boot == PIN_2ND_EMMC) {
+	if (hb_boot_mode_get() == PIN_2ND_EMMC) {
 		hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
 		s = hb_mmc_dtb_load(board_id, hb_kernel_conf);
 		printf("fdtimage = %s\n", s);
@@ -1376,6 +1392,7 @@ int board_early_init_f(void)
 
 int last_stage_init(void)
 {
+	int boot_mode = hb_boot_mode_get();
 #ifndef CONFIG_FPGA_HOBOT
 	disable_cnn();
 #endif
@@ -1397,7 +1414,9 @@ int last_stage_init(void)
 #endif
 #ifndef	CONFIG_FPGA_HOBOT
 #ifndef CONFIG_DOWNLOAD_MODE
-	if ((hb_src_boot == PIN_2ND_EMMC) || (hb_src_boot == PIN_2ND_SF))
+
+	if ((boot_mode == PIN_2ND_EMMC) || (boot_mode == PIN_2ND_NOR) || \
+		(boot_mode == PIN_2ND_NAND))
 		hb_env_and_boardid_init();
 #endif
 #endif

@@ -10,8 +10,6 @@
 #include <x3_pka.h>
 #include <hb_info.h>
 
-extern unsigned int x2_src_boot;
-
 /* kernel: raw partition */
 int x2a_load_kernel_raw(uint32_t src_addr, uint32_t inlen,
 	uint32_t dst_addr)
@@ -20,12 +18,13 @@ int x2a_load_kernel_raw(uint32_t src_addr, uint32_t inlen,
 	uint32_t offset = src_addr/512;
 	uint32_t count = (inlen - 1)/512 + 1;
 	int ret;
+	int boot_mode = hb_boot_mode_get();
 
 	if ((src_addr > KERNEL_MAX_ADDR) || (src_addr % 512 != 0))
 		return ADDR_INVALID;
 
 	/* load kernel image */
-	if (x2_src_boot == PIN_2ND_SF)
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND))
 		snprintf(cmd, sizeof(cmd), "sf read 0x%x 0x%x 0x%x", dst_addr,
 			offset, count);
 	else

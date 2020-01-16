@@ -37,7 +37,6 @@
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
 static int curr_device = 0;
-extern unsigned int hb_src_boot;
 extern struct spi_flash *flash;
 extern bool recovery_sys_enable;
 
@@ -52,7 +51,6 @@ int get_emmc_size(uint64_t *size)
 	*size = mmc->capacity;
 	return CMD_RET_SUCCESS;
 }
-
 
 char *printf_efiname(gpt_entry *pte)
 {
@@ -376,13 +374,13 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 		if (strcmp(argv[4],"emmc") == 0) {
 			boot_mode = PIN_2ND_EMMC;
 		} else if (strcmp(argv[4],"nor") == 0) {
-			boot_mode = PIN_2ND_SF;
+			boot_mode = PIN_2ND_NOR;
 		} else {
 			printf("error: parameter %s not support! \n", argv[4]);
 			return CMD_RET_USAGE;
 		}
 	} else {
-		boot_mode = hb_src_boot;
+		boot_mode = hb_boot_mode_get();
 	}
 	partition_name = argv[1];
 
@@ -391,7 +389,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 			return CMD_RET_USAGE;
 
 	/* update image */
-	if (boot_mode == PIN_2ND_SF)
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND))
 		ret = ota_nor_update_image(partition_name, argv[2], bytes);
 	else
 		ret = ota_mmc_update_image(partition_name, argv[2], bytes);
@@ -434,7 +432,9 @@ void ota_update_set_bootdelay(char *boot_reason)
 
 int ota_normal_boot(bool boot_flag, char *partition)
 {
-	if (hb_src_boot == PIN_2ND_SF) {
+	int boot_mode = hb_boot_mode_get();
+
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 		return 0;
 	} else {
 		if (boot_flag == 1) {
@@ -500,6 +500,7 @@ void ota_recovery_mode_set(bool upflag)
 	char boot_reason[16] = "recovery";
 	int ret;
 	unsigned int kernel_id;
+	int boot_mode = hb_boot_mode_get();
 
 	if (recovery_sys_enable) {
 		if (upflag) {
@@ -507,7 +508,7 @@ void ota_recovery_mode_set(bool upflag)
 				VEEPROM_RESET_REASON_SIZE);
 		}
 
-		if (hb_src_boot == PIN_2ND_EMMC) {
+		if (boot_mode == PIN_2ND_EMMC) {
 			/* env bootfile set*/
 			s = "recovery.gz\0";
 			env_set("bootfile", s);
@@ -586,6 +587,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 	bool boot_bak, part_status;
 	bool boot_flag;
 	char upmode[16] = { 0 };
+	int boot_mode = hb_boot_mode_get();
 
 	ota_get_update_status(&up_flag, &partstatus, boot_reason);
 
@@ -627,7 +629,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 			ota_update_failed_output(boot_reason, partition);
 	}
 
-	if (hb_src_boot == PIN_2ND_SF) {
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
 		if (boot_flag == boot_bak)
 			return 1;
 		else

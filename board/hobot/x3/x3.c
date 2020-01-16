@@ -6,14 +6,15 @@
 #include <asm/io.h>
 
 #include <asm/armv8/mmu.h>
-#include <asm/arch/hb_reg.h>
+#include <asm/arch-x2/hb_reg.h>
 #include <asm/arch/hb_sysctrl.h>
+#include <hb_info.h>
+#include <asm/arch-x2/ddr.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
 unsigned int sys_sdram_size = 0x80000000; /* 2G */
 bool recovery_sys_enable = true;
-unsigned int hb_src_boot = 1;
 
 #define MHZ(x)	((x) * 1000000UL)
 
@@ -97,6 +98,14 @@ static struct mm_region x3_mem_map[] = {
 
 struct mm_region *mem_map = x3_mem_map;
 
+int hb_boot_mode_get(void) {
+	unsigned int reg;
+
+	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
+
+	return PIN_2NDBOOT_SEL(reg);
+}
+
 int dram_init(void)
 {
 	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
@@ -106,7 +115,6 @@ int dram_init(void)
 int board_init(void)
 {
 	switch_sys_pll(MHZ(1500));
-//	switch_sys_pll(MHZ(1200));
 	return 0;
 }
 
