@@ -20,4 +20,38 @@
 #define PKA_BASE		(0xA1018000)
 
 #define HB_GPIO_MODE            0
+
+#define GPIO_GRP0_REG           0x000
+#define GPIO_GRP1_REG           0x010
+#define GPIO_GRP2_REG           0x020
+#define GPIO_GRP3_REG           0x030
+#define GPIO_GRP4_REG           0x040
+#define GPIO_GRP5_REG           0x050
+#define GPIO_GRP6_REG           0X060
+#define GPIO_GRP7_REG           0x070
+
+#define X2_STRAP_PIN_REG                0x140
+
+#define X3_GPIO0_CTRL_REG	0x8
+#define X3_GPIO0_VALUE_REG	0xC
+#define X3_GPIO6_CTRL_REG	0x68
+#define X3_GPIO6_VALUE_REG	0x6C
+
+/* base board type */
+#define BASE_BOARD_X3_DVB		0x0
+#define BASE_BOARD_J3_DVB		0x1
+#define BASE_BOARD_CVB			0x2
+#define BASE_BOARD_CUSTOMER_BOARD	0x3
+
+#define PIN_BASE_BOARD_SEL(x)	((((x >> 14) & 0x1) << 0x1) | \
+	((x >> 12) & 0x1))
+
+#define X2_SYSCNT_BASE          (0xA6001000)
+#define X2_GPIO_BASE            (0xA6003000)
+#define HB_GPIO_MODE            0
+#define X2A_PIN_SW_BASE		(0xA6004000)
+
+#define SPACC_BASE	(0xB2100000)
+#define PKA_BASE	(0xA1018000)
+
 #endif /* __ASM_ARCH_HB_REG_H__ */

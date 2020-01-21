@@ -108,7 +108,10 @@ int hb_boot_mode_get(void) {
 
 int dram_init(void)
 {
-	gd->ram_size = CONFIG_SYS_SDRAM_SIZE;
+	x3_mem_map[0].size = sys_sdram_size;
+
+	gd->ram_size = sys_sdram_size;
+
 	return 0;
 }
 

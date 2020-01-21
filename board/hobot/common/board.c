@@ -33,6 +33,9 @@
 #include <configs/hb_config.h>
 #include <hb_info.h>
 
+#include <asm/arch-x3/hb_reg.h>
+#include <asm/arch-x2/ddr.h>
+
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT
 extern unsigned int sys_sdram_size;
@@ -1390,6 +1393,66 @@ int board_early_init_f(void)
 	return 0;
 }
 
+static void base_board_gpio_test(void)
+{
+	uint32_t reg, base_id;
+
+	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
+	base_id = PIN_BASE_BOARD_SEL(reg);
+
+	switch (base_id) {
+	case BASE_BOARD_X3_DVB:
+		printf("base board type: X3 DVB\n");
+		break;
+	case BASE_BOARD_J3_DVB:
+		printf("base board type: J3 DVB\n");
+		break;
+	case BASE_BOARD_CVB:
+		printf("base board type: CVB\n");
+		break;
+	case BASE_BOARD_CUSTOMER_BOARD:
+		printf("base board type: customer board\n");
+		break;
+	default:
+		printf("base board type not support\n");
+		break;
+	}
+
+}
+
+static void boot_src_test(void)
+{
+	uint32_t reg, boot_src;
+
+	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
+	boot_src = PIN_2NDBOOT_SEL(reg);
+
+	switch (boot_src) {
+	case PIN_2ND_EMMC:
+		printf("bootmode: EMMC\n");
+		break;
+	case PIN_2ND_NAND:
+		printf("bootmode: NAND\n");
+		break;
+	case PIN_2ND_AP:
+		printf("bootmode: AP\n");
+		break;
+	case PIN_2ND_USB:
+	case PIN_2ND_USB_BURN:
+		printf("bootmode: USB\n");
+		break;
+	case PIN_2ND_NOR:
+		printf("bootmode: NOR\n");
+		break;
+	case PIN_2ND_UART:
+		printf("bootmode: UART\n");
+		break;
+	default:
+		printf("bootmode not support\n");
+		break;
+}
+}
+
 int last_stage_init(void)
 {
 	int boot_mode = hb_boot_mode_get();
@@ -1407,6 +1470,8 @@ int last_stage_init(void)
 #ifdef CONFIG_HB_NAND_BOOT
 	nand_boot();
 #endif
+	base_board_gpio_test();
+	boot_src_test();
 
 #ifdef HB_AUTOBOOT
 	boot_stage_mark(2);
