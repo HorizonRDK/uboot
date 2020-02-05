@@ -511,6 +511,10 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 {
 	char *s = NULL;
 	int i = 0, count = config->dtb_number;
+	uint32_t reg, base_board_id;
+
+	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
+	base_board_id = PIN_BASE_BOARD_SEL(reg) + 1;
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -518,7 +522,7 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 	}
 
 	for (i = 0; i < count; i++) {
-		if (board_id == config->dtb[i].board_id) {
+		if (base_board_id == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 			break;
 		}
@@ -857,12 +861,6 @@ static void hb_env_and_boardid_init(void)
 			board_id = 0x101;
 		} else
 			printf("gpio/board_id = %02x\n", board_id);
-	} else {
-		if (board_id_verify(board_id) != 0) {
-			printf("Error: board id %02x not support, using x2dev(101)\n",
-				board_id);
-			board_id = 0x101;
-		}
 	}
 
 	/* init env recovery_sys_enable */
@@ -1398,7 +1396,7 @@ static void base_board_gpio_test(void)
 	uint32_t reg, base_id;
 
 	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
-	base_id = PIN_BASE_BOARD_SEL(reg);
+	base_id = PIN_BASE_BOARD_SEL(reg) + 1;
 
 	switch (base_id) {
 	case BASE_BOARD_X3_DVB:
