@@ -13,10 +13,9 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-unsigned int sys_sdram_size = 0x80000000; /* 2G */
+unsigned int sys_sdram_size = 0; /* 0G */
 bool recovery_sys_enable = true;
-
-#define MHZ(x)	((x) * 1000000UL)
+#define MHZ(x) ((x) * 1000000UL)
 
 /* Update Peri PLL */
 void switch_sys_pll(ulong pll_val)
@@ -108,8 +107,14 @@ int hb_boot_mode_get(void) {
 
 int dram_init(void)
 {
-	x3_mem_map[0].size = sys_sdram_size;
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
+	unsigned int boardid = bootinfo->board_id;
+	unsigned int ddr_size = (boardid >> 16) & 0xf;
 
+	sys_sdram_size = ddr_size * 1024 * 1024 * 1024;
+	printf("system DDR size: 0x%02x\n", sys_sdram_size);
+
+	x3_mem_map[0].size = sys_sdram_size;
 	gd->ram_size = sys_sdram_size;
 
 	return 0;
