@@ -10,6 +10,7 @@
  */
 #include <common.h>
 #include <dm.h>
+#include <serial.h>
 #include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <linux/usb/otg.h>
@@ -135,7 +136,7 @@ const struct musb_platform_ops omap2430_ops = {
 	.disable	= omap2430_musb_disable,
 };
 
-#if defined(CONFIG_DM_USB)
+#if CONFIG_IS_ENABLED(DM_USB)
 
 struct omap2430_musb_platdata {
 	void *base;
@@ -215,11 +216,13 @@ static int omap2430_musb_probe(struct udevice *dev)
 {
 #ifdef CONFIG_USB_MUSB_HOST
 	struct musb_host_data *host = dev_get_priv(dev);
+#else
+	struct musb *musbp;
 #endif
 	struct omap2430_musb_platdata *platdata = dev_get_platdata(dev);
 	struct usb_bus_priv *priv = dev_get_uclass_priv(dev);
 	struct omap_musb_board_data *otg_board_data;
-	int ret;
+	int ret = 0;
 	void *base = dev_read_addr_ptr(dev);
 
 	priv->desc_before_addr = true;
@@ -236,9 +239,11 @@ static int omap2430_musb_probe(struct udevice *dev)
 
 	ret = musb_lowlevel_init(host);
 #else
-	ret = musb_register(&platdata->plat,
+	musbp = musb_register(&platdata->plat,
 			  (struct device *)otg_board_data,
 			  platdata->base);
+	if (IS_ERR_OR_NULL(musbp))
+		return -EINVAL;
 #endif
 	return ret;
 }
@@ -263,7 +268,7 @@ U_BOOT_DRIVER(omap2430_musb) = {
 #ifdef CONFIG_USB_MUSB_HOST
 	.id		= UCLASS_USB,
 #else
-	.id		= UCLASS_USB_DEV_GENERIC,
+	.id		= UCLASS_USB_GADGET_GENERIC,
 #endif
 	.of_match = omap2430_musb_ids,
 	.ofdata_to_platdata = omap2430_musb_ofdata_to_platdata,
@@ -276,4 +281,4 @@ U_BOOT_DRIVER(omap2430_musb) = {
 	.priv_auto_alloc_size = sizeof(struct musb_host_data),
 };
 
-#endif /* CONFIG_DM_USB */
+#endif /* CONFIG_IS_ENABLED(DM_USB) */

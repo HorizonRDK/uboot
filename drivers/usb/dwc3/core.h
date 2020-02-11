@@ -133,6 +133,26 @@
 #define DWC3_OEVTEN		0xcc0C
 #define DWC3_OSTS		0xcc10
 
+/* Hobot Sysctl Register */
+#define USB3_CTRL_REG0			0x5b0
+#define SYSCTL_REGS_END			0x1000
+#define BUS_FILTER_BYPASS_MASK		0xf
+#define BUS_FILTER_BYPASS_DEVICE	0x8
+#define BUS_FILTER_BYPASS_HOST		0xf
+
+#define USB3_PHY_REG0		0x5b4
+#define RX_LOS_LFPSFILT		BIT(30)
+#define USB3_PHY_REG1		0x5b8
+#define USB3_PHY_REG2		0x5bc
+#define PHY_RESET		BIT(31)
+#define PHY_RESET_MASK		BIT(31)
+
+#define CPUSYS_SW_RSTEN		0x400
+#define SYS_USB_RSTEN		BIT(12)
+
+#define ARMPLL_FREQ_CTRL	0x0
+#define CPUSYS_CLK_DIV_SEL	0x200
+
 /* Bit fields */
 
 /* Global Configuration Register */
@@ -162,6 +182,14 @@
 /* Global USB2 PHY Configuration Register */
 #define DWC3_GUSB2PHYCFG_PHYSOFTRST	(1 << 31)
 #define DWC3_GUSB2PHYCFG_SUSPHY		(1 << 6)
+#define DWC3_GUSB2PHYCFG_PHYIF(n)	((n) << 3)
+#define DWC3_GUSB2PHYCFG_PHYIF_MASK	DWC3_GUSB2PHYCFG_PHYIF(1)
+#define DWC3_GUSB2PHYCFG_USBTRDTIM(n)	((n) << 10)
+#define DWC3_GUSB2PHYCFG_USBTRDTIM_MASK	DWC3_GUSB2PHYCFG_USBTRDTIM(0xf)
+#define USBTRDTIM_UTMI_8_BIT		9
+#define USBTRDTIM_UTMI_16_BIT		5
+#define UTMI_PHYIF_16_BIT		1
+#define UTMI_PHYIF_8_BIT		0
 
 /* Global USB3 PIPE Control Register */
 #define DWC3_GUSB3PIPECTL_PHYSOFTRST	(1 << 31)
@@ -712,7 +740,7 @@ struct dwc3 {
 	/* device lock */
 	spinlock_t		lock;
 
-#if defined(__UBOOT__) && defined(CONFIG_DM_USB)
+#if defined(__UBOOT__) && CONFIG_IS_ENABLED(DM_USB)
 	struct udevice		*dev;
 #else
 	struct device		*dev;
@@ -728,7 +756,9 @@ struct dwc3 {
 	struct usb_gadget_driver *gadget_driver;
 
 	void __iomem		*regs;
+	void __iomem		*regs_sys;
 	size_t			regs_size;
+	size_t			regs_sys_size;
 
 	enum usb_dr_mode	dr_mode;
 
@@ -991,18 +1021,14 @@ struct dwc3_gadget_ep_cmd_params {
 
 /* prototypes */
 int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc);
+void dwc3_of_parse(struct dwc3 *dwc);
 int dwc3_init(struct dwc3 *dwc);
 void dwc3_remove(struct dwc3 *dwc);
 
-#ifdef CONFIG_USB_DWC3_HOST
-int dwc3_host_init(struct dwc3 *dwc);
-void dwc3_host_exit(struct dwc3 *dwc);
-#else
 static inline int dwc3_host_init(struct dwc3 *dwc)
 { return 0; }
 static inline void dwc3_host_exit(struct dwc3 *dwc)
 { }
-#endif
 
 #ifdef CONFIG_USB_DWC3_GADGET
 int dwc3_gadget_init(struct dwc3 *dwc);

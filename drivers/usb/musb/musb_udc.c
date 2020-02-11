@@ -38,6 +38,8 @@
  */
 
 #include <common.h>
+#include <hang.h>
+#include <serial.h>
 #include <usbdevice.h>
 #include <usb/udc.h>
 #include "../gadget/ep0.h"
@@ -46,8 +48,6 @@
 #include "omap3.h"
 #elif defined(CONFIG_USB_AM35X)
 #include "am35x.h"
-#elif defined(CONFIG_USB_DAVINCI)
-#include "davinci.h"
 #endif
 
 /* Define MUSB_DEBUG for debugging */

@@ -142,4 +142,24 @@
 		clocks = <&sd1_div_clk>, <&sd1_div_cclk>, <&sd1_cclk>;
 		reg = <0x0 0xA5011000 0x0 0x1000>;
 		};
+
+	usb: usb {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		status = "okay";
+		compatible = "hobot,xj3-dwc3";
+
+		dwc3: dwc3@b2000000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xb2000000 0x0 0x100000>,
+				<0x0 0xa1000000 0x0 0x1000>;
+			/* dr_mdoe: host, peripheral, otg */
+			dr_mode = "peripheral";
+			/* phy_type = "utmi_wide"; */
+			/* snps,dis_u2_susphy_quirk; */
+			/* snps,dis_u3_susphy_quirk; */
+			maximum-speed = "super-speed";
+			status = "okay";
+			};
+		};
 	};
