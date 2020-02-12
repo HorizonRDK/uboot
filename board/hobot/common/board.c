@@ -537,7 +537,7 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 static void hb_bootargs_init(unsigned int rootfs_id)
 {
 	char *s;
-	unsigned int len = 0, i, offset;
+	unsigned int len = 0, i, j, offset;
 	char cmd[256] = { 0 };
 
 	/* init bootargs */
@@ -561,7 +561,13 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 			cmd[i + 18] = hex_to_char(rootfs_id/10);
 			cmd[i + 19] = hex_to_char(rootfs_id%10);
 
-			offset = i + 19;
+			offset = len;
+			for (j = i + 19; j < len; j++) {
+				if (s[j] == ' ') {
+					offset = j;
+					break;
+				}
+			}
 
 			memcpy(cmd + offset + 1, s + offset, len - offset);
 		}
