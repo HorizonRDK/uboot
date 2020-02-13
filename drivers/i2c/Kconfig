@@ -382,7 +382,7 @@ config SYS_I2C_S3C24X0
 
 config HOBOT_X2_I2C
 	bool "Horizon X2 I2C driver"
-	depends on ARCH_X2 && DM_I2C
+	depends on ARCH_HOBOT && DM_I2C
 	help
 	  Support for horizon robtics I2C controller
 

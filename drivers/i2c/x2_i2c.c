@@ -17,9 +17,15 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define PERISYS_CLKEN	0xA1000154
 #define X2_RESET_CTL	0xA1000450
+#ifdef CONFIG_TARGET_X3
+#define X2_RESET_CTL_I2C	10
+#else
+#define X2_RESET_CTL_I2C	11
+#endif
 
 #define X2_PIN_CTL_0	0xA6003000
 #define X2_PIN_CTL_4	0xA6003040
+#define X3_PIN_SW		0xA6004000
 
 static int x2_i2c_wait_idle(struct x2_i2c_bus *priv)
 {
@@ -202,7 +208,7 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 
 		bytes_remain_len -= i;
 	}
-	
+
 i2c_exit:
 	ctl_reg.all = 0;
 	ctl_reg.bit.rfifo_clr = 1;
@@ -290,7 +296,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 			}
 			if (int_status.bit.tr_done || int_status.bit.xrdy) {
 				writel(int_status.all,&priv->regs->srcpnd);
-				break; 
+				break;
 			}
 
 			if (get_timer(start) > I2C_TIMEOUT_MS) {
@@ -366,7 +372,7 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 	x2_i2c_clear_int_status(priv);
 	//配置产生ack和nack就可以了.
     ctl_reg.all = 0;
-    dcount_reg.all = 0;	
+    dcount_reg.all = 0;
 	//配置地址
 
 #if 1
@@ -376,9 +382,9 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 	dcount_reg.bit.w_dcount = 1;
 	writel(dcount_reg.all, &priv->regs->dcount);
 
-	//printf("%s,and write count:%d\n", __func__, readl(&priv->regs->dcount));	
+	//printf("%s,and write count:%d\n", __func__, readl(&priv->regs->dcount));
     writel(*(priv->tx_buf), &priv->regs->tdata);
-    //printf("%s,and tdata:%d\n", __func__, readl(&priv->regs->tdata));	
+    //printf("%s,and tdata:%d\n", __func__, readl(&priv->regs->tdata));
     int_status.all = readl(&priv->regs->srcpnd);
     //	printf("%s, after write tx buf, status:0x%x, int_status:0x%x\n", __func__,readl(&priv->regs->status), int_status.all);
 
@@ -387,13 +393,13 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 
 #endif
 
-    priv->op_flags = I2C_READ;	
+    priv->op_flags = I2C_READ;
     priv->rx_buf = data;
     dcount_reg.bit.r_dcount = 1;// data_len;
     writel(dcount_reg.all, &priv->regs->dcount);
     //write data
 
-    //	printf("%s,and dcount_reg.all: 0x%x,  r_dcount:0x%x\n", __func__, dcount_reg.all,readl(&priv->regs->dcount));	
+    //	printf("%s,and dcount_reg.all: 0x%x,  r_dcount:0x%x\n", __func__, dcount_reg.all,readl(&priv->regs->dcount));
     priv->rx_remaining = 1;//data_len;
     ctl_reg.bit.rd = 1;
 
@@ -407,9 +413,9 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 //	printf("%s, before ctl:0x%x\n", __func__, readl(&priv->regs->ctl));
 //	printf("%s, cfg:0x%x, intmask:0x%x, intsetmask:0x%x, intunmask:0x%x\n", __func__,readl(&priv->regs->cfg), readl(&priv->regs->intmask), readl(&priv->regs->intsetmask), readl(&priv->regs->intunmask));
 	 writel(ctl_reg.all, &priv->regs->ctl);
-	
+
 //	printf("%s, and ctl:0x%x\n", __func__, readl(&priv->regs->ctl));
-	
+
 	int_status.all = readl(&priv->regs->srcpnd);
 //	printf("%s, before while, sts:0x%x, int_status:0x%x\n", __func__,readl(&priv->regs->status), int_status.all);
 	start = get_timer(0);
@@ -419,7 +425,7 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
                         int_status.all = readl(&priv->regs->srcpnd);
                         err = int_status.bit.nack | int_status.bit.sterr | int_status.bit.al|
 				int_status.bit.to| int_status.bit.aerr;
-			
+
 		//	printk("%s, after while: status:0x%x, int_status:0x%x\n", __func__, status.all, int_status.all);
 
 			x2_i2c_clear_int_status(priv);
@@ -437,7 +443,6 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 					while(priv->rx_remaining) {
 						status.all = readl(&priv->regs->status);
 						if (status.bit.rx_empty) {
-							
 							printf("%s rx empty, and status:0x%x\n",__func__, status.all);
 							break;
 						}
@@ -446,11 +451,11 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 						priv->rx_buf++;
 					}
 						//*(priv->rx_buf) = readl(&priv->regs->rdata) & 0xff;
-						err = 0;	
+						err = 0;
 						break;
 					} else {
 						writel(0x2, &priv->regs->fifo_ctl);
-					
+
 					while(priv->rx_remaining) {
 						status.all = readl(&priv->regs->status);
 						if (status.bit.rx_empty) {
@@ -460,19 +465,15 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 						*(priv->rx_buf) = readl(&priv->regs->rdata) & 0xff;
 						priv->rx_remaining--;
 						priv->rx_buf++;
-
 					}
-						
+
 						//*(priv->rx_buf) = readl(&priv->regs->rdata) & 0xff;
-						
-						writel(0x0, &priv->regs->fifo_ctl);	
+						writel(0x0, &priv->regs->fifo_ctl);
 						err = 0;
 						break;
 					}
 				}
-			
 			}
-			 
 
                         if (get_timer(start) > I2C_TIMEOUT_MS) {
                                 printf("%s, x2 i2c read data Timeout\n", __func__);
@@ -487,7 +488,7 @@ i2c_exit:
         //发送停止位
 
 
-		
+
         x2_i2c_mask_int(priv);
         ctl_reg.all = 0;
         ctl_reg.bit.rfifo_clr = 1;
@@ -503,17 +504,16 @@ i2c_exit:
 static void x2_i2c_reset(struct x2_i2c_bus *priv)
 {
 	uint32_t value = 0;
-	
 
 	value = readl(priv->x2_reset);
-	value |= 1 << (priv->bus_num + 11);
+	value |= 1 << (priv->bus_num + X2_RESET_CTL_I2C);
 	writel(value, priv->x2_reset);
-		
+
 
 	udelay(1000);
 
 	value = readl(priv->x2_reset);
-	value &= ~(1 << (priv->bus_num + 11));
+	value &= ~(1 << (priv->bus_num + X2_RESET_CTL_I2C));
 	writel(value, priv->x2_reset);
 }
 static int x2_i2c_probe_chip(struct udevice *bus, uint chip, uint chip_flags)
@@ -529,10 +529,9 @@ static int x2_i2c_probe_chip(struct udevice *bus, uint chip, uint chip_flags)
 	x2_i2c_cfg(priv, 0, 1);
 
 	ret = x2_i2c_transfer(priv, chip, buf, 0);
-	
-		
+
+
 	return ret;
-		
 }
 
 #endif
@@ -550,7 +549,7 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 	struct x2_i2c_bus *priv = dev_get_priv(dev);
 	int node;
 	int value;
-	int bus_nr;
+	int bus_nr, clken_bit;
 	int ret = 0;
 
 	node = dev_of_offset(dev);
@@ -561,69 +560,114 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 		printf("%s,Could not get alias for %s:%d\n", __func__, dev->name, ret);
 		return ret;
 	}
-	
+
 	priv->bus_num = bus_nr;
 
+#ifdef CONFIG_TARGET_X3
+	switch (priv->bus_num) {
+	case 0:
+		priv->pin_first = 0x20;
+		priv->pin_ctl = (void __iomem *)(X3_PIN_SW);
+		priv->i2c_func = 0;
+		clken_bit = 11;
+		break;
+	case 1:
+		priv->pin_first = 0x28;
+		priv->pin_ctl = (void __iomem *)(X3_PIN_SW);
+		priv->i2c_func = 0;
+		clken_bit = 12;
+		break;
+
+	case 2:
+		priv->pin_first = 0x30;
+		priv->pin_ctl = (void __iomem *)(X3_PIN_SW);
+		priv->i2c_func = 0;
+		clken_bit = 13;
+		break;
+
+	case 3:
+		priv->pin_first = 0x38;
+		priv->pin_ctl = (void __iomem *)(X3_PIN_SW);
+		priv->i2c_func = 0;
+		clken_bit = 14;
+		break;
+
+	case 4:
+		priv->pin_first = 0x40;
+		priv->pin_ctl = (void __iomem *)(X3_PIN_SW);
+		priv->i2c_func = 1;
+		clken_bit = 23;
+		break;
+
+	case 5:
+		priv->pin_first = 0x48;
+		priv->pin_ctl = (void __iomem *)(X3_PIN_SW);
+		priv->i2c_func = 1;
+		clken_bit = 24;
+		break;
+
+	defaut:
+		printf("%s:bus_num:%d error\n", __func__, priv->bus_num);
+		return -1;
+	}
+
+	value = readl(priv->pin_ctl + priv->pin_first);
+	value &= ~0x3;
+	value |= priv->i2c_func;
+	writel(value, priv->pin_ctl + priv->pin_first);
+	value = readl(priv->pin_ctl + priv->pin_first + 4);
+	value &= ~0x3;
+	value |= priv->i2c_func;
+	writel(value, priv->pin_ctl + priv->pin_first + 4);
+#else
 	switch (priv->bus_num) {
 	case 0:
 		priv->pin_first = 9;
 		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_0);
 		priv->i2c_func = 0;
+		clken_bit = 11;
 		break;
-	case 1: 
+	case 1:
 		priv->pin_first = 11;
 		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_0);
 		priv->i2c_func = 1;
+		clken_bit = 12;
 		break;
 
 	case 2:
 		priv->pin_first = 14;
 		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_4);
 		priv->i2c_func = 1;
+		clken_bit = 13;
 		break;
 
 	case 3:
 		priv->pin_first =  4;
 		priv->pin_ctl = (void __iomem *)(X2_PIN_CTL_4);
 		priv->i2c_func = 2;
+		clken_bit = 14;
 		break;
 
 	defaut:
 		printf("%s:bus_num:%d error\n", __func__, priv->bus_num);
-	
+		return -1;
 	}
-	priv->perisys_clk = (void __iomem *)(PERISYS_CLKEN);
 
+	value = readl(priv->pin_ctl);
+	value &= ~(0xf << (priv->pin_first * 2);
+	value |= (priv->i2c_func << (priv->pin_first * 2));
+	value |= (priv->i2c_func << (priv->pin_first * 2 + 2));
+	writel(value, priv->pin_ctl);
+#endif
+
+	priv->perisys_clk = (void __iomem *)(PERISYS_CLKEN);
+	value = readl(priv->perisys_clk);
+	value |= (1 << clken_bit);
+	writel(value, priv->perisys_clk);
 
 	priv->x2_reset = (void __iomem *)(X2_RESET_CTL);
 
-	value = readl(priv->perisys_clk);
-	value |= (1 << (11 + priv->bus_num));
-	writel(value, priv->perisys_clk);
-
-//	printf("%s, peri_clk:0x%x\n", __func__, value);	
-//	value = readl(priv->pin_ctl);	
-//	printf("%s, pin value:0x%x\n", __func__,value);
-//	value &= ~(0x3 << 9);
-//	value |= (0x0 << 9);
-	
-//	value = 0x300000;
-//	writel(value, priv->pin_ctl);
-
-//	value = readl(priv->pin_ctl);	
-	
-//	printf("%s, pin value:0x%x\n", __func__,value);
-//	value &= ~(0x3 << 10);
-//	value |= (0x0 << 10);
-//	value = 0;
-//	writel(value, priv->pin_ctl);
-	
-	value = readl(priv->pin_ctl);
-	value &= (0x3 << priv->pin_first);
-	value |= (priv->i2c_func << priv->pin_first);
-	writel(value, priv->pin_ctl); 
-	
-	priv->clock_freq = fdtdec_get_int(blob, node, "clock-frequency", 100000);	
+	priv->clock_freq = fdtdec_get_int(blob, node, "clock-frequency", 100000);
 
 //	printf("%s, and freq:%d\n", __func__, priv->clock_freq);
 	if (priv->clock_freq < 40000 || priv->clock_freq > 400000) {
