@@ -375,7 +375,7 @@
 			bits = <20 18 18 18 5>;
 			field = <3 1 1 1 1>;
 			status = "disabled";
-   };
+   		};
 
 		sys_div_pclk: sys_div_pclk {
 			u-boot,dm-pre-reloc;
@@ -386,7 +386,7 @@
 			bits = <12>;
 			field = <3>;
 			status = "disabled";
-   };
+   		};
 
 		eth0_ephy_1stdiv_clk: eth0_ephy_1stdiv_clk {
 			u-boot,dm-pre-reloc;
@@ -1249,7 +1249,7 @@
 			offset = <0x330>;
 			bits = <0>;
 			field = <4>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sd1_div_cclk: sd1_div_cclk {
@@ -1260,7 +1260,7 @@
 			offset = <0x330>;
 			bits = <4>;
 			field = <4>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sd1_cclk: sd1_cclk {
@@ -1271,7 +1271,7 @@
 			offset = <0x150 0x154 0x158 0x258>;
 			bits = <16 16 16 2>;
 			field = <1 1 1 1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sd2_div_clk: sd2_div_clk {

@@ -44,30 +44,48 @@ struct hobot_dwmmc_priv {
 	u32 minmax[2];
 };
 
-static void sdio0_pin_mux_config(void)
+static void sdio_reset(int dev_index)
 {
-    unsigned int reg_val;
-#ifdef CONFIG_TARGET_X2
-    struct hb_info_hdr* boot_info = (struct hb_info_hdr*) HB_BOOTINFO_ADDR;
+#ifdef CONFIG_TARGET_X3
+	u32 val = 0;
+	u32 rst_val = 0;
 
-    /* GPIO46-GPIO49 GPIO50-GPIO58 */
-    reg_val = readl(GPIO3_CFG);
-    reg_val &= 0xFC000000;
-    writel(reg_val, GPIO3_CFG);
+	if (dev_index == 0)
+		rst_val = SD0_RSTN;
+	else if (dev_index == 1)
+		rst_val = SD1_RSTN;
+	else if (dev_index == 2)
+		rst_val = SD2_RSTN;
+	else
+		return;
+
+	val = readl(SYSCTRL_BASE + 0x450);
+	val |= rst_val;
+	writel(val, SYSCTRL_BASE + 0x450);
+	udelay(100);
+	val &= (~rst_val);
+	writel(val, SYSCTRL_BASE + 0x450);
+#endif
+}
+
+static void sdio_pin_mux_config(int dev_index)
+{
+	unsigned int reg_val;
+
+#ifdef CONFIG_TARGET_X2
+	struct hb_info_hdr* boot_info = (struct hb_info_hdr*) HB_BOOTINFO_ADDR;
+
+	if (dev_index != 0)
+		return;
+	/* GPIO46-GPIO49 GPIO50-GPIO58 */
+	reg_val = readl(GPIO3_CFG);
+	reg_val &= 0xFC000000;
+	writel(reg_val, GPIO3_CFG);
 
 	/* GPIO78-GPIO83 */
-    reg_val = readl(GPIO5_CFG);
-    reg_val &= 0xFFFFF000;
-    writel(reg_val, GPIO5_CFG);
-#else
-	unsigned long int i;
-
-	for (i = SD0_CLK; i <= SD0_WPROT; i += 4) {
-		reg_val = readl(i);
-		reg_val &= 0xFFFFFFFC;
-		writel(reg_val, i);
-	}
-#endif
+	reg_val = readl(GPIO5_CFG);
+	reg_val &= 0xFFFFF000;
+	writel(reg_val, GPIO5_CFG);
 #if 0
 	if (boot_info->board_id == HB_DEV_BOARD_ID) {
 		/* For x2 dev 3.3v voltage*/
@@ -93,7 +111,31 @@ static void sdio0_pin_mux_config(void)
 		writel(reg_val, GPIO5_DIR);
 	}
 #endif
+#endif
+#ifdef CONFIG_TARGET_X3
+	unsigned int i;
+	if (dev_index == 0) {
+		for (i = SD0_CLK; i <= SD0_WPROT; i += 4) {
+			reg_val = readl(i);
+			reg_val &= 0xFFFFFFFC;
+			writel(reg_val, i);
+		}
+	} else	if (dev_index == 1) {
+		for (i = SD1_CLK; i <= SD1_DATA3; i += 4) {
+			reg_val = readl(i);
+			reg_val &= 0xFFFFFFFC;
+			writel(reg_val, i);
+		}
+	} else if (dev_index == 2) {
+		for (i = SD2_CLK; i <= SD2_DATA3; i += 4) {
+			reg_val = readl(i);
+			reg_val &= 0xFFFFFFFC;
+			writel(reg_val, i);
+		}
+	}
+#endif
 }
+
 static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 {
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
@@ -114,6 +156,7 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 #if !CONFIG_IS_ENABLED(OF_PLATDATA)
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
 	struct dwmci_host *host = &priv->host;
+	int ret, devnum = -1;
 
 	host->name = dev->name;
 	host->ioaddr = (void *)devfdt_get_addr(dev);
@@ -122,11 +165,20 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	host->get_mmc_clk = hobot_dwmmc_get_mmc_clk;
 	host->priv = dev;
 
-	/* use non-removeable as sdcard and emmc as judgement */
-	if (fdtdec_get_bool(gd->fdt_blob, dev_of_offset(dev), "non-removable"))
-		host->dev_index = 0;
-	else
-		host->dev_index = 1;
+	ret = dev_read_alias_seq(dev, &devnum);
+	if (ret) {
+		/* use non-removeable as sdcard and emmc as judgement */
+		if (fdtdec_get_bool(gd->fdt_blob, dev_of_offset(dev), "non-removable"))
+			host->dev_index = 0;
+		else
+			host->dev_index = 1;
+	} else {
+		host->dev_index = devnum;
+	}
+	debug("%s ret=%d devnum=%d host->dev_index=%d\n",
+		__func__, ret, devnum, host->dev_index);
+	sdio_pin_mux_config(host->dev_index);
+	sdio_reset(host->dev_index);
 
 	priv->fifo_depth = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
 				    "fifo-depth", 0);
@@ -251,18 +303,16 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 	host->mmc->dev = dev;
 	upriv->mmc = host->mmc;
 
-    sdio0_pin_mux_config();
-
-    ret = dwmci_probe(dev);
-	if (ret) {
+	ret = dwmci_probe(dev);
+	if (ret)
 		printf("dwmci_probe fail\n");
-	}
-    ret = mmc_init(host->mmc);
-    if (ret)
-    {
-        pr_debug("mmc_init fail\n");
-    }
+
+	ret = mmc_init(host->mmc);
+	if (ret)
+		pr_debug("mmc_init fail\n");
+
 	mmc_set_rst_n_function(host->mmc, 0x01);
+
     return ret;
 }
 

@@ -121,9 +121,10 @@
 		reg = <0x0 0xA1007000 0x0 0x1000>;
 	};
 
-	sdmmc:dwmmc@A5010000 {
+	sdio0:dwmmc@A5010000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,hb-dw-mshc";
+		status = "disabled";
 		bus-width = <4>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
@@ -137,8 +138,9 @@
 		reg = <0x0 0xA5010000 0x0 0x1000>;
 		};
 
-	sd:dwmmc@A5011000 {
+	sdio1:dwmmc@A5011000 {
 		compatible = "hobot,hb-dw-mshc";
+		status = "disabled";
 		bus-width = <4>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
@@ -146,10 +148,25 @@
 		card-detect-delay = <200>;
 		fifo-depth = <0x100>;
 		fifo-mode = <0>;
-		clock-freq-min-max = <100000 20000000>;
+		clock-freq-min-max = <100000 52000000>;
 		clocks = <&sd1_div_clk>, <&sd1_div_cclk>, <&sd1_cclk>;
 		reg = <0x0 0xA5011000 0x0 0x1000>;
 		};
+
+	sdio2:dwmmc@A5012000 {
+		compatible = "hobot,hb-dw-mshc";
+		status = "disabled";
+		bus-width = <4>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 52000000>;
+		clocks = <&sd2_div_clk>, <&sd2_div_cclk>, <&sd2_cclk>;
+		reg = <0x0 0xA5012000 0x0 0x1000>;
+	};
 
 	usb: usb {
 		#address-cells = <2>;

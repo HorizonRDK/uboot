@@ -17,10 +17,11 @@
 	aliases {
 		serial0 = &uart0;
 		spi0	= &qspi;
-		gmac0 = &gmac;
+		gmac0 	= &gmac;
 		bif	= &bifsd;
-		mmc0    = &sdmmc;
-		mmc1   = &sd;
+		mmc0    = &sdio0;
+		mmc1   	= &sdio1;
+		mmc2   	= &sdio2;
 		i2c0	= &i2c0;
 		i2c1	= &i2c1;
 		i2c2	= &i2c2;
@@ -109,12 +110,19 @@
 		reg = <0x0>;
 	};
 };
+
 &bifsd {
 	status = "okay";
-	};
-&sdmmc {
+};
+
+&sdio0 {
 	status = "okay";
-	};
-&sd {
+};
+
+&sdio1 {
 	status = "okay";
-	};
+};
+
+&sdio2 {
+	status = "disabled";
+};

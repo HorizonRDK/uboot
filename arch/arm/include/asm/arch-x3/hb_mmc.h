@@ -60,10 +60,26 @@
 #define SD0_DET_N       (PIN_MUX_BASE + 0x100)
 #define SD0_WPROT       (PIN_MUX_BASE + 0x104)
 
+#define SD1_CLK         (PIN_MUX_BASE + 0x108)
+#define SD1_CMD         (PIN_MUX_BASE + 0x10C)
+#define SD1_DATA0       (PIN_MUX_BASE + 0x110)
+#define SD1_DATA1       (PIN_MUX_BASE + 0x114)
+#define SD1_DATA2       (PIN_MUX_BASE + 0x118)
+#define SD1_DATA3       (PIN_MUX_BASE + 0x11C)
 
+#define SD2_CLK         (PIN_MUX_BASE + 0x120)
+#define SD2_CMD         (PIN_MUX_BASE + 0x124)
+#define SD2_DATA0       (PIN_MUX_BASE + 0x128)
+#define SD2_DATA1       (PIN_MUX_BASE + 0x12C)
+#define SD2_DATA2       (PIN_MUX_BASE + 0x130)
+#define SD2_DATA3       (PIN_MUX_BASE + 0x134)
 
-/* x2 MMC AHB related Registers */
-#define MMC_IRQ_NUM (71)
+#define SD0_RSTN        BIT(16)
+#define SD1_RSTN        BIT(17)
+#define SD2_RSTN        BIT(18)
+
+/* x3 MMC AHB related Registers */
+#define MMC_IRQ_NUM	(79)
 #define SDIO_INT_MODE_ENABLE
 
 /*****************************************************************************/
@@ -89,11 +105,4 @@ extern void hb_mmc_isr(void);
 /*****************************************************************************/
 /* INLINE Functions                                                          */
 /*****************************************************************************/
-static inline void sdio_reset(void)
-{
-    writel(0x8000, SYSCTRL_BASE + 0x450);
-    udelay(100);
-    writel(0, SYSCTRL_BASE + 0x450);
-}
 #endif /* __HB_MMC_H__ */
-
