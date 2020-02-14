@@ -23,7 +23,8 @@
 
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
-#define X3_USABLE_RAM_TOP		0x03100000		/* Top is 49MB*/
+#define X3_USABLE_RAM_TOP		    0x03100000 		/* Top is 49MB */
+/* #define X3_USABLE_RAM_TOP		0x10000000	*/	/* TODO(fastboot): Top is 256MB */
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000
@@ -61,6 +62,7 @@
 
 /* Command line configuration */
 #define CONFIG_SYS_MAXARGS	64	/* max command args */
+#define CONFIG_NET_RETRY_COUNT	100	/* for rndis arp retry count exceeded */
 
 /* Size of malloc() pool */
 #define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_8M)
@@ -128,7 +130,8 @@
     "usbboot2=usb start;" \
         "fatload usb 0:0 ${kernel_addr} ${bootimage};" \
         "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
-        "run ddrboot;"
+        "run ddrboot\0" \
+    "cdc_connect_timeout=6000\0"
 #endif
 
 /* #define HB_AUTOBOOT */

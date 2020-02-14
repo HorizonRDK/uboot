@@ -152,6 +152,11 @@ int board_late_init(void)
 #ifdef CONFIG_QSPI_BOOT
 	env_set("bootmode", "qspiboot");
 #endif
+
+#ifdef CONFIG_USB_ETHER
+	usb_ether_init();
+#endif
+
 	return 0;
 }
 
