@@ -114,6 +114,7 @@
     "kernel_addr=" __stringify(KERNEL_ADDR) "\0" \
     "fdt_addr=" __stringify(FDT_ADDR) "\0" \
     "gz_addr=" __stringify(GZ_ADDR) "\0" \
+    "bootimage=Image\0" \
     "bootfile=Image.gz\0" \
     "fdtimage=hobot-x3-soc.dtb\0" \
     "bootargs=" CONFIG_BOOTARGS \
@@ -123,7 +124,11 @@
         "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
     "unzipimage=unzip ${gz_addr} ${kernel_addr}\0" \
     "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0" \
-    "load_addr=" __stringify(LOAD_ADDR) "\0"
+    "load_addr=" __stringify(LOAD_ADDR) "\0" \
+    "usbboot2=usb start;" \
+        "fatload usb 0:0 ${kernel_addr} ${bootimage};" \
+        "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
+        "run ddrboot;"
 #endif
 
 /* #define HB_AUTOBOOT */
