@@ -23,8 +23,7 @@
 
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
-#define X3_USABLE_RAM_TOP		    0x03100000 		/* Top is 49MB */
-/* #define X3_USABLE_RAM_TOP		0x10000000	*/	/* TODO(fastboot): Top is 256MB */
+#define X3_USABLE_RAM_TOP		0x10000000	/* Top is 256MB */
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000
