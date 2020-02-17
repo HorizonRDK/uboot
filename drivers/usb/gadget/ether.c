@@ -30,6 +30,8 @@
 #include <dm/device-internal.h>
 
 #define USB_NET_NAME "usb_ether"
+/* don't suggest use customized vid, pid, otherwise win10 need new driver inf */
+#define USE_DEFAULT_RNDIS_CDC_ID
 
 #define atomic_read
 extern struct platform_data brd;
@@ -93,6 +95,7 @@ static const char driver_desc[] = DRIVER_DESC;
 			|USB_CDC_PACKET_TYPE_DIRECTED)
 
 #define USB_CONNECT_TIMEOUT (3 * CONFIG_SYS_HZ)
+#define USB_TRANSFER_TIMEOUT (10 * CONFIG_SYS_HZ)
 
 /*-------------------------------------------------------------------------*/
 
@@ -2065,7 +2068,8 @@ static int eth_bind(struct usb_gadget *gadget)
 	 * to choose the right configuration otherwise.
 	 */
 	if (rndis) {
-#if defined(CONFIG_USB_GADGET_VENDOR_NUM) && defined(CONFIG_USB_GADGET_PRODUCT_NUM)
+#if defined(CONFIG_USB_GADGET_VENDOR_NUM) && defined(CONFIG_USB_GADGET_PRODUCT_NUM) \
+		&& !defined(USE_DEFAULT_RNDIS_CDC_ID)
 		device_desc.idVendor =
 			__constant_cpu_to_le16(CONFIG_USB_GADGET_VENDOR_NUM);
 		device_desc.idProduct =
@@ -2084,7 +2088,8 @@ static int eth_bind(struct usb_gadget *gadget)
 	 * supporting one submode of the "SAFE" variant of MDLM.)
 	 */
 	} else {
-#if defined(CONFIG_USB_GADGET_VENDOR_NUM) && defined(CONFIG_USB_GADGET_PRODUCT_NUM)
+#if defined(CONFIG_USB_GADGET_VENDOR_NUM) && defined(CONFIG_USB_GADGET_PRODUCT_NUM) \
+		&& !defined(USE_DEFAULT_RNDIS_CDC_ID)
 		device_desc.idVendor = cpu_to_le16(CONFIG_USB_GADGET_VENDOR_NUM);
 		device_desc.idProduct = cpu_to_le16(CONFIG_USB_GADGET_PRODUCT_NUM);
 #else
@@ -2420,7 +2425,8 @@ static int _usb_eth_send(struct ether_priv *priv, void *packet, int length)
 	struct eth_dev		*dev = &priv->ethdev;
 	struct usb_request	*req = dev->tx_req;
 	unsigned long ts;
-	unsigned long timeout = USB_CONNECT_TIMEOUT;
+	// unsigned long timeout = USB_CONNECT_TIMEOUT;
+	unsigned long timeout = USB_TRANSFER_TIMEOUT;
 
 	debug("%s:...\n", __func__);
 
@@ -2467,12 +2473,14 @@ static int _usb_eth_send(struct ether_priv *priv, void *packet, int length)
 	if (!retval)
 		debug("%s: packet queued\n", __func__);
 	while (!packet_sent) {
-		if (get_timer(ts) > timeout) {
+		/* Handle control-c and timeouts */
+		if (ctrlc() || (get_timer(ts) > timeout)) {
 			printf("timeout sending packets to usb ethernet\n");
 			return -1;
 		}
 		usb_gadget_handle_interrupts(0);
 	}
+
 	if (rndis_pkt)
 		free(rndis_pkt);
 

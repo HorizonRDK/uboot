@@ -131,7 +131,7 @@
         "fatload usb 0:0 ${kernel_addr} ${bootimage};" \
         "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
         "run ddrboot\0" \
-    "cdc_connect_timeout=6000\0"
+    "cdc_connect_timeout=360\0"
 #endif
 
 /* #define HB_AUTOBOOT */
