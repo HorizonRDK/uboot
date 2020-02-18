@@ -178,7 +178,7 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	debug("%s ret=%d devnum=%d host->dev_index=%d\n",
 		__func__, ret, devnum, host->dev_index);
 	sdio_pin_mux_config(host->dev_index);
-	sdio_reset(host->dev_index);
+	// sdio_reset(host->dev_index);
 
 	priv->fifo_depth = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
 				    "fifo-depth", 0);
