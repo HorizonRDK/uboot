@@ -19,7 +19,6 @@
 
 static int find_fdt(unsigned long fdt_addr);
 static int valid_fdt(struct fdt_header **blobp);
-extern unsigned int hb_src_boot;
 
 void set_hb_fdt_addr(ulong addr)
 {
@@ -141,6 +140,7 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	unsigned int board_id;
 	struct hb_info_hdr *hb_board_type;
 	unsigned long dtb_addr;
+	unsigned int boot_mode = hb_boot_mode_get();
 
 	hb_board_type = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
 	board_id = hb_board_type ->board_id;
@@ -195,7 +195,7 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	if (ptmp != NULL)
 		memcpy(data, ptmp, len);
 
-	sprintf(data, "%d", hb_src_boot);
+	sprintf(data, "%d", boot_mode);
 	len = strlen(data) + 1;
 
 	ret = fdt_setprop(hb_dtb, nodeoffset, prop_boot, data, len);

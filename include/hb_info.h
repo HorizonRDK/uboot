@@ -42,9 +42,9 @@
 #define HB_DTB_CONFIG_ADDR	(HB_BOOTINFO_ADDR + 0x1000)
 #define DTB_MAPPING_ADDR	0x140000
 #define DTB_MAPPING_SIZE	0x400
-#define DTB_MAX_NUM		64
-#define KERNEL_HEAD_ADDR	0x140000
-#define RECOVERY_HEAD_ADDR	0x6D0000
+#define DTB_MAX_NUM		40
+#define KERNEL_HEAD_ADDR	0x234400
+#define RECOVERY_HEAD_ADDR	0x1634400
 
 #define X2_BOARD_SVB 0
 #define X2_BOARD_SOM 1
@@ -137,7 +137,7 @@ struct hb_kernel_hdr {
 
 	struct hb_dtb_hdr dtb[DTB_MAX_NUM];
 
-	unsigned int reserved[11];
+	unsigned int reserved[27];
 };
 
 struct hb_flash_kernel_hdr {

@@ -412,8 +412,6 @@ static void wait_start(void)
 }
 #endif
 
-
-
 #ifdef CONFIG_HB_NAND_BOOT
 static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
 	bool flag)
@@ -505,6 +503,7 @@ static void hb_nand_kernel_load(struct hb_kernel_hdr *config)
 	}
 }
 #endif
+
 #ifndef CONFIG_FPGA_HOBOT
 static char *hb_mmc_dtb_load(unsigned int board_id,
 		struct hb_kernel_hdr *config)
@@ -662,30 +661,63 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 	}
 }
 #endif
-#if !defined(CONFIG_HB_NAND_BOOT) && defined(CONFIG_HB_NOR_BOOT)
-static void nor_dtb_image_load(unsigned int addr, unsigned int leng,
-	bool flag)
+
+static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 {
-	char cmd[256] = { 0 };
-	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+	char *s = NULL;
+	void *dtb_addr, *base_addr = (void *)config;
+	int i = 0, count = config->dtb_number;
+	uint32_t reg, base_board_id;
+
+	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
+	base_board_id = PIN_BASE_BOARD_SEL(reg) + 1;
+
+	if (count > DTB_MAX_NUM) {
+		printf("error: count %02x not support\n", count);
+		return -1;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (base_board_id == config->dtb[i].board_id) {
+			s = (char *)config->dtb[i].dtb_name;
+			break;
+		}
+	}
+
+	if (i == count) {
+		printf("error: base_board_id %02x not support\n", base_board_id);
+		return -1;
+	}
+
+	printf("fdtimage = %s\n", s);
+	env_set("fdtimage", s);
+
+	/* config dtb image */
+	dtb_addr = base_addr + sizeof(struct hb_kernel_hdr) + \
+		config->dtb[i].dtb_addr;
+	memcpy(base_addr, dtb_addr, config->dtb[i].dtb_size);
+
+	return 0;
+}
+
+static int hb_nor_dtb_image_load(unsigned int addr, unsigned int leng)
+{
+	int ret;
 	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+	struct hb_kernel_hdr *head = (struct hb_kernel_hdr *)dtb_addr;
 
 	if (!flash)
-		return;
+		return -1;
 
-	if (flag == false) {
-		spi_flash_read(flash, addr, leng, (void *)dtb_addr);
-	} else {
-		spi_flash_read(flash, DTB_MAPPING_ADDR + NOR_SECTOR_SIZE,
-			NOR_SECTOR_SIZE * 4, (void *)gz_addr);
-
-		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
-		run_command_list(cmd, -1, 0);
-
-		gz_addr = dtb_addr + addr;
-		if (gz_addr != dtb_addr)
-			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
+	ret = spi_flash_read(flash, addr, leng, (void *)dtb_addr);
+	if (ret) {
+		printf("dtb read failed!\n");
+		return ret;
 	}
+
+	ret = hb_nor_dtb_handle(head);
+
+	return ret;
 }
 
 static void hb_nor_env_init(void)
@@ -694,7 +726,7 @@ static void hb_nor_env_init(void)
 
 	/* set bootargs */
 	tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused " \
-		"root=ubi0:rootfs ubi.mtd=1 rootfstype=ubifs rw rootwait";
+		"root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
 		env_set("bootargs", tmp);
 
 	/* set bootcmd */
@@ -792,26 +824,22 @@ static void hb_nor_kernel_load(void)
 	hb_nor_env_init();
 
 	/* load dtb file */
-	nor_dtb_image_load(dtb_addr, kernel_hdr->dtb_size, false);
+	hb_nor_dtb_image_load(dtb_addr, kernel_hdr->dtb_size);
 
 	/* load kernel */
 	spi_flash_read(flash, kernel_addr, kernel_hdr->Image_size,
 		(void *)gz_addr);
-
-	s = (char *)kernel_hdr->dtbname;
-
-	printf("fdtimage = %s\n", s);
-	env_set("fdtimage", s);
 }
-#endif
+
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_dtb_mapping_load(void)
 {
 	int rcode = 0;
 	char partname[] = "boot";
 	char cmd[256] = { 0 };
+	int boot_mode = hb_boot_mode_get();
 
-	if (hb_boot_mode_get() == PIN_2ND_EMMC) {
+	if (boot_mode == PIN_2ND_EMMC) {
 		/* load dtb-mapping.conf */
 		snprintf(cmd, sizeof(cmd), "ext4load mmc 0:%d 0x%x dtb-mapping.conf",
 		get_partition_id(partname), HB_DTB_CONFIG_ADDR);
@@ -828,21 +856,22 @@ static void hb_dtb_mapping_load(void)
 				return;
 			}
 		}
-	} else {
+	} 
+
 #ifdef CONFIG_HB_NAND_BOOT
-		ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
+	ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
 #endif
-	}
+
 }
 static void hb_env_and_boardid_init(void)
 {
 	unsigned int board_id;
-	unsigned int gpio_id;
 	struct hb_info_hdr *hb_board_type;
 	struct hb_kernel_hdr *hb_kernel_conf;
 	char *s = NULL;
 	char boot_reason[64] = { 0 };
 	char command[256] = "mmc read ";
+	unsigned int boot_mode = hb_boot_mode_get();
 
 	/* load config dtb_mapping */
 	hb_dtb_mapping_load();
@@ -852,22 +881,11 @@ static void hb_env_and_boardid_init(void)
 	run_command_list(command, -1, 0);
 
 	hb_board_type = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
-	gpio_id = hb_gpio_get();
-	printf("bootinfo/board_id = %02x gpio_id = %02x\n",
-		hb_board_type->board_id, gpio_id);
+	// gpio_id = hb_gpio_get();
+	printf("bootinfo/board_id = %02x\n", hb_board_type->board_id);
 
 	/* board_id check */
 	board_id = hb_board_type->board_id;
-	if (board_id == HB_GPIO_MODE) {
-		board_id = hb_gpio_to_borad_id(gpio_id);
-
-		if (board_id == 0xff) {
-			printf("Error: gpio id %02x not support, using x2dev(101)\n",
-				gpio_id);
-			board_id = 0x101;
-		} else
-			printf("gpio/board_id = %02x\n", board_id);
-	}
 
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
@@ -884,24 +902,24 @@ static void hb_env_and_boardid_init(void)
 	printf("final/board_id = %02x\n", board_id);
 
 	/* mmc or nor env init */
-	if (hb_boot_mode_get() == PIN_2ND_EMMC) {
+	if (boot_mode == PIN_2ND_EMMC) {
 		hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
 		s = hb_mmc_dtb_load(board_id, hb_kernel_conf);
 		printf("fdtimage = %s\n", s);
 		env_set("fdtimage", s);
 
 		hb_mmc_env_init();
-	} else {
-#ifdef  CONFIG_HB_NAND_BOOT
-		/* load nand kernel and dtb */
-		hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
-		hb_nand_dtb_load(board_id, hb_kernel_conf);
-		hb_nand_kernel_load(hb_kernel_conf);
-#elif defined(CONFIG_HB_NOR_BOOT)
+	}  else if (boot_mode == PIN_2ND_NOR) {
 		/* load nor kernel and dtb */
 		hb_nor_kernel_load();
-#endif
 	}
+
+#ifdef CONFIG_HB_NAND_BOOT
+	/* load nand kernel and dtb */
+	hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
+	hb_nand_dtb_load(board_id, hb_kernel_conf);
+	hb_nand_kernel_load(hb_kernel_conf);
+#endif
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
@@ -1140,6 +1158,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	u32 sys_offset, rootfs_offset;
 	char *s1 = NULL;
 	char *s2 = NULL;
+
 	if (argc != 3) {
 		printf("image_addr and img_size must be given\n");
 		return 1;
@@ -1155,6 +1174,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	sys_offset = img_addr + bl_size;
 	rootfs_offset = sys_offset + sys_size;
 	ret = 0;
+
 #ifdef CONFIG_HB_NAND_BOOT
 	run_command("ubi detach", 0);
 #else
@@ -1471,9 +1491,11 @@ int last_stage_init(void)
 #ifdef	CONFIG_AP_CP_COMN_MODE
 	hb_ap_communication();
 #endif
+
 #ifdef CONFIG_HB_NAND_BOOT
 	nand_boot();
 #endif
+
 	base_board_gpio_test();
 	boot_src_test();
 
@@ -1483,7 +1505,6 @@ int last_stage_init(void)
 #endif
 #ifndef	CONFIG_FPGA_HOBOT
 #ifndef CONFIG_DOWNLOAD_MODE
-
 	if ((boot_mode == PIN_2ND_EMMC) || (boot_mode == PIN_2ND_NOR) || \
 		(boot_mode == PIN_2ND_NAND))
 		hb_env_and_boardid_init();

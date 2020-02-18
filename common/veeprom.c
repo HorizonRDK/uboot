@@ -67,16 +67,15 @@ static int dw_init(int flag)
 	int boot_mode = hb_boot_mode_get();
 
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NOR_BOOT
-		init_nor_device();
-		if (!flash) {
-			printf("Failed to initialize SPI flash\n");
-			ret = -1;
-		}
-#endif
 #ifdef CONFIG_HB_NAND_BOOT
 		if (ubi_part("sys", NULL)) {
 			printf("Failed to initialize veeprom ubi volumn\n");
+			ret = -1;
+		}
+#else
+		init_nor_device();
+		if (!flash) {
+			printf("Failed to initialize SPI flash\n");
 			ret = -1;
 		}
 #endif
@@ -105,7 +104,7 @@ static int dw_read(unsigned int cur_sector)
 	int boot_mode = hb_boot_mode_get();
 
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NOR_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 		if (!flash)
 			return -1;
 
@@ -132,7 +131,7 @@ static int dw_write(unsigned int cur_sector)
 	int boot_mode = hb_boot_mode_get();
 
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NOR_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 		if (!flash)
 			return -1;
 
@@ -177,7 +176,12 @@ int veeprom_init(void)
 	int boot_mode = hb_boot_mode_get();
 
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NOR_BOOT
+#ifdef CONFIG_HB_NAND_BOOT
+		if (ubi_part("sys", NULL)) {
+			printf("Failed to initialize veeprom ubi volumn\n");
+			return -1;
+		}
+#else
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		init_nor_device();
@@ -186,13 +190,6 @@ int veeprom_init(void)
 			return -1;
 		}
 #endif
-#ifdef CONFIG_HB_NAND_BOOT
-	if (ubi_part("sys", NULL)) {
-		printf("Failed to initialize veeprom ubi volumn\n");
-		return -1;
-	}
-#endif
-
 	} else {
 		/* set veeprom raw sectors */
 		start_sector = VEEPROM_START_SECTOR;
@@ -217,7 +214,7 @@ void veeprom_exit(void)
 	int boot_mode = hb_boot_mode_get();
 
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NOR_BOOT
+#ifndef CONFIG_HB_NAND_BOOT
 		spi_flash_free(flash);
 #endif
 	} else {

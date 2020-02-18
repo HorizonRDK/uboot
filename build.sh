@@ -130,7 +130,7 @@ function build()
 
     # put binaries to dest directory
     cpfiles "$UBOOT_IMAGE_NAME" "$prefix/"
-    cd spl/
+    # cd spl/
 }
 
 function all()
@@ -140,42 +140,42 @@ function all()
         build
         splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
-        cpfiles $splname "$prefix/"
+        # cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="nor"
         build
         splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
-        cpfiles $splname "$prefix/"
+        # cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="nand"
         build
         splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
-        cpfiles $splname "$prefix/"
+        # cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="uart"
         build
         splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
-        cpfiles $splname "$prefix/"
+        # cpfiles $splname "$prefix/"
         cd ../
 
         bootmode="ap"
         build
         splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
         mv "u-boot-spl.bin" $splname
-        cpfiles $splname "$prefix/"
+        # cpfiles $splname "$prefix/"
         cd ../
     else
         build
-        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        mv "u-boot-spl.bin" $splname
-        cpfiles $splname "$prefix/"
-        cd ../
+        # splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
+        # mv "u-boot-spl.bin" $splname
+        # cpfiles $splname "$prefix/"
+        # cd ../
     fi
 }
 
