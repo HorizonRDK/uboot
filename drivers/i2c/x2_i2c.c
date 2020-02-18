@@ -154,18 +154,20 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
         if (x2_i2c_wait_idle(priv))
 		return -ETIMEDOUT;
 
+	dcount_reg.bit.r_dcount = bytes_remain_len;
+	writel(dcount_reg.all, &priv->regs->dcount);
+
+	ctl_reg.bit.rd = 1;
+	ctl_reg.bit.sta = 1;
+	ctl_reg.bit.sto = 1;
+	writel(ctl_reg.all, &priv->regs->ctl);
+
 	while(bytes_remain_len) {
 		if (bytes_remain_len > X2_I2C_FIFO_SIZE)
 			bytes_xferred = X2_I2C_FIFO_SIZE;
 		else
 			bytes_xferred = bytes_remain_len;
 
-		dcount_reg.bit.r_dcount = bytes_xferred;
-		writel(dcount_reg.all, &priv->regs->dcount);
-		ctl_reg.bit.rd = 1;
-		ctl_reg.bit.sta = 1;
-		ctl_reg.bit.sto = 1;
-		writel(ctl_reg.all, &priv->regs->ctl);
 		x2_i2c_unmask_int(priv);
 
 	    udelay(1000);
@@ -253,7 +255,9 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 	if (x2_i2c_wait_idle(priv))
 		return -ETIMEDOUT;
 
-
+	//设置count数量
+	dcount_reg.bit.w_dcount = bytes_remain_len;
+	writel(dcount_reg.all, &priv->regs->dcount);
 
 	while (bytes_remain_len) {
 		if (bytes_remain_len > X2_I2C_FIFO_SIZE)
@@ -271,15 +275,14 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 			writel(*(priv->tx_buf), &priv->regs->tdata);
 			priv->tx_buf++;
 		}
-		//设置count数量
-		dcount_reg.bit.w_dcount = i;
-		writel(dcount_reg.all, &priv->regs->dcount);
 
-		//设置开始发送.
-		ctl_reg.bit.wr = 1;
-		ctl_reg.bit.sta = 1;
-		ctl_reg.bit.sto = 1;
-		writel(ctl_reg.all, &priv->regs->ctl);
+		if (bytes_remain_len == msg->len) {
+			//设置开始发送.
+			ctl_reg.bit.wr = 1;
+			ctl_reg.bit.sta = 1;
+			ctl_reg.bit.sto = 1;
+			writel(ctl_reg.all, &priv->regs->ctl);
+		}
 
 		x2_i2c_unmask_int(priv);
 		//开始轮寻
