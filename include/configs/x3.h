@@ -55,7 +55,7 @@
  */
 
 /* Monitor Command Prompt */
-#define CONFIG_SYS_CBSIZE	512	/* Console I/O Buffer Size */
+#define CONFIG_SYS_CBSIZE	1024	/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
 #define CONFIG_SYS_BARGSIZE	CONFIG_SYS_CBSIZE
 
@@ -109,29 +109,51 @@
 		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
 
 */
+
+/* default partition table */
+#ifndef PARTS_DEFAULT
+/* Define the default GPT table for eMMC */
+#define PARTS_DEFAULT \
+	/* default partitions */ \
+	"uuid_disk=${uuid_gpt_disk};" \
+	"name=veeprom,start=17K,size=2K,uuid=${uuid_gpt_veeprom};" \
+	"name=sbl,size=256K,uuid=${uuid_gpt_sbl};" \
+	"name=ddr,size=128K,uuid=${uuid_gpt_ddr};" \
+	"name=bl31,size=512K,uuid=${uuid_gpt_bl31};" \
+	"name=uboot,size=2M,uuid=${uuid_gpt_uboot};" \
+	"name=bpu,size=128K,uuid=${uuid_gpt_bpu};" \
+	"name=vbmeta,size=128K,uuid=${uuid_gpt_vbmeta};" \
+	"name=boot,size=25M,uuid=${uuid_gpt_boot};" \
+	"name=recovery,size=128K,uuid=${uuid_gpt_recovery};" \
+	"name=system,size=200M,uuid=${uuid_gpt_system};" \
+	"name=app,size=256M,uuid=${uuid_gpt_app};" \
+	"name=userdata,size=-,uuid=${uuid_gpt_userdata}"
+#endif /* PARTS_DEFAULT */
+
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
 #define CONFIG_EXTRA_ENV_SETTINGS \
-    "kernel_addr=" __stringify(KERNEL_ADDR) "\0" \
-    "fdt_addr=" __stringify(FDT_ADDR) "\0" \
-    "gz_addr=" __stringify(GZ_ADDR) "\0" \
-    "bootimage=Image\0" \
-    "bootfile=Image.gz\0" \
-    "fdtimage=hobot-x3-soc.dtb\0" \
-    "bootargs=" CONFIG_BOOTARGS \
-        "root=/dev/mmcblk0p6 rootfstype=ext4 rw rootwait\0" \
-    "mmcload=mmc rescan;" \
-        "ext4load mmc 0:4 ${gz_addr} ${bootfile};" \
-        "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
-    "unzipimage=unzip ${gz_addr} ${kernel_addr}\0" \
-    "ddrboot=booti ${kernel_addr} - ${fdt_addr}\0" \
-    "load_addr=" __stringify(LOAD_ADDR) "\0" \
-    "usbboot2=usb start;" \
-        "fatload usb 0:0 ${kernel_addr} ${bootimage};" \
-        "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
-        "run ddrboot\0" \
-    "cdc_connect_timeout=360\0" \
-    "serial#=xj3000000\0"
+	"kernel_addr=" __stringify(KERNEL_ADDR) "\0" \
+	"fdt_addr=" __stringify(FDT_ADDR) "\0" \
+	"gz_addr=" __stringify(GZ_ADDR) "\0" \
+	"bootimage=Image\0" \
+	"bootfile=Image.gz\0" \
+	"fdtimage=hobot-x3-soc.dtb\0" \
+	"bootargs=" CONFIG_BOOTARGS \
+	    "root=/dev/mmcblk0p6 rootfstype=ext4 rw rootwait\0" \
+	"mmcload=mmc rescan;" \
+	    "ext4load mmc 0:4 ${gz_addr} ${bootfile};" \
+	    "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
+	"unzipimage=unzip ${gz_addr} ${kernel_addr}\0" \
+	"ddrboot=booti ${kernel_addr} - ${fdt_addr}\0" \
+	"load_addr=" __stringify(LOAD_ADDR) "\0" \
+	"usbboot2=usb start;" \
+	    "fatload usb 0:0 ${kernel_addr} ${bootimage};" \
+	    "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
+	    "run ddrboot\0" \
+	"cdc_connect_timeout=360\0" \
+	"serial#=xj3000000\0" \
+	"partitions=" PARTS_DEFAULT "\0"
 #endif
 
 /* #define HB_AUTOBOOT */
