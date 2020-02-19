@@ -174,3 +174,10 @@ int board_id_verify(unsigned int board_id)
 {
 	return 0;
 }
+
+#ifdef X3_USABLE_RAM_TOP
+ulong board_get_usable_ram_top(ulong total_size)
+{
+	return X3_USABLE_RAM_TOP;
+}
+#endif
