@@ -70,7 +70,7 @@
 };
 
 &qspi {
-	status = "okay";
+	status = "disabled";
 	spi-max-frequency = <500000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;

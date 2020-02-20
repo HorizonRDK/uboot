@@ -268,6 +268,7 @@ int i2c_get_chip_offset_len(struct udevice *dev);
  * @return 0 if OK, -ve on error
  */
 int i2c_deblock(struct udevice *bus);
+int i2c_get_cur_bus_chip(uint chip_addr, struct udevice **devp);
 
 #ifdef CONFIG_DM_I2C_COMPAT
 /**

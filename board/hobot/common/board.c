@@ -35,6 +35,7 @@
 
 #include <asm/arch-x3/hb_reg.h>
 #include <asm/arch-x2/ddr.h>
+#include <i2c.h>
 
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT
@@ -412,6 +413,68 @@ static void wait_start(void)
 }
 #endif
 
+static uint32_t hb_base_board_type_get(void)
+{
+	uint32_t reg, base_id;
+
+	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
+	base_id = PIN_BASE_BOARD_SEL(reg) + 1;
+
+	return base_id;
+}
+
+static uint32_t hb_boot_mode_type_get(void)
+{
+	uint32_t reg, boot_src;
+
+	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
+	boot_src = PIN_2NDBOOT_SEL(reg);
+
+	return boot_src;
+}
+
+static bool hb_pf5024_device_id_getable(void)
+{
+	uint8_t chip = I2C_PF5024_SLAVE_ADDR;
+	uint32_t addr = 0;
+	uint8_t device_id = 0;
+	int ret;
+	struct udevice *dev;
+
+	ret = i2c_get_cur_bus_chip(chip, &dev);
+	if (!ret)
+		ret = i2c_set_chip_offset_len(dev, 1);
+	else
+		return false;
+
+	ret = dm_i2c_read(dev, addr, &device_id, 1);
+	if (ret)
+		return false;
+
+	if (device_id == 0x54)
+		return true;
+	else
+		return false;
+}
+
+static uint32_t hb_board_id_get(void)
+{
+	uint32_t board_type, base_board_id, som_id;
+	bool flag = hb_pf5024_device_id_getable();
+
+	base_board_id = hb_base_board_type_get();
+
+	if (flag)
+		som_id = SOM_TYPE_J3;
+	else
+		som_id = SOM_TYPE_X3;
+
+	board_type = (base_board_id & 0x7) | ((som_id & 0x7) << 8);
+	printf("board_type = %02x\n", board_type);
+
+	return board_type;
+}
+
 #ifdef CONFIG_HB_NAND_BOOT
 static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
 	bool flag)
@@ -509,11 +572,9 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 		struct hb_kernel_hdr *config)
 {
 	char *s = NULL;
-	int i = 0, count = config->dtb_number;
-	uint32_t reg, base_board_id;
-
-	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
-	base_board_id = PIN_BASE_BOARD_SEL(reg) + 1;
+	uint32_t i = 0;
+	uint32_t count = config->dtb_number;
+	uint32_t board_type = hb_board_id_get();
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -521,7 +582,7 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 	}
 
 	for (i = 0; i < count; i++) {
-		if (base_board_id == config->dtb[i].board_id) {
+		if (board_type == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 			break;
 		}
@@ -666,11 +727,9 @@ static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 {
 	char *s = NULL;
 	void *dtb_addr, *base_addr = (void *)config;
-	int i = 0, count = config->dtb_number;
-	uint32_t reg, base_board_id;
-
-	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
-	base_board_id = PIN_BASE_BOARD_SEL(reg) + 1;
+	uint32_t i = 0;
+	uint32_t count = config->dtb_number;
+	uint32_t board_type = hb_board_id_get();
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -678,14 +737,14 @@ static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 	}
 
 	for (i = 0; i < count; i++) {
-		if (base_board_id == config->dtb[i].board_id) {
+		if (board_type == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 			break;
 		}
 	}
 
 	if (i == count) {
-		printf("error: base_board_id %02x not support\n", base_board_id);
+		printf("error: base_board_id %02x not support\n", board_type);
 		return -1;
 	}
 
@@ -1419,12 +1478,9 @@ int board_early_init_f(void)
 
 static void base_board_gpio_test(void)
 {
-	uint32_t reg, base_id;
+	uint32_t  base_board_id = hb_base_board_type_get();
 
-	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
-	base_id = PIN_BASE_BOARD_SEL(reg) + 1;
-
-	switch (base_id) {
+	switch (base_board_id) {
 	case BASE_BOARD_X3_DVB:
 		printf("base board type: X3 DVB\n");
 		break;
@@ -1446,10 +1502,7 @@ static void base_board_gpio_test(void)
 
 static void boot_src_test(void)
 {
-	uint32_t reg, boot_src;
-
-	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
-	boot_src = PIN_2NDBOOT_SEL(reg);
+	uint32_t boot_src = hb_boot_mode_type_get();
 
 	switch (boot_src) {
 	case PIN_2ND_EMMC:

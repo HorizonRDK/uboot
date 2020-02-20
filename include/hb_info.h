@@ -68,13 +68,6 @@
 #define J2_MM_BOARD_ID		0x400
 #define J2_MM_S202_BOARD_ID     0x401
 
-/* x3 and j3 board type */
-#define X3_DVB_HYNIX_ID		0x1001
-#define X3_DVB_MICROM_ID	0x1002
-#define X3_CVB_MICROM_ID	0x2001
-#define J3_DVB_HYNIX_ID		0x3001
-#define J3_DVB_MICROM_ID	0x3002
-
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 
 struct hb_image_hdr {
