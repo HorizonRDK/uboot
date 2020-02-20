@@ -24,7 +24,7 @@ int x2a_load_kernel_raw(uint32_t src_addr, uint32_t inlen,
 		return ADDR_INVALID;
 
 	/* load kernel image */
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND))
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND))
 		snprintf(cmd, sizeof(cmd), "sf read 0x%x 0x%x 0x%x", dst_addr,
 			offset, count);
 	else

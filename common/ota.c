@@ -433,7 +433,7 @@ int ota_normal_boot(bool boot_flag, char *partition)
 {
 	int boot_mode = hb_boot_mode_get();
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
 		return 0;
 	} else {
 		if (boot_flag == 1) {
@@ -628,7 +628,7 @@ unsigned int ota_uboot_update_check(char *partition) {
 			ota_update_failed_output(boot_reason, partition);
 	}
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode = PIN_2ND_NAND)) {
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
 		if (boot_flag == boot_bak)
 			return 1;
 		else
