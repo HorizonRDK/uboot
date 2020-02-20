@@ -20,7 +20,7 @@
 static struct udevice *i2c_cur_bus;
 static uint8_t slave_addr = 0x1c;
 
-static int cmd_i2c_set_bus_num(unsigned int busnum)
+static int keros_cmd_i2c_set_bus_num(unsigned int busnum)
 {
     struct udevice *bus;
     int ret;
@@ -35,11 +35,11 @@ static int cmd_i2c_set_bus_num(unsigned int busnum)
     return 0;
 }
 
-static int i2c_get_cur_bus(struct udevice **busp)
+static int keros_i2c_get_cur_bus(struct udevice **busp)
 {
 #ifdef CONFIG_I2C_SET_DEFAULT_BUS_NUM
     if (!i2c_cur_bus) {
-        if (cmd_i2c_set_bus_num(CONFIG_I2C_DEFAULT_BUS_NUMBER)) {
+        if (keros_cmd_i2c_set_bus_num(CONFIG_I2C_DEFAULT_BUS_NUMBER)) {
             printf("Default I2C bus %d not found\n",
                    CONFIG_I2C_DEFAULT_BUS_NUMBER);
             return -ENODEV;
@@ -56,19 +56,19 @@ static int i2c_get_cur_bus(struct udevice **busp)
     return 0;
 }
 
-static int i2c_get_cur_bus_chip(uint chip_addr, struct udevice **devp)
+static int keros_i2c_get_cur_bus_chip(uint chip_addr, struct udevice **devp)
 {
     struct udevice *bus;
     int ret;
 
-    ret = i2c_get_cur_bus(&bus);
+    ret = keros_i2c_get_cur_bus(&bus);
     if (ret)
         return ret;
 
     return i2c_get_chip(bus, chip_addr, 1, devp);
 }
 
-static int i2c_report_err(int ret, int op)
+static int keros_i2c_report_err(int ret, int op)
 {
     printf("Error %s the chip: %d\n",
            op == 0 ? "reading" : "writing", ret);
@@ -78,7 +78,7 @@ static int i2c_report_err(int ret, int op)
 
 int keros_interface_i2c_init()
 {
-    return cmd_i2c_set_bus_num(0);
+    return keros_cmd_i2c_set_bus_num(0);
 }
 
 uint8_t I2CWrite(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
@@ -94,15 +94,15 @@ uint8_t I2CWrite(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
     while (offset_len)
         offset += (uint32_t)(*pbAddr++) << (8 * (wAddrLen - offset_len--));
 
-    ret = i2c_get_cur_bus_chip(bDevAddr, &dev);
+    ret = keros_i2c_get_cur_bus_chip(bDevAddr, &dev);
     if (!ret && wAddrLen != -1)
         ret = i2c_set_chip_offset_len(dev, wAddrLen);
     if (ret)
-        return i2c_report_err(ret, 1);
+        return keros_i2c_report_err(ret, 1);
 
     ret = dm_i2c_write(dev, offset, pbData, wDataLen);
     if (ret)
-        return i2c_report_err(ret, 1);
+        return keros_i2c_report_err(ret, 1);
 }
 
 
@@ -119,15 +119,15 @@ uint8_t I2CRead(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
     while (offset_len)
         offset += (uint32_t)(*pbAddr++) << (8 * (wAddrLen - offset_len--));
 
-    ret = i2c_get_cur_bus_chip(bDevAddr, &dev);
+    ret = keros_i2c_get_cur_bus_chip(bDevAddr, &dev);
     if (!ret && wAddrLen != -1)
         ret = i2c_set_chip_offset_len(dev, wAddrLen);
     if (ret)
-        return i2c_report_err(ret, 0);
+        return keros_i2c_report_err(ret, 0);
 
     ret = dm_i2c_read(dev, offset, pbData, wDataLen);
     if (ret)
-        return i2c_report_err(ret, 0);
+        return keros_i2c_report_err(ret, 0);
 }
 
 /*****************************************************************************
