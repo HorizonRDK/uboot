@@ -743,6 +743,11 @@ libs-y		:= $(patsubst %/, %/built-in.o, $(libs-y))
 u-boot-init := $(head-y)
 u-boot-main := $(libs-y)
 
+#Add keros lib
+ifeq ($(CONFIG_HOBOT_X2_I2C),y)
+KEROS_LIB = drivers/keros/libKeros.a
+PLATFORM_LIBS += $(KEROS_LIB)
+endif
 
 # Add GCC lib
 ifeq ($(CONFIG_USE_PRIVATE_LIBGCC),y)

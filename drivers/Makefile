@@ -108,5 +108,6 @@ obj-y += thermal/
 obj-y += axi/
 obj-$(CONFIG_HB_BIFSD) += bifsd/
 obj-y += w1/
+obj-y += keros/
 obj-$(CONFIG_MACH_PIC32) += ddr/microchip/
 endif

@@ -30,6 +30,8 @@
 #include "w1/w1_int.h"
 #include "w1/x1_gpio.h"
 
+#include "keros/keros.h"
+
 struct spi_flash *flash;
 /*
  * This function computes the length argument for the erase command.
@@ -807,7 +809,7 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	uint32_t *p_pack = (uint32_t *)package;
 	unsigned long offset =0;
 	unsigned long *buf = (unsigned long *)&sn_buf[0];
-	memset(buf, 0, SN_LEN);	
+	memset(buf, 0, SN_LEN);
 	offset = simple_strtoul(argv[1], NULL, 16);    /* sn data addr in ddr*/
 	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
 
@@ -910,7 +912,7 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (ret !=1) {
 		printf("read_sn_failed\n");
 		return 0;
-	}	
+	}
 	sn_len = *buf;
 	memcpy(&board_sn[0],(uint8_t *)(buf+1),sn_len);
 
@@ -947,6 +949,87 @@ int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
+int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
+										char * const argv[])
+{
+	int i = 0;
+	int ret = 0;
+	unsigned long offset;
+	uint32_t header,type,d_length,crc,c_crc;
+	uint8_t  package[SECURE_KEY_LEN] = {0};
+	uint8_t  secure_key[SECURE_KEY_LEN] ={0};
+	uint32_t *p_pack = (uint32_t *)package;
+	uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
+	uint8_t real_key[32] = {0};
+
+	if (!mark_register_cnt)
+		ret = keros_init();
+
+	if (ret < 0) {
+		printf("keros init failed\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+	mark_register_cnt =1;
+
+	offset = simple_strtoul(argv[1], NULL, 16);    /* secure data addr in ddr*/
+
+	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
+
+	header = *p_pack;
+	type =  *(p_pack + TYPE_INDEX);
+	d_length =  *(p_pack + LENGTH_INDEX);
+	crc = *(p_pack + CRC_INDEX);
+
+	if (header != HEADER_FIX) {
+		printf("burn_key_header_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+
+	if (type != SECURE_KEY_TYPE) {
+		printf("burn_key_type_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+
+	if (d_length <= SECURE_KEY_LEN) {
+		memcpy(&secure_key[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
+	} else {
+		printf("burn_key_length_error, length > 1k\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+
+	c_crc=check_Crc(0,&package[PACK_LEN],d_length);
+	if (crc !=c_crc){
+		printf("burn_key_crc_error\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+
+	ret = keros_authentication();
+	if (ret != 0) {
+		printf("w1_master_is_write_auth_mode failed\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+
+	/* decrypt to realy key */
+	hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
+	memcpy(&secure_key[32], real_key, 32);
+
+	/* load the secure key only */
+	ret = keros_write_key(secure_key);
+	if (ret != 0) {
+		printf("write key to eeprom failed\n");
+		printf("burn_key_failed\n");
+		return 0;
+	}
+
+	printf("burn_key_succeeded\n");
+	return 0;
+}
 U_BOOT_CMD(
 	sf,	5,	1,	do_spi_flash,
 	"SPI flash sub-system",
@@ -994,5 +1077,12 @@ U_BOOT_CMD(
 	gsid, 2, 0, do_get_sid,
 	"get secret-ic rom-id data",
 	"gsid \r\n"
+	""
+);
+
+U_BOOT_CMD(
+	keros, 2, 0, do_burn_keros,
+	"burn keros secure chip",
+	"keros \r\n"
 	""
 );
