@@ -108,6 +108,32 @@ function choose()
     mv $conftmp .config
 }
 
+function change_dts_nor_config()
+{
+    local dts_file="arch/arm/dts/hobot-x3-soc.dts"
+    local key_value="qspi {"
+
+    declare -i nline
+
+    getline()
+    {
+        cat -n $dts_file|grep "${key_value}"|awk '{print $1}'
+    }
+
+    getlinenum()
+    {
+        awk "BEGIN{a=`getline`;b="1";c=(a+b);print c}";
+    }
+
+    nline=`getlinenum`
+
+    if [ x"$bootmode" = x"nor" ];then
+        sed -i "${nline}s#disabled#okay#g" $dts_file
+    else
+        sed -i "${nline}s#okay#disabled#g" $dts_file
+    fi
+}
+
 function build()
 {
     prefix=$TARGET_UBOOT_DIR
@@ -273,6 +299,9 @@ function clean()
 # include
 . $INCLUDE_FUNCS
 # include end
+
+# config dts
+change_dts_nor_config
 
 set_uboot_config
 
