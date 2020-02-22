@@ -413,7 +413,7 @@ static void wait_start(void)
 }
 #endif
 
-static uint32_t hb_base_board_type_get(void)
+uint32_t hb_base_board_type_get(void)
 {
 	uint32_t reg, base_id;
 
@@ -421,16 +421,6 @@ static uint32_t hb_base_board_type_get(void)
 	base_id = PIN_BASE_BOARD_SEL(reg) + 1;
 
 	return base_id;
-}
-
-static uint32_t hb_boot_mode_type_get(void)
-{
-	uint32_t reg, boot_src;
-
-	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
-	boot_src = PIN_2NDBOOT_SEL(reg);
-
-	return boot_src;
 }
 
 static bool hb_pf5024_device_id_getable(void)
@@ -1502,7 +1492,7 @@ static void base_board_gpio_test(void)
 
 static void boot_src_test(void)
 {
-	uint32_t boot_src = hb_boot_mode_type_get();
+	uint32_t boot_src = hb_boot_mode_get();
 
 	switch (boot_src) {
 	case PIN_2ND_EMMC:

@@ -144,4 +144,6 @@ struct hb_flash_kernel_hdr {
 
 int hb_boot_mode_get(void);
 
+uint32_t hb_base_board_type_get(void);
+
 #endif /* __HB_INFO_H__ */
