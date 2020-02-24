@@ -880,6 +880,14 @@ static void hb_nor_kernel_load(void)
 		(void *)gz_addr);
 }
 
+static void hb_usb_dtb_config(void) {
+	int ret;
+	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+	struct hb_kernel_hdr *head = (struct hb_kernel_hdr *)dtb_addr;
+
+	hb_nor_dtb_handle(head);
+}
+
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_dtb_mapping_load(void)
 {
@@ -1551,6 +1559,9 @@ int last_stage_init(void)
 	if ((boot_mode == PIN_2ND_EMMC) || (boot_mode == PIN_2ND_NOR) || \
 		(boot_mode == PIN_2ND_NAND))
 		hb_env_and_boardid_init();
+
+	if (boot_mode == PIN_2ND_USB)
+		hb_usb_dtb_config();
 #endif
 #endif
 
