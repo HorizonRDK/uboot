@@ -78,6 +78,12 @@
 #define SD1_RSTN        BIT(17)
 #define SD2_RSTN        BIT(18)
 
+/* j3 sd card power on ctrl EN_VDD_CNN0/GPIO0[1], output 0 enable */
+#define SD1_POWER_PIN_MUX	(PIN_MUX_BASE + 0x04)
+#define SD1_POWER_OUTPUT_CTRL	(GPIO_BASE + 0x08)
+#define SD1_POWER_DIR		BIT(17)
+#define SD1_POWER_OUTPUT	BIT(1)
+
 /* x3 MMC AHB related Registers */
 #define MMC_IRQ_NUM	(79)
 #define SDIO_INT_MODE_ENABLE

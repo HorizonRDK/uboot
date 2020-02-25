@@ -59,12 +59,48 @@ static void sdio_reset(int dev_index)
 	else
 		return;
 
-	val = readl(SYSCTRL_BASE + 0x450);
-	val |= rst_val;
-	writel(val, SYSCTRL_BASE + 0x450);
-	udelay(100);
+//	val = readl(SYSCTRL_BASE + 0x450);
+//	val |= rst_val;
+//	writel(val, SYSCTRL_BASE + 0x450);
+//	udelay(100);
 	val &= (~rst_val);
 	writel(val, SYSCTRL_BASE + 0x450);
+#endif
+}
+
+static void sdio_power(int dev_index)
+{
+#ifdef CONFIG_TARGET_X3
+	u32 val = 0;
+        uint32_t base_board_id = hb_base_board_type_get();
+
+        switch (base_board_id) {
+        case BASE_BOARD_X3_DVB:
+                debug("%s base board type: X3 DVB\n", __func__);
+                break;
+        case BASE_BOARD_J3_DVB:
+                debug("%s base board type: J3 DVB\n", __func__);
+		if (dev_index == 1) {
+			val = readl(SD1_POWER_PIN_MUX);
+			val |= 0x03;
+			writel(val, SD1_POWER_PIN_MUX);
+
+			val = readl(SD1_POWER_OUTPUT_CTRL);
+			val |= SD1_POWER_DIR;
+			val &= ~(SD1_POWER_OUTPUT);
+			writel(val, SD1_POWER_OUTPUT_CTRL);
+		}
+                break;
+        case BASE_BOARD_CVB:
+                debug("%s base board type: CVB\n", __func__);
+                break;
+        case BASE_BOARD_CUSTOMER_BOARD:
+                debug("%s base board type: customer board\n", __func__);
+                break;
+        default:
+                debug("%s base board type not support\n", __func__);
+                break;
+        }
 #endif
 }
 
@@ -158,13 +194,6 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	struct dwmci_host *host = &priv->host;
 	int ret, devnum = -1;
 
-	host->name = dev->name;
-	host->ioaddr = (void *)devfdt_get_addr(dev);
-	host->buswidth = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
-					"bus-width", 4);
-	host->get_mmc_clk = hobot_dwmmc_get_mmc_clk;
-	host->priv = dev;
-
 	ret = dev_read_alias_seq(dev, &devnum);
 	if (ret) {
 		/* use non-removeable as sdcard and emmc as judgement */
@@ -177,8 +206,16 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	}
 	debug("%s ret=%d devnum=%d host->dev_index=%d\n",
 		__func__, ret, devnum, host->dev_index);
+	sdio_reset(host->dev_index);
 	sdio_pin_mux_config(host->dev_index);
-	// sdio_reset(host->dev_index);
+	sdio_power(host->dev_index);
+
+	host->name = dev->name;
+	host->ioaddr = (void *)devfdt_get_addr(dev);
+	host->buswidth = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
+					"bus-width", 4);
+	host->get_mmc_clk = hobot_dwmmc_get_mmc_clk;
+	host->priv = dev;
 
 	priv->fifo_depth = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
 				    "fifo-depth", 0);
