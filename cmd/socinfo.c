@@ -11,11 +11,20 @@
 #include <asm/global_data.h>
 #include <fdt_support.h>
 #include <x2_fuse_regs.h>
+#include <asm/arch-x3/hb_reg.h>
+#include <asm/arch-x2/ddr.h>
 
 #include "socinfo.h"
 #include <hb_info.h>
 
 #define SCRATCHPAD	1024
+
+static uint32_t x3_ddr_vender;
+static uint32_t x3_ddr_size;
+static uint32_t x3_ddr_type;
+static uint32_t x3_ddr_freq;
+static uint32_t x3_origin_board_id;
+static uint32_t x3_base_board_type;
 
 static int find_fdt(unsigned long fdt_addr);
 static int valid_fdt(struct fdt_header **blobp);
@@ -125,108 +134,269 @@ static int find_fdt(unsigned long fdt_addr)
 	return 0;
 }
 
-static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
-		int argc, char *const argv[])
+static int hb_dtb_property_config(int offset, char *prop, int value)
 {
-	int  nodeoffset;	/* node offset from libfdt */
-	static char data[SCRATCHPAD] __aligned(4);/* property storage */
-	const void *ptmp;
 	int  len;		/* new length of the property */
 	int  ret;		/* return value */
-	char *pathp  = "/soc/socinfo";
-	char *prop   = "board_id";
-	char *prop_boot = "boot_mode";
-	char *prop_socuid = "socuid";
-	unsigned int board_id;
-	struct hb_info_hdr *hb_board_type;
-	unsigned long dtb_addr;
-	unsigned int boot_mode = hb_boot_mode_get();
+	static char node_data[SCRATCHPAD] __aligned(4);/* property storage */
 
-	hb_board_type = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
-	board_id = hb_board_type ->board_id;
-
-	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
-	ret = find_fdt(dtb_addr);
-	if(1 == ret){
-		printf("find_fdt error\n");
-		return 1;
-	}
-
-	nodeoffset = fdt_path_offset (hb_dtb, pathp);
-	if (nodeoffset < 0) {
-		/*
-		 * Not found or something else bad happened.
-		 */
-		printf ("libfdt fdt_path_offset() returned %s\n",
-				fdt_strerror(nodeoffset));
-		return 1;
-	}
-
-	/* set boardid */
-	ptmp = fdt_getprop(hb_dtb, nodeoffset, prop, &len);
+	fdt_getprop(hb_dtb, offset, prop, &len);
 	if (len > SCRATCHPAD) {
 		printf("prop (%d) doesn't fit in scratchpad!\n",
 				len);
 		return 1;
 	}
 
-	if (ptmp != NULL)
-		memcpy(data, ptmp, len);
+	snprintf(node_data, sizeof(node_data), "%d", value);
+	len = strlen(node_data) + 1;
 
-	sprintf(data, "%02x", board_id);
-	printf("socinfo data = %s\n", data);
-
-	len = strlen(data) + 1;
-
-	ret = fdt_setprop(hb_dtb, nodeoffset, prop, data, len);
-	if (ret < 0) {
-		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
-		return 1;
-	}
-
-	/* set bootmode */
-	ptmp = fdt_getprop(hb_dtb, nodeoffset, prop_boot, &len);
-	if (len > SCRATCHPAD) {
-		printf("prop (%d) doesn't fit in scratchpad!\n",
-				len);
-		return 1;
-	}
-
-	if (ptmp != NULL)
-		memcpy(data, ptmp, len);
-
-	sprintf(data, "%d", boot_mode);
-	len = strlen(data) + 1;
-
-	ret = fdt_setprop(hb_dtb, nodeoffset, prop_boot, data, len);
-	if (ret < 0) {
-		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
-		return 1;
-	}
-
-	/* set socuid */
-	ptmp = fdt_getprop(hb_dtb, nodeoffset, prop_socuid, &len);
-	if (len > SCRATCHPAD) {
-		printf("prop (%d) doesn't fit in scratchpad!\n",
-				len);
-		return 1;
-	}
-
-	memset(data, 0, sizeof(data));
-	ret = get_socuid(data);
-	if(ret < 0) {
-		printf("get_socuid error\n");
-		return 1;
-	}
-
-	len = strlen(data) + 1;
-	ret = fdt_setprop(hb_dtb, nodeoffset, prop_socuid, data, len);
+	ret = fdt_setprop(hb_dtb, offset, prop, node_data, len);
 	if (ret < 0) {
 		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;
 	}
 
 	return 0;
+}
+
+static int hb_set_board_id(int offset)
+{
+	int  ret;		/* return value */
+	char *prop   = "board_id";
+	char *prop_origin = "origin_board_id";
+	unsigned int board_id = 0;
+
+	/* set origin board id */
+	ret = hb_dtb_property_config(offset, prop_origin, x3_origin_board_id);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set boardid */
+	board_id = ((x3_ddr_vender & 0xf) << 28) | (0x1 << 24) | \
+		((x3_ddr_freq & 0xf) << 20) | ((x3_ddr_size & 0xf) << 16) | \
+		((x3_som_type & 0xff) << 8) | (x3_base_board_type & 0xff);
+
+	ret = hb_dtb_property_config(offset, prop, board_id);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return ret;
+}
+
+static int hb_set_boot_mode(int offset)
+{
+	int  ret;		/* return value */
+	char *prop   = "boot_mode";
+	unsigned int boot_mode = hb_boot_mode_get();
+
+	ret = hb_dtb_property_config(offset, prop, boot_mode);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return ret;
+}
+
+static int hb_set_socuid(int offset)
+{
+	int  len;		/* new length of the property */
+	int  ret;		/* return value */
+	const void *ptmp;
+	char *prop = "socuid";
+	static char node_data[SCRATCHPAD] __aligned(4);/* property storage */
+
+	ptmp = fdt_getprop(hb_dtb, offset, prop, &len);
+	if (len > SCRATCHPAD) {
+		printf("prop (%d) doesn't fit in scratchpad!\n",
+				len);
+		return 1;
+	}
+
+	if (ptmp != NULL)
+		memcpy(node_data, ptmp, len);
+
+	memset(node_data, 0, sizeof(node_data));
+	ret = get_socuid(node_data);
+	if(ret < 0) {
+		printf("get_socuid error\n");
+		return 1;
+	}
+
+	len = strlen(node_data) + 1;
+	ret = fdt_setprop(hb_dtb, offset, prop, node_data, len);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return 0;
+}
+
+static void hb_board_config_init(void) {
+	uint32_t ddr_model, ddr_freq;
+	uint32_t reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
+
+	/* init board id */
+	x3_origin_board_id = x3_board_id;
+
+	/* init base board type */
+	x3_base_board_type = hb_base_board_type_get();
+
+	/* init ddr vender */
+	ddr_model = DDR_MANUF_SEL(x3_origin_board_id);
+	if (ddr_model == 0) {
+		/* use strap pin to decide ddr model */
+		x3_ddr_vender = PIN_DDR_TYPE_SEL(reg);
+	} else {
+		x3_ddr_vender = ddr_model;
+	}
+
+	/* init ddr type */
+	x3_ddr_type = DDR_TYPE_LPDDR4;
+
+	/* init ddr size */
+	x3_ddr_size = DDR_CAPACITY_SEL(x3_origin_board_id);
+	x3_origin_board_id = x3_origin_board_id & (~(0xf << 16));
+
+	/* init ddr freq */
+	ddr_freq = DDR_FREQ_SEL(x3_origin_board_id);
+	if (ddr_freq == 0) {
+		if (x3_base_board_type == BASE_BOARD_CVB) {
+			x3_ddr_freq = DDR_FREQC_4266;
+		} else {
+			x3_ddr_freq = DDR_FREQC_2666;
+		}
+	} else {
+		x3_ddr_freq = ddr_freq;
+	}
+}
+
+static int hb_set_ddr_property(int offset)
+{
+	int  ret;
+	char *prop_type = "ddr_type";
+	char *prop_size = "ddr_size";
+	char *prop_vender = "ddr_vender";
+	char *prop_freq = "ddr_freq";
+
+	/* set ddr_vender */
+	ret = hb_dtb_property_config(offset, prop_vender, x3_ddr_vender);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set ddr_size */
+	ret = hb_dtb_property_config(offset, prop_size, x3_ddr_size);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set ddr_type */
+	ret = hb_dtb_property_config(offset, prop_type, x3_ddr_type);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set ddr_freq */
+	ret = hb_dtb_property_config(offset, prop_freq, x3_ddr_freq);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return ret;
+}
+
+static int hb_set_board_type(int offset)
+{
+	int  ret;
+	char *prop_som_type = "som_name";
+	char *prop_base_board_type = "base_board_name";
+
+	/* set ddr_vender */
+	ret = hb_dtb_property_config(offset, prop_som_type, x3_som_type);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set ddr_vender */
+	ret = hb_dtb_property_config(offset, prop_base_board_type,
+		x3_base_board_type);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return ret;
+}
+
+static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
+		int argc, char *const argv[])
+{
+	int  nodeoffset;	/* node offset from libfdt */
+	int  ret;		/* return value */
+	char *pathp  = "/soc/socinfo";
+	uint64_t dtb_addr;
+
+	/* init property */
+	hb_board_config_init();
+
+	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+	ret = find_fdt(dtb_addr);
+	if(1 == ret) {
+		printf("find_fdt error\n");
+		return 1;
+	}
+
+	nodeoffset = fdt_path_offset(hb_dtb, pathp);
+	if (nodeoffset < 0) {
+		/*
+		 * Not found or something else bad happened.
+		 */
+		printf("libfdt fdt_path_offset() returned %s\n",
+			fdt_strerror(nodeoffset));
+		return 1;
+	}
+
+	/* set bootmode */
+	ret = hb_set_boot_mode(nodeoffset);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set socuid */
+	/* set ddr size, ddr freq, ddr vender and ddr type */
+	ret = hb_set_ddr_property(nodeoffset);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set som type and base board type */
+	ret = hb_set_board_type(nodeoffset);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set board id and origin board id */
+	ret = hb_set_board_id(nodeoffset);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return ret;
 }
 
 U_BOOT_CMD(

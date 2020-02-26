@@ -18,6 +18,44 @@
 #define HB_SWINFO_BOOT_UDUMPTF          0x5
 #define HB_SWINFO_BOOT_UDUMPEMMC        0x6
 
+/* auto detection */
+#define AUTO_DETECTION	0x0
+
+/* ddr manufacture */
+#define DDR_MANU_HYNIX		0x1
+#define DDR_MANU_MICRON		0x2
+#define PIN_DDR_TYPE_SEL(x)	((x) & 0x1)
+
+/* ddr type */
+#define DDR_TYPE_LPDDR4		0x1
+#define DDR_TYPE_LPDDR4X	0x2
+#define DDR_TYPE_DDR4		0x3
+#define DDR_TYPE_DDR3L		0x4
+
+/* ddr frequency */
+#define DDR_FREQC_667	0x1
+#define DDR_FREQC_1600	0x2
+#define DDR_FREQC_2133	0x3
+#define DDR_FREQC_2666	0x4
+#define DDR_FREQC_3200	0x5
+#define DDR_FREQC_3733	0x6
+#define DDR_FREQC_4266	0x7
+
+/* ddr capacity */
+#define DDR_CAPACITY_1G		0x1
+#define DDR_CAPACITY_2G		0x2
+#define DDR_CAPACITY_4G		0x3
+
+/* som type */
+#define SOM_TYPE_X3		0x1
+#define SOM_TYPE_J3		0x2
+
+/* base board type */
+#define BASE_BOARD_X3_DVB		0x1
+#define BASE_BOARD_J3_DVB		0x2
+#define BASE_BOARD_CVB			0x3
+#define BASE_BOARD_CUSTOMER_BOARD	0x4
+
 #define PIN_1STBOOT_SEL(x)		((x) & 0x1)
 
 #define PIN_BOARD_SEL(x,y)		((((x) >> 8) & 0x3) << 4)\
@@ -26,6 +64,15 @@
 
 /* Boot strap Bit0 is reserved */
 #define PIN_2NDBOOT_SEL(x)		(((x) >> 1) & 0x7)
+
+#define DDR_MANUF_SEL(x)  (((x) >> 28) & 0xf)
+#define DDR_TYPE_SEL(x) (((x) >> 24) & 0xf)
+#define DDR_FREQ_SEL(x)  (((x) >> 20) & 0xf)
+#define DDR_CAPACITY_SEL(x)  (((x) >> 16) & 0xf)
+#define SOM_TYPE_SEL(x)  (((x) >> 8) & 0xff)
+#define BASE_BOARD_SEL(x)  ((x) & 0xff)
+#define PIN_BASE_BOARD_SEL(x)	((((x >> 14) & 0x1) << 0x1) | \
+	((x >> 12) & 0x1))
 
 #define PIN_2ND_EMMC		0x0
 #define PIN_2ND_NAND		0x1
@@ -69,6 +116,9 @@
 #define J2_MM_S202_BOARD_ID     0x401
 
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
+
+extern uint32_t x3_board_id;
+extern uint32_t x3_som_type;
 
 struct hb_image_hdr {
 	unsigned int img_addr;

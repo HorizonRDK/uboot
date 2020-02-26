@@ -48,6 +48,7 @@ static int stored_dumptype;
 
 extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
+uint32_t x3_som_type = SOM_TYPE_X3;
 
 #ifdef CONFIG_SYSRESET
 static int print_resetinfo(void)
@@ -458,6 +459,8 @@ static uint32_t hb_board_id_get(void)
 		som_id = SOM_TYPE_J3;
 	else
 		som_id = SOM_TYPE_X3;
+
+	x3_som_type = som_id;
 
 	board_type = (base_board_id & 0x7) | ((som_id & 0x7) << 8);
 	printf("board_type = %02x\n", board_type);
@@ -881,7 +884,6 @@ static void hb_nor_kernel_load(void)
 }
 
 static void hb_usb_dtb_config(void) {
-	int ret;
 	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
 	struct hb_kernel_hdr *head = (struct hb_kernel_hdr *)dtb_addr;
 
@@ -923,26 +925,17 @@ static void hb_dtb_mapping_load(void)
 static void hb_env_and_boardid_init(void)
 {
 	unsigned int board_id;
-	struct hb_info_hdr *hb_board_type;
 	struct hb_kernel_hdr *hb_kernel_conf;
 	char *s = NULL;
 	char boot_reason[64] = { 0 };
-	char command[256] = "mmc read ";
 	unsigned int boot_mode = hb_boot_mode_get();
 
 	/* load config dtb_mapping */
 	hb_dtb_mapping_load();
 
-	/* load bootinfo */
-	sprintf(command, "%s %x %x %x", command, HB_BOOTINFO_ADDR, 0, 1);
-	run_command_list(command, -1, 0);
-
-	hb_board_type = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
-	// gpio_id = hb_gpio_get();
-	printf("bootinfo/board_id = %02x\n", hb_board_type->board_id);
-
 	/* board_id check */
-	board_id = hb_board_type->board_id;
+	board_id = x3_board_id;
+	printf("bootinfo/board_id = %02x\n", board_id);
 
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
@@ -956,7 +949,6 @@ static void hb_env_and_boardid_init(void)
 			veeprom_write(VEEPROM_RESET_REASON_OFFSET, "normal",
 			VEEPROM_RESET_REASON_SIZE);
 	}
-	printf("final/board_id = %02x\n", board_id);
 
 	/* mmc or nor env init */
 	if (boot_mode == PIN_2ND_EMMC) {

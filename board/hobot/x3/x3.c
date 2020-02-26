@@ -1,3 +1,6 @@
+/*
+ *   Copyright 2020 Horizon Robotics, Inc.
+ */
 #include <common.h>
 #include <sata.h>
 #include <ahci.h>
@@ -14,6 +17,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 unsigned int sys_sdram_size = 0; /* 0G */
+uint32_t x3_board_id = 1;
 bool recovery_sys_enable = true;
 #define MHZ(x) ((x) * 1000000UL)
 
@@ -119,6 +123,8 @@ int dram_init(void)
 
 	x3_mem_map[0].size = sys_sdram_size;
 	gd->ram_size = sys_sdram_size;
+
+	x3_board_id = boardid;
 
 	return 0;
 }

@@ -37,19 +37,6 @@
 #define X3_GPIO6_CTRL_REG	0x68
 #define X3_GPIO6_VALUE_REG	0x6C
 
-/* auto detection */
-#define AUTO_DETECTION	0x0
-
-/* som type */
-#define SOM_TYPE_X3		0x1
-#define SOM_TYPE_J3		0x2
-
-/* base board type */
-#define BASE_BOARD_X3_DVB		0x1
-#define BASE_BOARD_J3_DVB		0x2
-#define BASE_BOARD_CVB			0x3
-#define BASE_BOARD_CUSTOMER_BOARD	0x4
-
 #define I2C_PF5024_SLAVE_ADDR	0x8
 
 #define PIN_BASE_BOARD_SEL(x)	((((x >> 14) & 0x1) << 0x1) | \
