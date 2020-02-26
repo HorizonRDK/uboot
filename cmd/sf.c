@@ -14,6 +14,7 @@
 #include <spi_flash.h>
 #include <jffs2/jffs2.h>
 #include <linux/mtd/mtd.h>
+#include <hb_info.h>
 
 #include <asm/io.h>
 #include <dm/device-internal.h>
@@ -809,17 +810,19 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	uint32_t *p_pack = (uint32_t *)package;
 	unsigned long offset =0;
 	unsigned long *buf = (unsigned long *)&sn_buf[0];
+	int boot_mode = hb_boot_mode_get();
+
 	memset(buf, 0, SN_LEN);
 	offset = simple_strtoul(argv[1], NULL, 16);    /* sn data addr in ddr*/
 	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
-
-	flash =spi_flash_probe(bus, cs, speed,mode);
-	if (!flash) {
-		printf("burn_sn_initialize_spi_flash_error\n");
-		printf("burn_sn_failed\n");
-		return 0;
+	if (boot_mode == PIN_2ND_NOR) {
+		flash = spi_flash_probe(bus, cs, speed, mode);
+		if (!flash) {
+			printf("burn_sn_initialize_spi_flash_error\n");
+			printf("burn_sn_failed\n");
+			return 0;
+		}
 	}
-
 	header = *p_pack;
 	type =	*(p_pack + TYPE_INDEX);
 	d_length =	*(p_pack + LENGTH_INDEX);
@@ -863,16 +866,33 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	*/
 
 	ret = veeprom_clear(SN_OFFSET, SN_LEN);
-	if (ret !=1) {  //ret = 1 for emmc , ret = 0 for norflash
-		printf("burn_sn_erase_flash_error\n");
-		printf("burn_sn_failed\n");
-		return 0;
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
+		if (ret !=0) {
+			printf("burn_sn_erase_flash_error\n");
+			printf("burn_sn_failed\n");
+			return 0;
+		}
+	} else {
+		if (ret !=1) {
+			printf("burn_sn_erase_flash_error\n");
+			printf("burn_sn_failed\n");
+			return 0;
+		}
 	}
+
 	ret = veeprom_write(SN_OFFSET, (const char *)buf, SN_LEN);
-	if (ret != 1) {
-		printf("burn_sn_write_flash_error\n");
-		printf("burn_sn_failed\n");
-		return 0;
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
+		if (ret !=0) {
+			printf("burn_sn_write_flash_error\n");
+			printf("burn_sn_failed\n");
+			return 0;
+		}
+	} else {
+		if (ret !=1) {
+			printf("burn_sn_write_flash_error\n");
+			printf("burn_sn_failed\n");
+			return 0;
+		}
 	}
 /*
     ret = spi_flash_write(flash,SECURE_SNINFO_ADDR,flash->sector_size,(uint32_t*)buf);
@@ -900,18 +920,30 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	unsigned int sn_len = 0x0;
 	uint8_t  board_sn[SN_LEN] = {0};
 	unsigned long *buf = (unsigned long *)&sn_buf[0];
+	int boot_mode = hb_boot_mode_get();
+
 	memset(buf, 0, SN_LEN);
 
-	flash =spi_flash_probe(bus, cs, speed,mode);
-	if (!flash) {
-		printf("get sn Failed to initialize SPI flash\n");
-		return -1;
+	if (boot_mode == PIN_2ND_NOR) {
+		flash = spi_flash_probe(bus, cs, speed, mode);
+		if (!flash) {
+			printf("burn_sn_initialize_spi_flash_error\n");
+			printf("burn_sn_failed\n");
+			return 0;
+		}
 	}
 
 	ret = veeprom_read(SN_OFFSET, (char *)buf, SN_LEN);
-	if (ret !=1) {
-		printf("read_sn_failed\n");
-		return 0;
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
+		if (ret !=0) {
+			printf("read_sn_failed\n");
+			return 0;
+		}
+	} else {
+		if (ret !=1) {
+			printf("read_sn_failed\n");
+			return 0;
+		}
 	}
 	sn_len = *buf;
 	memcpy(&board_sn[0],(uint8_t *)(buf+1),sn_len);
