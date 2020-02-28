@@ -67,7 +67,7 @@
 #define CONFIG_NET_RETRY_COUNT	100	/* for rndis arp retry count exceeded */
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_8M)
+#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_16M)
 
 #ifdef CONFIG_SYS_SKIP_RELOC
 #define SZ_66K				0x00010800 /* TBL table + board info + global data */
