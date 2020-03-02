@@ -15,4 +15,3 @@ obj-$(CONFIG_SPL_BUILD) += spl.o hb_utils.o \
 			hb_nand_spl.o
 
 obj-y += reset.o
-

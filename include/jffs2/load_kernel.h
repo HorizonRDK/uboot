@@ -14,7 +14,7 @@
 #define MTD_DEV_TYPE_NOR	0x0001
 #define MTD_DEV_TYPE_NAND	0x0002
 #define MTD_DEV_TYPE_ONENAND	0x0004
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef CONFIG_ARCH_HOBOT
 #define MTD_DEV_TYPE(type) ((type == MTD_DEV_TYPE_NAND) ? "spi-nand" :	\
 			(type == MTD_DEV_TYPE_ONENAND) ? "onenand" : "spi-flash")
 #else

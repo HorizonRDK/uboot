@@ -5,8 +5,4 @@
 /* #define CONFIG_HB_NAND_BOOT */
 /* #define CONFIG_HB_NOR_BOOT */
 #define CONFIG_HB_MMC_BOOT
-
-/* #define CONFIG_X2_MONO_BOARD */
-/* #define CONFIG_X2_QUAD_BOARD */
-/* #define CONFIG_X2_SK_BOARD */
 #endif /* __HB_CONFIG_H__ */

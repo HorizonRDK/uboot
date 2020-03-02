@@ -57,6 +57,12 @@
  * #endif
  */
 
+#ifdef CONFIG_ENV_IS_IN_UBI
+#define CONFIG_ENV_UBI_PART "sys"
+#define CONFIG_ENV_UBI_VOLUME "ubootenv"
+#define CONFIG_ENV_UBI_VOLUME_REDUND "ubootenvbak"
+#endif
+
 /* Monitor Command Prompt */
 #define CONFIG_SYS_CBSIZE	1024	/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)
@@ -177,4 +183,3 @@
 #define CONFIG_UDP_CHECKSUM
 
 #endif /* __X3_H__ */
-

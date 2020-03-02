@@ -18,6 +18,8 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+// #define QSPI_DEBUG
+
 /**
  * struct hb_qspi_platdata - platform data for x2 QSPI
  *
@@ -25,26 +27,64 @@ DECLARE_GLOBAL_DATA_PTR;
  * @freq: QSPI input clk frequency
  * @speed_hz: Default BUS sck frequency
  * @xfer_mode: 0-Byte 1-batch 2-dma, Default work in byte mode
+ * @num_cs: The maximum number of cs
  */
-struct hb_qspi_platdata {
+static struct hb_qspi_platdata {
 	void __iomem *regs_base;
 	u32 freq;
 	u32 speed_hz;
-};
+	u32 xfer_mode;
+	u32 num_cs;
+} *plat;
 
-struct hb_qspi_priv {
+static struct hb_qspi_priv {
 	void __iomem *regs_base;
-};
+} *x2qspi;
 
 #define hb_qspi_rd(dev, reg)	   readl((dev)->regs_base + (reg))
 #define hb_qspi_wr(dev, reg, val)  writel((val), (dev)->regs_base + (reg))
+
+#ifdef QSPI_DEBUG
+void qspi_dump_reg(struct hb_qspi_priv *xqspi)
+{
+	uint32_t val = 0, i;
+
+	for (i = X2_QSPI_DAT_REG; i <= X2_QSPI_XIP_REG; i = i + 4) {
+		val = hb_qspi_rd(xqspi, i);
+		printf("reg[0x%08x] ==> [0x%08x]\n", xqspi->regs_base + i, val);
+	}
+}
+
+void trace_transfer(const void * buf, u32 len, bool dir)
+{
+#define __TRACE_BUF_SIZE__ 128
+	int i = 0;
+	const u8 *tmpbuf = NULL; // kzalloc(tmpbufsize, GFP_KERNEL);
+	char tmp_prbuf[32];
+	char prbuf[__TRACE_BUF_SIZE__] = { 0 };
+
+	tmpbuf = (const u8 *) buf;
+	snprintf(prbuf, __TRACE_BUF_SIZE__, "%s-%s[L:%d] ",
+		dir ? "<" : "", dir ? "" : ">", len);
+
+	if(len) {
+		snprintf(tmp_prbuf, sizeof(tmp_prbuf), " ");
+		strcat(prbuf, tmp_prbuf);
+#define QSPI_DEBUG_DATA_LEN	16
+		for (i = 0; i < ((len < QSPI_DEBUG_DATA_LEN) ?
+			len : QSPI_DEBUG_DATA_LEN); i++) {
+			snprintf(tmp_prbuf, 32, "%02X ", tmpbuf[i]);
+			strcat(prbuf, tmp_prbuf);
+		}
+	}
+	printf("%s\n", prbuf);
+}
+#endif
 
 static int hb_qspi_set_speed(struct udevice *bus, uint speed)
 {
 	int confr, prescaler, divisor;
 	unsigned int max_br, min_br, br_div;
-	struct hb_qspi_platdata *plat = dev_get_platdata(bus);
-	struct hb_qspi_priv *x2qspi   = dev_get_priv(bus);
 
 	max_br = plat->freq / 2;
 	min_br = plat->freq / 1048576;
@@ -75,7 +115,6 @@ static int hb_qspi_set_speed(struct udevice *bus, uint speed)
 static int hb_qspi_set_mode(struct udevice *bus, uint mode)
 {
 	unsigned int val = 0;
-	struct hb_qspi_priv *x2qspi = dev_get_priv(bus);
 
 	val = hb_qspi_rd(x2qspi, X2_QSPI_CTL1_REG);
 	if (mode & SPI_CPHA)
@@ -307,7 +346,8 @@ static void hb_qspi_set_xfer(struct hb_qspi_priv *x2qspi, u32 op_flag)
 
 static int hb_qspi_rd_batch(struct hb_qspi_priv *x2qspi, void *pbuf, uint32_t len)
 {
-	u32 i, rx_len, offset = 0, tmp_len = len, ret = 0;
+	u32 i, rx_len, offset = 0, ret = 0;
+	int64_t tmp_len = len;
 	u32 *dbuf = (u32 *) pbuf;
 
 	/* Enable batch mode */
@@ -483,8 +523,6 @@ int hb_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
 {
 	int ret = 0;
 	unsigned int len, cs;
-	struct udevice *bus = dev->parent;
-	struct hb_qspi_priv *x2qspi = dev_get_priv(bus);
 	struct dm_spi_slave_platdata *slave_plat = dev_get_parent_platdata(dev);
 
 	if (bitlen == 0) {
@@ -518,7 +556,9 @@ int hb_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
 	} else {
 		hb_qspi_set_wire(x2qspi, 0);
 	}
-
+#ifdef QSPI_DEBUG
+		trace_transfer(dout ? dout : din, len, dout ? false : true);
+#endif
 	return ret;
 }
 
@@ -585,7 +625,7 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 		printf("Failed to get clk!\n");
 		plat->freq = fdtdec_get_int(blob, node, "spi-max-frequency", 500000000);
 	}
-
+	// TODO: Chip Select Define
 	return 0;
 }
 
@@ -597,13 +637,13 @@ static int hb_qspi_child_pre_probe(struct udevice *bus)
 
 static int hb_qspi_probe(struct udevice *bus)
 {
-	struct hb_qspi_platdata *plat = dev_get_platdata(bus);
-	struct hb_qspi_priv *priv	  = dev_get_priv(bus);
+	plat = dev_get_platdata(bus);
+	x2qspi = dev_get_priv(bus);
 
-	priv->regs_base = plat->regs_base;
+	x2qspi->regs_base = plat->regs_base;
 
 	/* init the x2 qspi hw */
-	hb_qspi_hw_init(priv);
+	hb_qspi_hw_init(x2qspi);
 
 	return 0;
 }

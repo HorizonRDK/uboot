@@ -22,7 +22,6 @@
 #include <ota.h>
 #include <spi_flash.h>
 #include <asm/gpio.h>
-#include <ubi_uboot.h>
 #include <asm/arch/hb_reg.h>
 #ifdef CONFIG_HB_BIFSD
 #include <asm/arch/hb_bifsd.h>
@@ -32,7 +31,9 @@
 #include <asm/arch/hb_share.h>
 #include <configs/hb_config.h>
 #include <hb_info.h>
-
+#ifdef CONFIG_HB_NAND_BOOT
+#include <ubi_uboot.h>
+#endif
 #include <asm/arch-x3/hb_reg.h>
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
@@ -469,6 +470,14 @@ static uint32_t hb_board_id_get(void)
 }
 
 #ifdef CONFIG_HB_NAND_BOOT
+static void nand_boot(void)
+{
+	run_command("mtd list", 0);
+	if (ubi_part("sys", NULL)) {
+		printf("system ubi image load failed!\n");
+	}
+}
+
 static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
 	bool flag)
 {
@@ -483,6 +492,9 @@ static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
 
 		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
 		run_command_list(cmd, -1, 0);
+		gz_addr = dtb_addr + addr;
+		if (gz_addr != dtb_addr)
+			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
 	}
 }
 
@@ -492,9 +504,6 @@ static void hb_nand_env_init(void)
 
 	/* set bootargs */
 	tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
-		"mtdids:spi-nand0=hr_nand "\
-		"mtdparts=hr_nand:3145728@0x0(bootloader)," \
-		"10485760@0x300000(sys),-@0xD00000(rootfs) "\
 		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
 	env_set("bootargs", tmp);
 
@@ -510,6 +519,7 @@ static void hb_nand_dtb_load(unsigned int board_id,
 	char *s = NULL;
 	bool gz_flag = false;
 	int i, count = config->dtb_number;
+	uint32_t board_type = hb_board_id_get();
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -520,7 +530,7 @@ static void hb_nand_dtb_load(unsigned int board_id,
 		gz_flag = true;
 
 	for (i = 0; i < count; i++) {
-		if (board_id == config->dtb[i].board_id) {
+		if (board_type == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 
 			if ((config->dtb[i].dtb_addr == 0x0) && (gz_flag == false)) {
@@ -915,13 +925,12 @@ static void hb_dtb_mapping_load(void)
 				return;
 			}
 		}
-	} 
-
+	}
 #ifdef CONFIG_HB_NAND_BOOT
 	ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
 #endif
-
 }
+
 static void hb_env_and_boardid_init(void)
 {
 	unsigned int board_id;
@@ -1203,12 +1212,12 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 {
 	int ret;
 	u32 img_addr, img_size;
-	u32 bl_size, sys_size, rootfs_size;
-	u32 sys_offset, rootfs_offset;
+	/*[0] - bl_size; [1] - boot_size; [2] - rootfs_size; [3] - userdata_size*/
+	u32 part_sizes[4];
+	u32 sys_offset, rootfs_offset, userdata_offset;
 	char *s1 = NULL;
 	char *s2 = NULL;
-
-	if (argc != 3) {
+	if (argc < 3) {
 		printf("image_addr and img_size must be given\n");
 		return 1;
 	}
@@ -1217,29 +1226,53 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	img_addr = (u32)simple_strtoul(s1, NULL, 16);
 	img_size = (u32)simple_strtoul(s2, NULL, 16);
 	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
-	bl_size = 0x260000;
-	sys_size = 0xA00000;
-	rootfs_size = img_size - bl_size - sys_size;
-	sys_offset = img_addr + bl_size;
-	rootfs_offset = sys_offset + sys_size;
-	ret = 0;
+	part_sizes[0] = 0x500000;
+	part_sizes[1] = 0x1400000;
+	part_sizes[2] = img_size - part_sizes[0] - part_sizes[1];
+	if (argc > 3 && argc < 6) {
+		printf("using partition size passed in!\n");
+		for (int i = 3; i < argc; i++) {
+			part_sizes[i - 3] = (u32)simple_strtoul(argv[i], NULL, 16);
+		}
+	}
+	if (argc == 5)
+		part_sizes[3] = img_size - part_sizes[0] - part_sizes[1] - part_sizes[2];
 
+	printf("using partition sizes:\n");
+	printf("bl_size: %#010x, sys_size: %#010x, rootfs_size: %#010x, userdata_size: %#010x\n",
+			part_sizes[0], part_sizes[1], part_sizes[2], part_sizes[3]);
+	sys_offset = img_addr + part_sizes[0];
+	rootfs_offset = sys_offset + part_sizes[1];
+	userdata_offset = rootfs_offset + part_sizes[2];
+	ret = 0;
 #ifdef CONFIG_HB_NAND_BOOT
+	char veeprom[2048] = { 0 };
+	ubi_part("sys", 0);
+	ubi_volume_read("veeprom", veeprom, 2048);
 	run_command("ubi detach", 0);
 #else
 	env_set("mtdids", "spi-nand0=hr_nand");
-	env_set("mtdparts", "mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs)");
+	env_set("mtdparts", "mtdparts=hr_nand:5767168@0x0(bootloader),20971520@0x580000(sys),62914560@0x1980000(rootfs),-@0x5580000(userdata)");
 #endif
-	ret |= nand_write_partition("bootloader", img_addr, bl_size);
-	ret |= nand_write_partition("sys", sys_offset, sys_size);
-	ret |= nand_write_partition("rootfs", rootfs_offset, rootfs_size);
+	ret |= nand_write_partition("bootloader", img_addr, part_sizes[0]);
+	ret |= nand_write_partition("sys", sys_offset, part_sizes[1]);
+	ret |= nand_write_partition("rootfs", rootfs_offset, part_sizes[2]);
+	if (argc == 5) {
+		userdata_offset = rootfs_offset + part_sizes[2];
+		ret |= nand_write_partition("userdata", userdata_offset, part_sizes[3]);
+	}
+#ifdef CONFIG_HB_NAND_BOOT
+	ubi_part("sys", 0);
+	ubi_volume_write("veeprom", veeprom, 2048);
+#endif
 	return ret;
 }
 
 U_BOOT_CMD(
-	burn_nand,	3,	0,	burn_nand_flash,
-	"Burn decompresssed Image at [addr] with [size] in bytes(hex) to nand flash",
-	"-burn_nand [addr] [size]"
+	burn_nand,	6,	0,	burn_nand_flash,
+	"Burn Image at [addr] in DDR with [size] in bytes(hex) to nand flash",
+	"      [addr] [size] {Optional: [bl_size] [sys_size] [rootfs_size]}\n"
+	"      Note: for the partition sizes, must be passed in in the order given"
 );
 
 
@@ -1374,19 +1407,6 @@ static int hb_swinfo_dump_donecheck(int retc)
 	return 0;
 }
 #endif
-#endif
-
-#ifdef CONFIG_HB_NAND_BOOT
-static void nand_boot(void)
-{
-	env_set("mtdids", "spi-nand0=hr_nand");
-	env_set("mtdparts", "mtdparts=hr_nand:3145728@0x0(bootloader),10485760@0x300000(sys),-@0xD00000(rootfs)");
-	run_command("mtd list", 0);
-	run_command("mtdparts", 0);
-	if (ubi_part("sys", NULL)) {
-		panic("system ubi image load failed!\n");
-	}
-}
 #endif
 
 #if 0
@@ -1564,6 +1584,6 @@ int last_stage_init(void)
 	hb_swinfo_boot();
 #endif
 //	misc();
-	
+
 	return 0;
 }

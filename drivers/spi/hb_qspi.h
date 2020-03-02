@@ -89,7 +89,7 @@
 #define X2_QSPI_OP_BAT_DIS          0x06
 
 #define TRYS_TOTAL_NUM              0x8000000
-#define BATCH_MAX_CNT               0x8000
+#define BATCH_MAX_CNT               0x10000
 #define MIN(a, b)   ((a < b) ? (a) : (b))
 #define MAX(a, b)   ((a > b) ? (a) : (b))
 

@@ -71,28 +71,22 @@
 
 &qspi {
 	status = "disabled";
-	spi-max-frequency = <500000000>;
+	spi-max-frequency = <50000000>;
 	#address-cells = <1>;
-	#size-cells = <0>;
+	#size-cells = <1>;
+	spi-tx-bus-width = <4>;
+	spi-rx-bus-width = <4>;
 
-	flash0: gd25q256c@0 {
+	nor0: is25wp512@0 {
 		u-boot,dm-pre-reloc;
 		compatible = "spi-flash";
 		reg = <0x0>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-		spi-max-frequency = <50000000>;
 	};
 
-
 	spi-nand@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		u-boot,dm-pre-reloc;
 		compatible = "spi-nand";
 		reg = <0x0>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-		spi-max-frequency = <50000000>;
 	};
 
 };

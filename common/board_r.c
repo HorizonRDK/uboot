@@ -439,7 +439,9 @@ static int initr_mmc(void)
  */
 static int should_load_env(void)
 {
-#ifdef CONFIG_OF_CONTROL
+#ifdef CONFIG_ENV_IS_IN_UBI
+	return 0;
+#elif defined CONFIG_OF_CONTROL
 	return fdtdec_get_config_int(gd->fdt_blob, "load-environment", 1);
 #elif defined CONFIG_DELAY_ENVIRONMENT
 	return 0;

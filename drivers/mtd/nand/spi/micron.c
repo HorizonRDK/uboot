@@ -66,6 +66,36 @@ static const struct mtd_ooblayout_ops mt29f2g01abagd_ooblayout = {
 	.free = mt29f2g01abagd_ooblayout_free,
 };
 
+static int mt29f2g01abbgd_ooblayout_ecc(struct mtd_info *mtd, int section,
+					struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	region->offset = 64;
+	region->length = 64;
+
+	return 0;
+}
+
+static int mt29f2g01abbgd_ooblayout_free(struct mtd_info *mtd, int section,
+					 struct mtd_oob_region *region)
+{
+	if (section)
+		return -ERANGE;
+
+	/* Reserve 1 byte for the BBM. */
+	region->offset = 1;
+	region->length = 63;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops mt29f2g01abbgd_ooblayout = {
+	.ecc = mt29f2g01abbgd_ooblayout_ecc,
+	.free = mt29f2g01abbgd_ooblayout_free,
+};
+
 static int mt29f2g01abagd_ecc_get_status(struct spinand_device *spinand,
 					 u8 status)
 {
@@ -101,6 +131,15 @@ static const struct spinand_info micron_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&mt29f2g01abagd_ooblayout,
+				     mt29f2g01abagd_ecc_get_status)),
+	SPINAND_INFO("MT29F2G01ABBGD", 0x25,
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 2, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     0,
+		     SPINAND_ECCINFO(&mt29f2g01abbgd_ooblayout,
 				     mt29f2g01abagd_ecc_get_status)),
 };
 

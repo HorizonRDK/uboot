@@ -840,7 +840,8 @@ static int spinand_manufacturer_detect(struct spinand_device *spinand)
 {
 	unsigned int i;
 	int ret;
-
+	u8 *id = spinand->id.data;
+	printf("raw ID: %02x%02x%02x%02x\n", id[0], id[1], id[2], id[3]);
 	for (i = 0; i < ARRAY_SIZE(spinand_manufacturers); i++) {
 		ret = spinand_manufacturers[i]->ops->detect(spinand);
 		if (ret > 0) {
@@ -990,10 +991,8 @@ static int spinand_detect(struct spinand_device *spinand)
 		return -EINVAL;
 	}
 
-	dev_info(spinand->slave->dev,
-		 "%s SPI NAND was found.\n", spinand->manufacturer->name);
-	dev_info(spinand->slave->dev,
-		 "%llu MiB, block size: %zu KiB, page size: %zu, OOB size: %u\n",
+	printf("%s SPI NAND was found.\n", spinand->manufacturer->name);
+	printf("%llu MiB, block size: %zu KiB, page size: %zu, OOB size: %u\n",
 		 nanddev_size(nand) >> 20, nanddev_eraseblock_size(nand) >> 10,
 		 nanddev_page_size(nand), nanddev_per_page_oobsize(nand));
 

@@ -16,7 +16,7 @@
 
 #define SECTOR_SIZE (512)
 #ifdef CONFIG_HB_NAND_BOOT
-#define BUFFER_SIZE 131072
+#define BUFFER_SIZE 2048
 #else
 #define BUFFER_SIZE SECTOR_SIZE
 #endif
@@ -31,7 +31,6 @@ static int curr_device = -1;
 extern struct spi_flash *flash;
 struct mmc *emmc = NULL;
 
-#ifndef CONFIG_HB_NAND_BOOT
 /* init nor flash device  */
 static void init_nor_device(void)
 {
@@ -43,7 +42,6 @@ static void init_nor_device(void)
 		return;
 	}
 }
-#endif
 
 struct mmc *init_mmc_device(int dev, bool force_init)
 {
@@ -66,19 +64,15 @@ static int dw_init(int flag)
 	int ret = 0;
 	int boot_mode = hb_boot_mode_get();
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NAND_BOOT
-		if (ubi_part("sys", NULL)) {
-			printf("Failed to initialize veeprom ubi volumn\n");
-			ret = -1;
-		}
-#else
+	if (boot_mode == PIN_2ND_NOR) {
 		init_nor_device();
 		if (!flash) {
 			printf("Failed to initialize SPI flash\n");
 			ret = -1;
 		}
-#endif
+	} else if (boot_mode == PIN_2ND_NAND) {
+		start_sector = NOR_VEEPROM_START_SECTOR;
+		end_sector = NOR_VEEPROM_END_SECTOR;
 	} else {
 		/* check the status of device */
 		emmc = init_mmc_device(curr_device, false);
@@ -103,8 +97,7 @@ static int dw_read(unsigned int cur_sector)
 	int ret = 0;
 	int boot_mode = hb_boot_mode_get();
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-#ifndef CONFIG_HB_NAND_BOOT
+	if (boot_mode == PIN_2ND_NOR) {
 		if (!flash)
 			return -1;
 
@@ -113,7 +106,8 @@ static int dw_read(unsigned int cur_sector)
 			printf("Error: read nor flash fail\n");
 			return -1;
 		}
-#endif
+	} else if (boot_mode == PIN_2ND_NAND) {
+		return 0;
 	} else {
 		ret = blk_dread(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
 		if (ret != 1) {
@@ -130,8 +124,7 @@ static int dw_write(unsigned int cur_sector)
 	int ret = 0;
 	int boot_mode = hb_boot_mode_get();
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-#ifndef CONFIG_HB_NAND_BOOT
+	if (boot_mode == PIN_2ND_NOR) {
 		if (!flash)
 			return -1;
 
@@ -146,7 +139,8 @@ static int dw_write(unsigned int cur_sector)
 			printf("Error: read nor flash fail\n");
 			return -1;
 		}
-#endif
+	} else if (boot_mode == PIN_2ND_NAND) {
+		return ret;
 	} else {
 		ret = blk_dwrite(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
 		if (ret != 1) {
@@ -175,13 +169,7 @@ int veeprom_init(void)
 {
 	int boot_mode = hb_boot_mode_get();
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-#ifdef CONFIG_HB_NAND_BOOT
-		if (ubi_part("sys", NULL)) {
-			printf("Failed to initialize veeprom ubi volumn\n");
-			return -1;
-		}
-#else
+	if (boot_mode == PIN_2ND_NOR) {
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		init_nor_device();
@@ -189,7 +177,9 @@ int veeprom_init(void)
 			printf("Failed to initialize SPI flash\n");
 			return -1;
 		}
-#endif
+	} else if (boot_mode == PIN_2ND_NAND) {
+		start_sector = NOR_VEEPROM_START_SECTOR;
+		end_sector = NOR_VEEPROM_END_SECTOR;
 	} else {
 		/* set veeprom raw sectors */
 		start_sector = VEEPROM_START_SECTOR;
@@ -213,10 +203,10 @@ void veeprom_exit(void)
 {
 	int boot_mode = hb_boot_mode_get();
 
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-#ifndef CONFIG_HB_NAND_BOOT
+	if (boot_mode == PIN_2ND_NOR) {
 		spi_flash_free(flash);
-#endif
+	} else if (boot_mode == PIN_2ND_NAND) {
+		return;
 	} else {
 		curr_device = -1;
 	}
@@ -251,13 +241,6 @@ int veeprom_format(void)
 
 int veeprom_read(int offset, char *buf, int size)
 {
-#ifndef CONFIG_HB_NAND_BOOT
-	int sector_left = 0;
-	int sector_right = 0;
-	int cur_sector = 0;
-	int offset_inner = 0;
-	int remain_inner = 0;
-#endif
 	int ret = 0;
 	int flag = FLAG_RO;
 
@@ -277,6 +260,11 @@ int veeprom_read(int offset, char *buf, int size)
 	flush_cache((ulong)buffer, 2048);
 	memcpy(buf, buffer + offset, size);
 #else
+	int sector_left = 0;
+	int sector_right = 0;
+	int cur_sector = 0;
+	int offset_inner = 0;
+	int remain_inner = 0;
 	sector_left = start_sector + (offset / SECTOR_SIZE);
 	sector_right = start_sector + ((offset + size - 1) / SECTOR_SIZE);
 
@@ -306,13 +294,6 @@ int veeprom_read(int offset, char *buf, int size)
 
 int veeprom_write(int offset, const char *buf, int size)
 {
-#ifndef CONFIG_HB_NAND_BOOT
-	int sector_left = 0;
-	int sector_right = 0;
-	int cur_sector = 0;
-	int offset_inner = 0;
-	int remain_inner = 0;
-#endif
 	int ret = 0;
 	int flag = FLAG_RW;
 
@@ -333,6 +314,11 @@ int veeprom_write(int offset, const char *buf, int size)
 	memcpy(buffer + offset, buf, size);
 	ubi_volume_write("veeprom", buffer, sizeof(buffer));
 #else
+	int sector_left = 0;
+	int sector_right = 0;
+	int cur_sector = 0;
+	int offset_inner = 0;
+	int remain_inner = 0;
 	sector_left = start_sector + (offset / SECTOR_SIZE);
 	sector_right = start_sector + ((offset + size - 1) / SECTOR_SIZE);
 
@@ -368,13 +354,6 @@ int veeprom_write(int offset, const char *buf, int size)
 
 int veeprom_clear(int offset, int size)
 {
-#ifndef CONFIG_HB_NAND_BOOT
-	int sector_left = 0;
-	int sector_right = 0;
-	int cur_sector = 0;
-	int offset_inner = 0;
-	int remain_inner = 0;
-#endif
 	int ret = 0;
 	int flag = FLAG_RW;
 
@@ -392,6 +371,11 @@ int veeprom_clear(int offset, int size)
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_write("veeprom", buffer, sizeof(buffer));
 #else
+	int sector_left = 0;
+	int sector_right = 0;
+	int cur_sector = 0;
+	int offset_inner = 0;
+	int remain_inner = 0;
 	sector_left = start_sector + (offset / SECTOR_SIZE);
 	sector_right = start_sector + ((offset + size - 1) / SECTOR_SIZE);
 	printf("sector_left = %d\n", sector_left);
