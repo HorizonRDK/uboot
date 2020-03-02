@@ -251,10 +251,12 @@ static void hb_board_config_init(void) {
 	ddr_model = DDR_MANUF_SEL(x3_origin_board_id);
 	if (ddr_model == 0) {
 		/* use strap pin to decide ddr model */
-		x3_ddr_vender = PIN_DDR_TYPE_SEL(reg);
-	} else {
-		x3_ddr_vender = ddr_model;
+		if (PIN_DDR_TYPE_SEL(reg) == 0)
+			ddr_model = DDR_MANU_HYNIX;
+		else
+			ddr_model = DDR_MANU_MICRON;
 	}
+	x3_ddr_vender = ddr_model;
 
 	/* init ddr type */
 	x3_ddr_type = DDR_TYPE_LPDDR4;
