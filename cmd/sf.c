@@ -1048,8 +1048,8 @@ int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	/* decrypt to realy key */
-	hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
-	memcpy(&secure_key[32], real_key, 32);
+	//hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
+	//memcpy(&secure_key[32], real_key, 32);
 
 	/* load the secure key only */
 	ret = keros_write_key(secure_key);
