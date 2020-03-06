@@ -71,7 +71,7 @@ static ulong endiv_clk_get_rate(struct clk *clk)
 	clk_rate = clk_get_rate(&source);
 
 	val = readl(plat->div_reg.divider_reg);
-	div = (val & (plat->div_reg.div_field << plat->div_reg.div_bits))
+	div = (val & (div_mask(plat->div_reg.div_field) << plat->div_reg.div_bits))
 		>> plat->div_reg.div_bits;
 
 	clk_rate = clk_rate / (div + 1);
@@ -104,8 +104,8 @@ ulong endiv_clk_set_rate(struct clk *clk, unsigned long rate)
 		div = clk_rate / rate - 1;
 	}
 
-	if(div > (0x1 << plat->div_reg.div_field)) {
-		div = plat->div_reg.div_field;
+	if(div > div_mask(plat->div_reg.div_field)) {
+		div = div_mask(plat->div_reg.div_field);
 	}
 
 	/* disable clk */
@@ -113,8 +113,8 @@ ulong endiv_clk_set_rate(struct clk *clk, unsigned long rate)
 	writel(reg0_val, plat->gate_reg.gt_reg.disable_reg);
 
 	val = readl(plat->div_reg.divider_reg);
-	val &= ~(plat->div_reg.div_field << plat->div_reg.div_bits);
-	val |= ((div & plat->div_reg.div_field) << plat->div_reg.div_bits);
+	val &= ~(div_mask(plat->div_reg.div_field) << plat->div_reg.div_bits);
+	val |= div<< plat->div_reg.div_bits;
 	writel(val, plat->div_reg.divider_reg);
 
 	/* enable clk */

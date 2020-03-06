@@ -15,6 +15,8 @@
 
 #include "clk-common.h"
 
+#define div_mask(width)	((1 << (width)) - 1)
+
 struct div_platdata {
 	phys_addr_t divider_reg;
 	unsigned int div_bits;

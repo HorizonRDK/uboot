@@ -70,7 +70,7 @@ static ulong div_gate_clk_get_rate(struct clk *clk)
 	clk_rate = clk_get_rate(&source);
 
 	val = readl(plat->div_reg.divider_reg);
-	div = (val & (plat->div_reg.div_field << plat->div_reg.div_bits))
+	div = (val & (div_mask(plat->div_reg.div_field) << plat->div_reg.div_bits))
 		>> plat->div_reg.div_bits;
 
 	clk_rate = clk_rate / (div + 1);
@@ -103,8 +103,8 @@ ulong div_gate_clk_set_rate(struct clk *clk, ulong rate)
 		div = clk_rate / rate - 1;
 	}
 
-	if(div > (0x1 << plat->div_reg.div_field)) {
-		div = plat->div_reg.div_field;
+	if(div > div_mask(plat->div_reg.div_field)) {
+		div = div_mask(plat->div_reg.div_field);
 	}
 
 	/* disable clk */
@@ -118,8 +118,8 @@ ulong div_gate_clk_set_rate(struct clk *clk, ulong rate)
 	}
 
 	val = readl(plat->div_reg.divider_reg);
-	val &= ~(plat->div_reg.div_field << plat->div_reg.div_bits);
-	val |= ((div & plat->div_reg.div_field) << plat->div_reg.div_bits);
+	val &= ~(div_mask(plat->div_reg.div_field) << plat->div_reg.div_bits);
+	val |= div << plat->div_reg.div_bits;
 	writel(val, plat->div_reg.divider_reg);
 
 	/* enable clk */
@@ -210,7 +210,7 @@ static int div_gate_clk_probe(struct udevice *dev)
 			ofnode_get_name(dev->node));
 		return -ENOENT;
 	}
-	plat->div_reg.div_field = (1 << reg[0]) - 1;
+	plat->div_reg.div_field = reg[0];
 	plat->gate_reg.clken_sta_field = reg[1];
 	plat->gate_reg.enable_field = reg[2];
 	plat->gate_reg.disable_field = reg[3];
