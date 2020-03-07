@@ -11,7 +11,7 @@
 #include "hobot-x3.dtsi"
 
 / {
-	model = "Hobot X3 Soc Board";
+	model = "Hobot XJ3 Soc Board";
 	compatible = "hobot,x3";
 
 	aliases {
