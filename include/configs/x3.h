@@ -24,7 +24,6 @@
 /* sw_reg30 and sw_reg31 in pmu */
 #define CPU_RELEASE_ADDR		(0xA6000278)
 
-
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
 #define X3_USABLE_RAM_TOP		0x3100000	/* Top is 49MB */
 
@@ -107,17 +106,30 @@
 /* boot mode select */
 #define CONFIG_DDR_BOOT
 
+#define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "
+/*
+ * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
+ *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
+ */
+
+#define CONFIG_BOOTCOMMAND "avb_verify;" \
+		"part size mmc 0 boot bootimagesize;" \
+		"part start mmc 0 boot bootimageblk;" \
+		"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
+		"bootm 0x10000000;"
+
 /*
  * This include file must after CONFIG_BOOTCOMMAND
  * and must include, otherwise will generate getenv failed
 */
 #include <config_distro_bootcmd.h>
-#define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "
-#define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;run ddrboot;"
-/*#define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
-		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
-
-*/
+/*
+ * #define CONFIG_BOOTARGS "earlycon loglevel=8 console=ttyS0 "
+ 	" clk_ignore_unused "
+ * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;run ddrboot;"
+ * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
+ *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
+ */
 
 /* default partition table */
 #ifndef PARTS_DEFAULT

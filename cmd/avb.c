@@ -21,17 +21,19 @@ static const char * const requested_partitions[] = {"boot",
 
 int do_avb_init(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
+	const char *interface;
 	unsigned long mmc_dev;
 
-	if (argc != 2)
+	if (argc != 3)
 		return CMD_RET_USAGE;
 
-	mmc_dev = simple_strtoul(argv[1], NULL, 16);
+	interface = (char *)argv[1];
+	mmc_dev = simple_strtoul(argv[2], NULL, 16);
 
 	if (avb_ops)
 		avb_ops_free(avb_ops);
 
-	avb_ops = avb_ops_alloc(mmc_dev);
+	avb_ops = avb_ops_alloc(interface, mmc_dev);
 	if (avb_ops)
 		return CMD_RET_SUCCESS;
 
@@ -324,7 +326,7 @@ int do_avb_is_unlocked(cmd_tbl_t *cmdtp, int flag,
 }
 
 static cmd_tbl_t cmd_avb[] = {
-	U_BOOT_CMD_MKENT(init, 2, 0, do_avb_init, "", ""),
+	U_BOOT_CMD_MKENT(init, 3, 0, do_avb_init, "", ""),
 	U_BOOT_CMD_MKENT(read_rb, 2, 0, do_avb_read_rb, "", ""),
 	U_BOOT_CMD_MKENT(write_rb, 3, 0, do_avb_write_rb, "", ""),
 	U_BOOT_CMD_MKENT(is_unlocked, 1, 0, do_avb_is_unlocked, "", ""),
@@ -356,7 +358,7 @@ static int do_avb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 U_BOOT_CMD(
 	avb, 29, 0, do_avb,
 	"Provides commands for testing Android Verified Boot 2.0 functionality",
-	"init <dev> - initialize avb2 for <dev>\n"
+	"init <interface> <dev> - initialize avb2 for <dev>\n"
 	"avb read_rb <num> - read rollback index at location <num>\n"
 	"avb write_rb <num> <rb> - write rollback index <rb> to <num>\n"
 	"avb is_unlocked - returns unlock status of the device\n"
@@ -369,4 +371,32 @@ U_BOOT_CMD(
 	"    <partname> by <offset> using data from <addr>\n"
 	"avb verify - run verification process using hash data\n"
 	"    from vbmeta structure\n"
+	);
+
+static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
+		char *const argv[])
+{
+	char *cmd = NULL;
+	int ret = 0;
+
+	/* avb init */
+	cmd = "avb init mmc 0";
+	ret = run_command(cmd, 0);
+	if (ret != 0)
+		printf("avb init failed! \n");
+
+	/* avb verify */
+	cmd = "avb verify";
+	ret = run_command(cmd, 0);
+	if(ret != 0)
+		printf("avb verify failed! \n");
+	else
+		printf("avb verify success! \n");
+
+	return ret;
+}
+
+U_BOOT_CMD(avb_verify, 1, 0, do_avb_verify,
+	"verify signature and hash in vbmeta partition",
+	"avb_verify - verify vbmeta"
 	);

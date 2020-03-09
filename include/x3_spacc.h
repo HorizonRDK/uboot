@@ -80,6 +80,9 @@
 #define HASH_IMG_SIZE   64
 #define HASH_RESULT_SIZE  32
 #define ROM_TEST_NUM	3
+#define SPACC_ALIGN (64*1024)
+
+#define X3_SPACC 1
 
 enum crypto_modes {
 	CRYPTO_MODE_NULL,

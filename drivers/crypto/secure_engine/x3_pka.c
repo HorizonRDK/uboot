@@ -448,9 +448,9 @@ static int run_pka(unsigned sz, const char *func, ...)
 	return 1;
 }
 
-static int do_modexp(unsigned char *dest, unsigned char *src,
-					 unsigned char *key, unsigned char *exp,
-					 unsigned int sz)
+static int do_modexp(unsigned char *dest, const unsigned char *src,
+		const unsigned char *key, unsigned char *exp,
+		unsigned int sz)
 {
 	/* Montgomery precomputation. */
 	if (!run_pka(sz, "calc_r_inv", "%D0", key, "=%C0", dest, (char *) 0))
@@ -477,8 +477,8 @@ static int do_modexp(unsigned char *dest, unsigned char *src,
 #define RSA_FIX_EXPONENT_65537_H_VAL 1
 #define KEY_LENGTH_2048_BY_BYTE 256
 
-int PKA_public_decrypt(int flen, unsigned char *src, unsigned char *key,
-					   unsigned char *dest)
+int PKA_public_decrypt(int flen, const unsigned char *src,
+		const unsigned char *key, unsigned char *dest)
 {
 	unsigned char e[KEY_LENGTH_2048_BY_BYTE];
 	unsigned int ret;

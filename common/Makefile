@@ -63,6 +63,7 @@ obj-$(CONFIG_CMDLINE) += cli_readline.o cli_simple.o
 
 obj-y += ota.o
 obj-y += veeprom.o
+obj-$(CONFIG_AVB_VERIFY) += avb_verify.o
 endif # !CONFIG_SPL_BUILD
 
 obj-$(CONFIG_$(SPL_TPL_)BOOTSTAGE) += bootstage.o
@@ -127,5 +128,3 @@ obj-$(CONFIG_FSL_DDR_INTERACTIVE) += cli_simple.o cli_readline.o
 obj-$(CONFIG_DFU_OVER_USB) += dfu.o
 obj-$(CONFIG_$(SPL_)LOG) += log.o
 obj-$(CONFIG_$(SPL_)LOG_CONSOLE) += log_console.o
-
-obj-$(CONFIG_AVB_VERIFY) += avb_verify.o

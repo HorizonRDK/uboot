@@ -8,6 +8,7 @@
 #include <android_image.h>
 #include <malloc.h>
 #include <errno.h>
+#include <hb_info.h>
 
 #define ANDROID_IMAGE_DEFAULT_KERNEL_ADDR	0x10008000
 
@@ -134,9 +135,6 @@ int android_image_get_ramdisk(const struct andr_img_hdr *hdr,
 		return -1;
 	}
 
-	printf("RAM disk load addr 0x%08x size %u KiB\n",
-	       hdr->ramdisk_addr, DIV_ROUND_UP(hdr->ramdisk_size, 1024));
-
 	*rd_data = (unsigned long)hdr;
 	*rd_data += hdr->page_size;
 	*rd_data += ALIGN(hdr->kernel_size, hdr->page_size);
@@ -145,22 +143,66 @@ int android_image_get_ramdisk(const struct andr_img_hdr *hdr,
 	return 0;
 }
 
-int android_image_get_second(const struct andr_img_hdr *hdr,
-			      ulong *second_data, ulong *second_len)
+static char *x3_image_get_dtb(unsigned int board_type,
+		struct hb_kernel_hdr *config, ulong *second_data,
+		ulong *second_len)
 {
+	char *s = NULL;
+	int i, count;
+	ulong base_addr;
+
+	count = config->dtb_number;
+
+	if (count > DTB_MAX_NUM) {
+		printf("error: count %02x not support\n", count);
+		return NULL;
+	}
+
+	for (i = 0; i < count - 1; i++) {
+		if (board_type == config->dtb[i].board_id) {
+			s = (char *)config->dtb[i].dtb_name;
+			base_addr = ((ulong)config) + sizeof(struct hb_kernel_hdr);
+
+			/* base_addr + offset */
+			*second_data = base_addr + config->dtb[i].dtb_addr;
+			*second_len = config->dtb[i].dtb_size;
+
+			break;
+		}
+	}
+
+	if (i == count) {
+		printf("error: board_type %02x not support\n", board_type);
+		return NULL;
+	}
+
+	return s;
+}
+
+int android_image_get_second(const struct andr_img_hdr *hdr,
+	      ulong *second_data, ulong *second_len)
+{
+	uint64_t second_addr = 0;
+	char *name = NULL;
+	uint32_t board_type = hb_board_type_get();;
+
 	if (!hdr->second_size) {
 		*second_data = *second_len = 0;
 		return -1;
 	}
 
-	*second_data = (unsigned long)hdr;
-	*second_data += hdr->page_size;
-	*second_data += ALIGN(hdr->kernel_size, hdr->page_size);
-	*second_data += ALIGN(hdr->ramdisk_size, hdr->page_size);
+	/* get second stage addr */
+	second_addr = (uint64_t)hdr;
+	second_addr += hdr->page_size;
+	second_addr += ALIGN(hdr->kernel_size, hdr->page_size);
+	second_addr += ALIGN(hdr->ramdisk_size, hdr->page_size);
 
-	printf("second address is 0x%lx\n",*second_data);
+	/* search file dtb depend on board_id */
+	name = x3_image_get_dtb(board_type,
+		(struct hb_kernel_hdr *)second_addr, second_data, second_len);
 
-	*second_len = hdr->second_size;
+	printf("dtb_name = %s\n", name);
+
 	return 0;
 }
 

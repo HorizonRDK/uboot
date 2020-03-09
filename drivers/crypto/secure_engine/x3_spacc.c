@@ -697,10 +697,12 @@ int spacc_ex(uint64_t src, uint64_t dst, unsigned int src_len,
 			hash_set_l2_sz = hash_set_blk_num * SHA256_SIZE;
 			l2_sz_mod = hash_set_l2_sz % HASH_SET_BLOCK_SIZE;
 
-			if (l2_sz_mod != 0)
+			if (l2_sz_mod != 0) {
+				memset((void *)(dst + hash_set_l2_sz), 0,
+					HASH_SET_BLOCK_SIZE - l2_sz_mod);
 				hash_set_l2_sz =
 					hash_set_l2_sz + HASH_SET_BLOCK_SIZE - l2_sz_mod;
-
+			}
 			spacc_packet_enqueue(&sj, hash, dst, dst,
 								 hash_set_l2_sz, 0, hash_set_l2_sz, 0, 0);
 			if (spacc_packet_dequeue(JOB_IDX) != CRYPTO_OK)

@@ -26,6 +26,7 @@ enum avb_boot_state {
 struct AvbOpsData {
 	struct AvbOps ops;
 	int mmc_dev;
+	enum if_type if_type;
 	enum avb_boot_state boot_state;
 };
 
@@ -41,7 +42,8 @@ enum mmc_io_type {
 	IO_WRITE
 };
 
-AvbOps *avb_ops_alloc(int boot_device);
+AvbOps *avb_ops_alloc(const char *intf, int boot_device);
+
 void avb_ops_free(AvbOps *ops);
 
 char *avb_set_state(AvbOps *ops, enum avb_boot_state boot_state);

@@ -56,15 +56,9 @@
 #define BASE_BOARD_CVB			0x3
 #define BASE_BOARD_CUSTOMER_BOARD	0x4
 
-#define PIN_1STBOOT_SEL(x)		((x) & 0x1)
-
-#define PIN_BOARD_SEL(x,y)		((((x) >> 8) & 0x3) << 4)\
-		| ((((y) >> 7) & 0x1) << 3) | ((((y) >> 10) & 0x1) << 2)\
-		| ((((y) >> 11) & 0x1) << 1) | (((y) >> 12) & 0x1)
-
 /* Boot strap Bit0 is reserved */
+#define PIN_1STBOOT_SEL(x)		((x) & 0x1)
 #define PIN_2NDBOOT_SEL(x)		(((x) >> 1) & 0x7)
-
 #define DDR_MANUF_SEL(x)  (((x) >> 28) & 0xf)
 #define DDR_TYPE_SEL(x) (((x) >> 24) & 0xf)
 #define DDR_FREQ_SEL(x)  (((x) >> 20) & 0xf)
@@ -73,6 +67,9 @@
 #define BASE_BOARD_SEL(x)  ((x) & 0xff)
 #define PIN_BASE_BOARD_SEL(x)	((((x >> 14) & 0x1) << 0x1) | \
 	((x >> 12) & 0x1))
+#define PIN_BOARD_SEL(x, y)		((((x) >> 8) & 0x3) << 4)\
+		| ((((y) >> 7) & 0x1) << 3) | ((((y) >> 10) & 0x1) << 2)\
+		| ((((y) >> 11) & 0x1) << 1) | (((y) >> 12) & 0x1)
 
 #define PIN_2ND_EMMC		0x0
 #define PIN_2ND_NAND		0x1
@@ -88,8 +85,10 @@
 #define HB_BOOTINFO_ADDR	(0x10000000)
 #define HB_DTB_CONFIG_ADDR	(HB_BOOTINFO_ADDR + 0x1000)
 #define DTB_MAPPING_ADDR	0x140000
+#define DTB_MAX_NUM		20
 #define DTB_MAPPING_SIZE	0x400
-#define DTB_MAX_NUM		40
+#define DTB_NAME_MAX_LEN	32
+#define DTB_RESERVE_SIZE	((DTB_MAPPING_SIZE - (DTB_MAX_NUM*48) - 20)/4)
 #define KERNEL_HEAD_ADDR	0x234400
 #define RECOVERY_HEAD_ADDR	0x1634400
 
@@ -174,7 +173,7 @@ struct hb_dtb_hdr {
 	unsigned int gpio_id;
 	unsigned int dtb_addr;		/* Address in storage */
 	unsigned int dtb_size;
-	unsigned char dtb_name[32];
+	unsigned char dtb_name[DTB_NAME_MAX_LEN];
 };
 
 struct hb_kernel_hdr {
@@ -186,7 +185,7 @@ struct hb_kernel_hdr {
 
 	struct hb_dtb_hdr dtb[DTB_MAX_NUM];
 
-	unsigned int reserved[27];
+	unsigned int reserved[DTB_RESERVE_SIZE];
 };
 
 struct hb_flash_kernel_hdr {
@@ -199,7 +198,7 @@ struct hb_flash_kernel_hdr {
 };
 
 int hb_boot_mode_get(void);
-
+uint32_t hb_board_type_get(void);
 uint32_t hb_base_board_type_get(void);
 
 #endif /* __HB_INFO_H__ */

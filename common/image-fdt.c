@@ -15,6 +15,8 @@
 #include <linux/libfdt.h>
 #include <mapmem.h>
 #include <asm/io.h>
+#include <fdtdec.h>
+#include <configs/x3.h>
 
 #ifndef CONFIG_SYS_FDT_PAD
 #define CONFIG_SYS_FDT_PAD 0x3000
@@ -67,6 +69,21 @@ static const image_header_t *image_get_fdt(ulong fdt_addr)
 }
 #endif
 
+static void boot_fdt_reserve_region(struct lmb *lmb, uint64_t addr,
+		    uint64_t size)
+{
+	int ret;
+
+	ret = lmb_reserve(lmb, addr, size);
+	if (ret >= 0) {
+		debug("   reserving fdt memory region: addr=%llx size=%llx\n",
+		      addr, size);
+	} else {
+		printf("ERROR: reserving fdt memory region failed ");
+		printf("(addr=%llx size=%llx)\n", addr, size);
+	}
+}
+
 /**
  * boot_fdt_add_mem_rsv_regions - Mark the memreserve sections as unusable
  * @lmb: pointer to lmb handle, will be used for memory mgmt
@@ -79,19 +96,48 @@ static const image_header_t *image_get_fdt(ulong fdt_addr)
 void boot_fdt_add_mem_rsv_regions(struct lmb *lmb, void *fdt_blob)
 {
 	uint64_t addr, size;
-	int i, total;
+	int i, total, ret;
+	int nodeoffset, subnode;
+	struct fdt_resource res;
 
 	if (fdt_check_header(fdt_blob) != 0)
 		return;
 
+	/* process memreserve sections */
 	total = fdt_num_mem_rsv(fdt_blob);
 	for (i = 0; i < total; i++) {
 		if (fdt_get_mem_rsv(fdt_blob, i, &addr, &size) != 0)
 			continue;
 		printf("   reserving fdt memory region: addr=%llx size=%llx\n",
-		       (unsigned long long)addr, (unsigned long long)size);
-		lmb_reserve(lmb, addr, size);
+			addr, size);
+		boot_fdt_reserve_region(lmb, addr, size);
 	}
+
+	/* process reserved-memory */
+	nodeoffset = fdt_subnode_offset(fdt_blob, 0, "reserved-memory");
+	if (nodeoffset >= 0) {
+		subnode = fdt_first_subnode(fdt_blob, nodeoffset);
+		while (subnode >= 0) {
+			/* check if this subnode has a reg property */
+			ret = fdt_get_resource(fdt_blob, subnode, "reg", 0,
+						   &res);
+			if (!ret) {
+				addr = res.start;
+				size = res.end - res.start + 1;
+				boot_fdt_reserve_region(lmb, addr, size);
+			}
+
+			subnode = fdt_next_subnode(fdt_blob, subnode);
+		}
+	}
+}
+
+static void x3_dts_node_modify(void) {
+	char cmd[128];
+
+	/* modify board id, som id and base board id */
+	snprintf(cmd, sizeof(cmd), "send_id");
+	run_command(cmd, 0);
 }
 
 /**
@@ -156,10 +202,14 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 			    (void *)(ulong) lmb_alloc(lmb, of_len, 0x1000);
 		}
 	} else {
-		of_start =
-		    (void *)(ulong) lmb_alloc_base(lmb, of_len, 0x1000,
-						   env_get_bootm_mapsize()
-						   + env_get_bootm_low());
+		of_start = (void *) FDT_ADDR;
+		of_len = 128 * 1024;
+
+		/*
+		 * (void *)(ulong) lmb_alloc_base(lmb, of_len, 0x1000,
+		 *				   env_get_bootm_mapsize()
+		 *				   + env_get_bootm_low());
+		 */
 	}
 
 	if (of_start == NULL) {
@@ -188,12 +238,16 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 			goto error;
 		}
 		puts("OK\n");
+
+		x3_dts_node_modify();
 	}
 
 	*of_flat_tree = of_start;
 	*of_size = of_len;
 
-	set_working_fdt_addr((ulong)*of_flat_tree);
+	if (CONFIG_IS_ENABLED(CMD_FDT))
+		set_working_fdt_addr(map_to_sysmem(*of_flat_tree));
+
 	return 0;
 
 error:
@@ -232,7 +286,7 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 #endif
 	ulong		fdt_addr;
 	char		*fdt_blob = NULL;
-	void		*buf;
+	void		*buf = NULL;
 #if CONFIG_IS_ENABLED(FIT)
 	const char	*fit_uname_config = images->fit_uname_cfg;
 	const char	*fit_uname_fdt = NULL;
@@ -241,6 +295,13 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 #endif
 	const char *select = NULL;
 	int		ok_no_fdt = 0;
+
+#ifdef CONFIG_ANDROID_BOOT_IMAGE
+	/*
+	 * Look for an Android boot image.
+	 */
+	buf = map_sysmem(images->os.start, 0);
+#endif
 
 	*of_flat_tree = NULL;
 	*of_size = 0;
@@ -284,6 +345,9 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 			 * command argument
 			 */
 			fdt_addr = map_to_sysmem(images->fit_hdr_os);
+			debug("*  fdt: image address = 0x%08lx\n",
+				fdt_addr);
+
 			fdt_noffset = fit_get_node_from_config(images,
 							       FIT_FDT_PROP,
 							       fdt_addr);
@@ -415,6 +479,21 @@ int boot_get_fdt(int flag, int argc, char * const argv[], uint8_t arch,
 			debug("## No Flattened Device Tree\n");
 			goto no_fdt;
 		}
+#ifdef CONFIG_ANDROID_BOOT_IMAGE
+	} else if (genimg_get_format(buf) == IMAGE_FORMAT_ANDROID) {
+		struct andr_img_hdr *hdr = buf;
+		ulong fdt_data, fdt_len;
+
+		if (android_image_get_second(hdr, &fdt_data, &fdt_len) != 0)
+			goto no_fdt;
+
+		fdt_blob = (char *)fdt_data;
+		if (fdt_check_header(fdt_blob) != 0)
+			goto no_fdt;
+
+		if (fdt_totalsize(fdt_blob) != fdt_len)
+			goto error;
+#endif
 	} else {
 		debug("## No Flattened Device Tree\n");
 		goto no_fdt;

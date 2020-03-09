@@ -9,6 +9,10 @@
 #include "avb_sha.h"
 #include "avb_util.h"
 #include "avb_version.h"
+#include <../lib/libavb/avb_slot_verify.h>
+
+#include <malloc.h>
+#include <x3_spacc.h>
 
 AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     const uint8_t* data,
@@ -19,12 +23,15 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
   AvbVBMetaImageHeader h;
   uint8_t* computed_hash;
   const AvbAlgorithmData* algorithm;
+#ifndef X3_SPACC
   AvbSHA256Ctx sha256_ctx;
+#endif
   AvbSHA512Ctx sha512_ctx;
   const uint8_t* header_block;
   const uint8_t* authentication_block;
   const uint8_t* auxiliary_block;
   int verification_result;
+  uint8_t *header_buffer = NULL;
 
   ret = AVB_VBMETA_VERIFY_RESULT_INVALID_VBMETA_HEADER;
 
@@ -145,25 +152,54 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     goto out;
   }
 
-  /* No overflow checks needed from here-on after since all block
-   * sizes and offsets have been verified above.
-   */
+	/* No overflow checks needed from here-on after since all block
+	 * sizes and offsets have been verified above.
+	 */
+	header_block = data;
+	authentication_block = header_block + sizeof(AvbVBMetaImageHeader);
+	auxiliary_block = authentication_block + h.authentication_data_block_size;
 
-  header_block = data;
-  authentication_block = header_block + sizeof(AvbVBMetaImageHeader);
-  auxiliary_block = authentication_block + h.authentication_data_block_size;
+	/* malloc align buffer */
+	uint64_t buffer_size = sizeof(AvbVBMetaImageHeader)
+		+ h.auxiliary_data_block_size;
+	header_buffer = memalign(64*1024, buffer_size);  //SPACC_ALIGN
+	if (header_buffer == NULL) {
+		ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+		goto out;
+	}
 
   switch (h.algorithm_type) {
     /* Explicit fall-through: */
     case AVB_ALGORITHM_TYPE_SHA256_RSA2048:
     case AVB_ALGORITHM_TYPE_SHA256_RSA4096:
     case AVB_ALGORITHM_TYPE_SHA256_RSA8192:
-      avb_sha256_init(&sha256_ctx);
-      avb_sha256_update(
-          &sha256_ctx, header_block, sizeof(AvbVBMetaImageHeader));
-      avb_sha256_update(
-          &sha256_ctx, auxiliary_block, h.auxiliary_data_block_size);
-      computed_hash = avb_sha256_final(&sha256_ctx);
+#ifndef X3_SPACC
+	avb_sha256_init(&sha256_ctx);
+	avb_sha256_update(
+		&sha256_ctx, header_block, sizeof(AvbVBMetaImageHeader));
+	avb_sha256_update(
+		&sha256_ctx, auxiliary_block, h.auxiliary_data_block_size);
+	computed_hash = avb_sha256_final(&sha256_ctx);
+#else
+	/* sha256 message */
+	memcpy(header_buffer, header_block, sizeof(AvbVBMetaImageHeader));
+	memcpy(header_buffer + sizeof(AvbVBMetaImageHeader), auxiliary_block,
+		h.auxiliary_data_block_size);
+
+	/* disable dcache */
+	dcache_disable();
+
+	/* calculate digest: root_hash */
+	spacc_ex((uint64_t) header_buffer, (uint64_t) header_buffer,
+		buffer_size, 0, 1,
+		CRYPTO_MODE_HASH_SHA256, 0, 0, 0, 0);
+
+	computed_hash = header_buffer;
+
+	/* enable dcache */
+	dcache_enable();
+#endif
+
       break;
     /* Explicit fall-through: */
     case AVB_ALGORITHM_TYPE_SHA512_RSA2048:
@@ -216,7 +252,10 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
   ret = AVB_VBMETA_VERIFY_RESULT_OK;
 
 out:
-  return ret;
+	if (header_buffer != NULL)
+		free(header_buffer);
+
+	return ret;
 }
 
 void avb_vbmeta_image_header_to_host_byte_order(const AvbVBMetaImageHeader* src,

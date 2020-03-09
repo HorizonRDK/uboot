@@ -37,6 +37,8 @@
 #include <asm/arch-x3/hb_reg.h>
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
+#include <x3_spacc.h>
+#include <x3_pka.h>
 
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT
@@ -449,7 +451,7 @@ static bool hb_pf5024_device_id_getable(void)
 		return false;
 }
 
-static uint32_t hb_board_id_get(void)
+uint32_t hb_board_type_get(void)
 {
 	uint32_t board_type, base_board_id, som_id;
 	bool flag = hb_pf5024_device_id_getable();
@@ -577,7 +579,7 @@ static char *hb_mmc_dtb_load(unsigned int board_id,
 	char *s = NULL;
 	uint32_t i = 0;
 	uint32_t count = config->dtb_number;
-	uint32_t board_type = hb_board_id_get();
+	uint32_t board_type = hb_board_type_get();
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -732,7 +734,7 @@ static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 	void *dtb_addr, *base_addr = (void *)config;
 	uint32_t i = 0;
 	uint32_t count = config->dtb_number;
-	uint32_t board_type = hb_board_id_get();
+	uint32_t board_type = hb_board_type_get();
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -1562,15 +1564,21 @@ int last_stage_init(void)
 	base_board_gpio_test();
 	boot_src_test();
 
+	/* spacc and pka init */
+	spacc_init();
+	pka_init();
+
 #ifdef HB_AUTOBOOT
 	boot_stage_mark(2);
 	wait_start();
 #endif
 #ifndef	CONFIG_FPGA_HOBOT
 #ifndef CONFIG_DOWNLOAD_MODE
-	if ((boot_mode == PIN_2ND_EMMC) || (boot_mode == PIN_2ND_NOR) || \
-		(boot_mode == PIN_2ND_NAND))
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND))
 		hb_env_and_boardid_init();
+
+	if (boot_mode == PIN_2ND_EMMC)
+		hb_mmc_env_init();
 
 	if (boot_mode == PIN_2ND_USB)
 		hb_usb_dtb_config();

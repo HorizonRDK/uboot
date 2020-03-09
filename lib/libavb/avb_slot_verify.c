@@ -14,6 +14,10 @@
 #include "avb_util.h"
 #include "avb_vbmeta_image.h"
 #include "avb_version.h"
+#include <malloc.h>
+#include <x3_spacc.h>
+
+uint64_t image_salt_len = 0;
 
 /* Maximum number of partitions that can be loaded with avb_slot_verify(). */
 #define MAX_NUMBER_OF_LOADED_PARTITIONS 32
@@ -88,7 +92,7 @@ static AvbSlotVerifyResult load_full_partition(AvbOps* ops,
 
   /* Allocate and copy the partition. */
   if (!*out_image_preloaded) {
-    *out_image_buf = avb_malloc(image_size);
+    *out_image_buf = memalign(64*1024, image_size);
     if (*out_image_buf == NULL) {
       return AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
     }
@@ -153,6 +157,90 @@ static AvbSlotVerifyResult read_persistent_digest(AvbOps* ops,
     return AVB_SLOT_VERIFY_RESULT_ERROR_IO;
   }
   return AVB_SLOT_VERIFY_RESULT_OK;
+}
+
+
+static uint8_t *x3_calculate_hash(uint8_t *image_buf,
+	const uint8_t *desc_salt, AvbHashDescriptor *hash_desc)
+{
+	uint64_t image_size = hash_desc->image_size;
+
+#ifndef X3_SPACC
+	uint64_t image_offset = 0;
+	AvbSHA256Ctx sha256_ctx;
+	uint32_t block_size = 32768;
+	uint32_t hash_size = 32;
+	uint8_t *digest = NULL;
+	uint32_t digest_len = 0;
+	uint32_t blk_num = image_size / block_size;
+	uint32_t blk_mod = image_size % block_size;
+	uint32_t hash_block_size = 64;
+	uint32_t digest_mod = 0;
+	uint32_t i = 0;
+
+	/* calculate hash tree */
+	if (blk_num !=0) {
+		for (i = 0; i < blk_num + 1; i++) {
+			image_offset = i * block_size;
+			avb_sha256_init(&sha256_ctx);
+
+			if (i < blk_num) {
+				avb_sha256_update(&sha256_ctx, image_buf + image_offset,
+					block_size);
+			} else if (blk_mod != 0) {
+				avb_sha256_update(&sha256_ctx, image_buf + image_offset,
+					blk_mod);
+			} else {
+					break;
+			}
+			digest = avb_sha256_final(&sha256_ctx);
+			memcpy(image_buf + digest_len, digest, hash_size);
+			digest_len = digest_len + hash_size;
+		}
+	} else {
+		digest_len = hash_desc->image_size;
+	}
+
+	/* padding */
+	digest_mod = digest_len % hash_block_size;
+	if (digest_mod != 0) {
+		memset(image_buf + digest_len, 0, digest_mod);
+		digest_len = digest_len + hash_block_size - digest_mod;
+	}
+
+	/* calculate digest: root_hash */
+	avb_sha256_init(&sha256_ctx);
+	avb_sha256_update(&sha256_ctx, image_buf, digest_len);
+	digest = avb_sha256_final(&sha256_ctx);
+
+	/* calculate digest: root_hash + salt */
+	avb_sha256_init(&sha256_ctx);
+	avb_sha256_update(&sha256_ctx, desc_salt, hash_desc->salt_len);
+	avb_sha256_update(&sha256_ctx, digest, 32);
+	digest = avb_sha256_final(&sha256_ctx);
+
+	return digest;
+#else
+	/* disable dcache */
+	dcache_disable();
+
+	/* calculate digest: root_hash */
+	spacc_ex((uint64_t) image_buf, (uint64_t) image_buf, image_size, 0, 1,
+		CRYPTO_MODE_HASH_SHA256, 0, 0, 0, 0);
+
+	/* calculate digest: root_hash + salt */
+	memcpy(image_buf + image_salt_len, image_buf, 32);
+	memcpy(image_buf, desc_salt, image_salt_len);
+
+	spacc_ex((uint64_t) image_buf,
+		(uint64_t) image_buf, image_salt_len + 32, 0, 1,
+		CRYPTO_MODE_HASH_SHA256, 0, 0, 0, 0);
+
+	/* enable dcache */
+	dcache_enable();
+
+	return image_buf;
+#endif
 }
 
 static AvbSlotVerifyResult load_and_verify_hash_partition(
@@ -238,64 +326,72 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     }
   }
 
-  /* If we're allowing verification errors then hash_desc.image_size
-   * may no longer match what's in the partition... so in this case
-   * just load the entire partition.
-   *
-   * For example, this can happen if a developer does 'fastboot flash
-   * boot /path/to/new/and/bigger/boot.img'. We want this to work
-   * since it's such a common workflow.
-   */
-  image_size = hash_desc.image_size;
-  if (allow_verification_error) {
-    if (ops->get_size_of_partition == NULL) {
-      avb_errorv(part_name,
-                 ": The get_size_of_partition() operation is "
-                 "not implemented so we may not load the entire partition. "
-                 "Please implement.",
-                 NULL);
-    } else {
-      io_ret = ops->get_size_of_partition(ops, part_name, &image_size);
-      if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
-        ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
-        goto out;
-      } else if (io_ret != AVB_IO_RESULT_OK) {
-        avb_errorv(part_name, ": Error determining partition size.\n", NULL);
-        ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
-        goto out;
-      }
-      avb_debugv(part_name, ": Loading entire partition.\n", NULL);
-    }
-  }
+	/* If we're allowing verification errors then hash_desc.image_size
+	* may no longer match what's in the partition... so in this case
+	* just load the entire partition.
+	*
+	* For example, this can happen if a developer does 'fastboot flash
+	* boot /path/to/new/and/bigger/boot.img'. We want this to work
+	* since it's such a common workflow.
+	*/
+	image_size = hash_desc.image_size;
+#ifdef X3_SPACC
+	image_salt_len = hash_desc.salt_len;
+#endif
+	if (allow_verification_error) {
+		if (ops->get_size_of_partition == NULL) {
+			avb_errorv(part_name,
+				": The get_size_of_partition() operation is "
+				"not implemented so we may not load the entire partition. "
+				"Please implement.",
+				NULL);
+		} else {
+			io_ret = ops->get_size_of_partition(ops, part_name, &image_size);
+			if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
+				ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+				goto out;
+			} else if (io_ret != AVB_IO_RESULT_OK) {
+				avb_errorv(part_name, ": Error determining partition size.\n", NULL);
+				ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
+				goto out;
+			}
+			avb_debugv(part_name, ": Loading entire partition.\n", NULL);
+		}
+	}
 
-  ret = load_full_partition(
-      ops, part_name, image_size, &image_buf, &image_preloaded);
-  if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
-    goto out;
-  }
+	ret = load_full_partition(
+		ops, part_name, image_size, &image_buf, &image_preloaded);
+	if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
+		goto out;
+	}
 
-  if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha256") == 0) {
-    AvbSHA256Ctx sha256_ctx;
-    avb_sha256_init(&sha256_ctx);
-    avb_sha256_update(&sha256_ctx, desc_salt, hash_desc.salt_len);
-    avb_sha256_update(&sha256_ctx, image_buf, hash_desc.image_size);
-    digest = avb_sha256_final(&sha256_ctx);
-    digest_len = AVB_SHA256_DIGEST_SIZE;
-  } else if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha512") == 0) {
-    AvbSHA512Ctx sha512_ctx;
-    avb_sha512_init(&sha512_ctx);
-    avb_sha512_update(&sha512_ctx, desc_salt, hash_desc.salt_len);
-    avb_sha512_update(&sha512_ctx, image_buf, hash_desc.image_size);
-    digest = avb_sha512_final(&sha512_ctx);
-    digest_len = AVB_SHA512_DIGEST_SIZE;
-  } else {
-    avb_errorv(part_name, ": Unsupported hash algorithm.\n", NULL);
-    ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
-    goto out;
-  }
+	if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha256") == 0) {
+#ifdef X3_SPACC
+		digest = x3_calculate_hash(image_buf, desc_salt, &hash_desc);
+#else
+		AvbSHA256Ctx sha256_ctx;
+		avb_sha256_init(&sha256_ctx);
+		avb_sha256_update(&sha256_ctx, desc_salt, hash_desc.salt_len);
+		avb_sha256_update(&sha256_ctx, image_buf, hash_desc.image_size);
+		digest = avb_sha256_final(&sha256_ctx);
+#endif
+
+		digest_len = AVB_SHA256_DIGEST_SIZE;
+	} else if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha512") == 0) {
+		AvbSHA512Ctx sha512_ctx;
+		avb_sha512_init(&sha512_ctx);
+		avb_sha512_update(&sha512_ctx, desc_salt, hash_desc.salt_len);
+		avb_sha512_update(&sha512_ctx, image_buf, hash_desc.image_size);
+		digest = avb_sha512_final(&sha512_ctx);
+		digest_len = AVB_SHA512_DIGEST_SIZE;
+	} else {
+		avb_errorv(part_name, ": Unsupported hash algorithm.\n", NULL);
+		ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
+		goto out;
+	}
 
   if (hash_desc.digest_len == 0) {
-    // Expect a match to a persistent digest.
+    /* Expect a match to a persistent digest. */
     avb_debugv(part_name, ": No digest, using persistent digest.\n", NULL);
     expected_digest_len = digest_len;
     expected_digest = expected_digest_buf;
@@ -350,7 +446,7 @@ out:
 
 fail:
   if (image_buf != NULL && !image_preloaded) {
-    avb_free(image_buf);
+    free(image_buf);
   }
   return ret;
 }
@@ -551,7 +647,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     vbmeta_size = footer.vbmeta_size;
   }
 
-  vbmeta_buf = avb_malloc(vbmeta_size);
+  //vbmeta_buf = avb_malloc(vbmeta_size);
+  vbmeta_buf = memalign(64*1024, vbmeta_size);  //SPACC_ALIGN
   if (vbmeta_buf == NULL) {
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
     goto out;
@@ -816,7 +913,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
             goto out;
           }
         }
-      } break;
+      }
+      break;
 
       case AVB_DESCRIPTOR_TAG_CHAIN_PARTITION: {
         AvbSlotVerifyResult sub_ret;
@@ -969,6 +1067,9 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
          * This is because the only processing here is to find the digest and
          * make it available on the kernel command line.
          */
+         printf("hashtree_desc.root_digest_len : %d \n", \
+         	hashtree_desc.root_digest_len);
+
         if (hashtree_desc.root_digest_len == 0) {
           char part_name[AVB_PART_NAME_MAX_SIZE];
           size_t digest_len = 0;
@@ -1025,6 +1126,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
           }
 
           if (out_additional_cmdline_subst) {
+	  printf("avb_add_root_digest_substitution \n");
             ret =
                 avb_add_root_digest_substitution(part_name,
                                                  digest_buf,
@@ -1035,7 +1137,9 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
             }
           }
         }
-      } break;
+      }
+      printf("avb descriptor tag hashtree verify success!\n");
+      break;
 
       case AVB_DESCRIPTOR_TAG_PROPERTY:
         /* Do nothing. */
@@ -1063,7 +1167,7 @@ out:
    */
   if (vbmeta_image_data == NULL) {
     if (vbmeta_buf != NULL) {
-      avb_free(vbmeta_buf);
+      free(vbmeta_buf);
     }
   }
   if (descriptors != NULL) {
