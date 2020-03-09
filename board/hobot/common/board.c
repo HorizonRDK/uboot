@@ -902,6 +902,14 @@ static void hb_usb_dtb_config(void) {
 	hb_nor_dtb_handle(head);
 }
 
+static void hb_usb_env_init(void)
+{
+	char *tmp = "send_id;run ddrboot";
+
+	/* set bootcmd */
+	env_set("bootcmd", tmp);
+}
+
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_dtb_mapping_load(void)
 {
@@ -1580,8 +1588,11 @@ int last_stage_init(void)
 	if (boot_mode == PIN_2ND_EMMC)
 		hb_mmc_env_init();
 
-	if (boot_mode == PIN_2ND_USB)
+	if (boot_mode == PIN_2ND_USB) {
 		hb_usb_dtb_config();
+
+		hb_usb_env_init();
+	}
 #endif
 #endif
 
