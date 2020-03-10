@@ -1419,6 +1419,14 @@ static int hb_swinfo_dump_donecheck(int retc)
 #endif
 #endif
 
+#ifdef CONFIG_FASTBOOT
+static void hb_run_fastboot(void)
+{
+	printf("enter fastboot mode(reuse bootsel[15]: 1)\n");
+	run_command("fastboot 0", 0);
+}
+#endif
+
 #if 0
 static void misc()
 {
@@ -1580,6 +1588,13 @@ int last_stage_init(void)
 	boot_stage_mark(2);
 	wait_start();
 #endif
+
+#ifdef CONFIG_FASTBOOT
+	if (boot_mode != PIN_2ND_USB && hb_fastboot_mode()) {
+		hb_run_fastboot();
+	}
+#endif
+
 #ifndef	CONFIG_FPGA_HOBOT
 #ifndef CONFIG_DOWNLOAD_MODE
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND))
@@ -1602,6 +1617,7 @@ int last_stage_init(void)
 #ifndef	CONFIG_FPGA_HOBOT
 	hb_swinfo_boot();
 #endif
+
 //	misc();
 
 	return 0;

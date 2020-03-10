@@ -109,6 +109,14 @@ int hb_boot_mode_get(void) {
 	return PIN_2NDBOOT_SEL(reg);
 }
 
+int hb_fastboot_mode(void) {
+	unsigned int reg;
+
+	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
+
+	return PIN_FASTBOOT_SEL(reg);
+}
+
 int dram_init(void)
 {
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;

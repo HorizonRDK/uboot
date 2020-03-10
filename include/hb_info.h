@@ -59,6 +59,8 @@
 /* Boot strap Bit0 is reserved */
 #define PIN_1STBOOT_SEL(x)		((x) & 0x1)
 #define PIN_2NDBOOT_SEL(x)		(((x) >> 1) & 0x7)
+/* Reuse strap Bit15 as fastboot mode except usb boot */
+#define PIN_FASTBOOT_SEL(x)		(((x) >> 16) & 0x1)
 #define DDR_MANUF_SEL(x)  (((x) >> 28) & 0xf)
 #define DDR_TYPE_SEL(x) (((x) >> 24) & 0xf)
 #define DDR_FREQ_SEL(x)  (((x) >> 20) & 0xf)
