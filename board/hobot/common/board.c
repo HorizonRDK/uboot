@@ -521,7 +521,7 @@ static void hb_nand_dtb_load(unsigned int board_id,
 	char *s = NULL;
 	bool gz_flag = false;
 	int i, count = config->dtb_number;
-	uint32_t board_type = hb_board_id_get();
+	uint32_t board_type = hb_board_type_get();
 
 	if (count > DTB_MAX_NUM) {
 		printf("error: count %02x not support\n", count);
@@ -1220,56 +1220,68 @@ static int nand_write_partition(char *partition, int partition_offset,
 static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
 {
-	int ret;
+#define MAX_MTD_PART_NUM 16
+#define MAX_MTD_PART_NAME 128
+	int ret, last_part, total_part = 0, len = 0, name_len = 0;
 	u32 img_addr, img_size;
 	/*[0] - bl_size; [1] - boot_size; [2] - rootfs_size; [3] - userdata_size*/
-	u32 part_sizes[4];
-	u32 sys_offset, rootfs_offset, userdata_offset;
+	u32 part_sizes[MAX_MTD_PART_NUM] = { 0 };
+	u32 offsets[MAX_MTD_PART_NUM] = { 0 };
+	char part_name[MAX_MTD_PART_NAME][MAX_MTD_PART_NUM] = { "" };
 	char *s1 = NULL;
 	char *s2 = NULL;
+	char *mtdparts_env = NULL;
+	char *name_start = NULL;
+	char *name_end = NULL;
+	char curSize[16] = { 0 };
 	if (argc < 3) {
 		printf("image_addr and img_size must be given\n");
 		return 1;
 	}
+#ifndef CONFIG_HB_NAND_BOOT
+	run_command("mtd list", 0);
+#endif
 	s1 = argv[1];
 	s2 = argv[2];
 	img_addr = (u32)simple_strtoul(s1, NULL, 16);
 	img_size = (u32)simple_strtoul(s2, NULL, 16);
 	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
-	part_sizes[0] = 0x500000;
-	part_sizes[1] = 0x1400000;
-	part_sizes[2] = img_size - part_sizes[0] - part_sizes[1];
-	if (argc > 3 && argc < 6) {
-		printf("using partition size passed in!\n");
-		for (int i = 3; i < argc; i++) {
-			part_sizes[i - 3] = (u32)simple_strtoul(argv[i], NULL, 16);
-		}
+	mtdparts_env = env_get("mtdparts");
+	mtdparts_env = strstr(mtdparts_env, "@");
+	if (!mtdparts_env) {
+		printf("No MTD Partitions found, Abort!\n");
+		return 1;
 	}
-	if (argc == 5)
-		part_sizes[3] = img_size - part_sizes[0] - part_sizes[1] - part_sizes[2];
-
-	printf("using partition sizes:\n");
-	printf("bl_size: %#010x, sys_size: %#010x, rootfs_size: %#010x, userdata_size: %#010x\n",
-			part_sizes[0], part_sizes[1], part_sizes[2], part_sizes[3]);
-	sys_offset = img_addr + part_sizes[0];
-	rootfs_offset = sys_offset + part_sizes[1];
-	userdata_offset = rootfs_offset + part_sizes[2];
+	do {
+		mtdparts_env++;
+		name_start = strstr(mtdparts_env, "(");
+		name_end = strstr(mtdparts_env, ")");
+		len = name_start - mtdparts_env;
+		name_start++;
+		name_len = name_end - name_start;
+		strncpy(curSize, mtdparts_env, len);
+		strncpy(part_name[total_part], name_start, name_len);
+		offsets[total_part] = (u32)simple_strtoul(curSize, NULL, 16);
+		part_sizes[total_part - 1] = offsets[total_part] - offsets[total_part - 1];
+		total_part++;
+		mtdparts_env = strstr(mtdparts_env, "@");
+	} while ((mtdparts_env != NULL) && (total_part < MAX_MTD_PART_NUM));
+	last_part = total_part - 1;
+	part_sizes[last_part] = img_size;
+	for (int i = 0; i < total_part - 1; i++) {
+		part_sizes[last_part] -= part_sizes[i];
+	}
 	ret = 0;
 #ifdef CONFIG_HB_NAND_BOOT
 	char veeprom[2048] = { 0 };
 	ubi_part("sys", 0);
 	ubi_volume_read("veeprom", veeprom, 2048);
 	run_command("ubi detach", 0);
-#else
-	env_set("mtdids", "spi-nand0=hr_nand");
-	env_set("mtdparts", "mtdparts=hr_nand:5767168@0x0(bootloader),20971520@0x580000(sys),62914560@0x1980000(rootfs),-@0x5580000(userdata)");
 #endif
-	ret |= nand_write_partition("bootloader", img_addr, part_sizes[0]);
-	ret |= nand_write_partition("sys", sys_offset, part_sizes[1]);
-	ret |= nand_write_partition("rootfs", rootfs_offset, part_sizes[2]);
-	if (argc == 5) {
-		userdata_offset = rootfs_offset + part_sizes[2];
-		ret |= nand_write_partition("userdata", userdata_offset, part_sizes[3]);
+	for (int i = 0; i < total_part; i++) {
+		ret = nand_write_partition(part_name[i],
+								   img_addr + offsets[i],
+								   part_sizes[i]);
 	}
 #ifdef CONFIG_HB_NAND_BOOT
 	ubi_part("sys", 0);
@@ -1281,8 +1293,8 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 U_BOOT_CMD(
 	burn_nand,	6,	0,	burn_nand_flash,
 	"Burn Image at [addr] in DDR with [size] in bytes(hex) to nand flash",
-	"      [addr] [size] {Optional: [bl_size] [sys_size] [rootfs_size]}\n"
-	"      Note: for the partition sizes, must be passed in in the order given"
+	"      [addr] [size] \n"
+	"      Note: partitions need to be defined by mtdparts"
 );
 
 
