@@ -35,6 +35,7 @@
 #include <ubi_uboot.h>
 #endif
 #include <asm/arch-x3/hb_reg.h>
+#include <asm/arch-x3/boot_mode.h>
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
 #include <x3_spacc.h>
@@ -1431,14 +1432,6 @@ static int hb_swinfo_dump_donecheck(int retc)
 #endif
 #endif
 
-#ifdef CONFIG_FASTBOOT
-static void hb_run_fastboot(void)
-{
-	printf("enter fastboot mode(reuse bootsel[15]: 1)\n");
-	run_command("fastboot 0", 0);
-}
-#endif
-
 #if 0
 static void misc()
 {
@@ -1489,6 +1482,37 @@ static void hb_swinfo_boot(void)
 #endif
 		return;
 	}
+}
+#endif
+
+#if defined(CONFIG_FASTBOOT) || defined(CONFIG_USB_FUNCTION_MASS_STORAGE)
+int setup_boot_action(int boot_mode)
+{
+	void *reg = (void *)HB_PMU_SW_REG_04;
+	int boot_action = readl(reg);
+
+	if (boot_mode != PIN_2ND_USB && hb_fastboot_key_pressed()) {
+		printf("enter fastboot mode(reuse bootsel[15]: 1)\n");
+		boot_action = BOOT_FASTBOOT;
+	}
+
+	debug("%s: boot action 0x%08x\n", __func__, boot_action);
+
+	/* Clear boot mode */
+	writel(BOOT_NORMAL, reg);
+
+	switch (boot_action) {
+	case BOOT_FASTBOOT:
+		printf("%s: enter fastboot!\n", __func__);
+		env_set("preboot", "setenv preboot; fastboot usb 0");
+		break;
+	case BOOT_UMS:
+		printf("%s: enter UMS!\n", __func__);
+		env_set("preboot", "setenv preboot; ums mmc 0");
+		break;
+	}
+
+	return 0;
 }
 #endif
 
@@ -1601,12 +1625,6 @@ int last_stage_init(void)
 	wait_start();
 #endif
 
-#ifdef CONFIG_FASTBOOT
-	if (boot_mode != PIN_2ND_USB && hb_fastboot_mode()) {
-		hb_run_fastboot();
-	}
-#endif
-
 #ifndef	CONFIG_FPGA_HOBOT
 #ifndef CONFIG_DOWNLOAD_MODE
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND))
@@ -1628,6 +1646,10 @@ int last_stage_init(void)
 #endif
 #ifndef	CONFIG_FPGA_HOBOT
 	hb_swinfo_boot();
+#endif
+
+#if defined(CONFIG_FASTBOOT) || defined(CONFIG_USB_FUNCTION_MASS_STORAGE)
+	setup_boot_action(boot_mode);
 #endif
 
 //	misc();

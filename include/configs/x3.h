@@ -194,4 +194,6 @@
 
 #define CONFIG_UDP_CHECKSUM
 
+#define CONFIG_PREBOOT
+
 #endif /* __X3_H__ */

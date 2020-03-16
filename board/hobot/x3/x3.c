@@ -109,7 +109,7 @@ int hb_boot_mode_get(void) {
 	return PIN_2NDBOOT_SEL(reg);
 }
 
-int hb_fastboot_mode(void) {
+int hb_fastboot_key_pressed(void) {
 	unsigned int reg;
 
 	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
