@@ -979,7 +979,6 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
         const uint8_t* kernel_cmdline;
         AvbKernelCmdlineDescriptor kernel_cmdline_desc;
         bool apply_cmdline;
-
         if (!avb_kernel_cmdline_descriptor_validate_and_byteswap(
                 (AvbKernelCmdlineDescriptor*)descriptors[n],
                 &kernel_cmdline_desc)) {
@@ -1325,6 +1324,10 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
         slot_data->cmdline = new_cmdline;
       }
     }
+
+    /* config kernel cmdline: using vbmeta cmdline */
+    if (slot_data != NULL)
+        env_set("bootargs", slot_data->cmdline);
 
     if (out_data != NULL) {
       *out_data = slot_data;
