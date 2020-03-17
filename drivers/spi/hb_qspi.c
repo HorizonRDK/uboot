@@ -89,7 +89,6 @@ static int hb_qspi_set_speed(struct udevice *bus, uint speed)
 
 	max_br = plat->freq / 2;
 	min_br = plat->freq / 1048576;
-	printf("max_br: %d, min_br: %d, speed: %d\n", max_br, min_br, speed);
 	if (speed > max_br) {
 		printf("Warning:speed[%d] > max_br[%d],speed will be set to default br: %d\n",
 				speed, max_br, HB_QSPI_DEF_BR);
