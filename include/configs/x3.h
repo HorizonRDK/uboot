@@ -25,7 +25,7 @@
 #define CPU_RELEASE_ADDR		(0xA6000278)
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
-#define X3_USABLE_RAM_TOP		0x3100000	/* Top is 49MB */
+#define X3_USABLE_RAM_TOP		0x3900000	/* Top is 58MB */
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000

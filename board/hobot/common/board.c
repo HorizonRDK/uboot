@@ -656,7 +656,7 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 	char count;
 
 	//snprintf(logo_addr, sizeof(logo_addr), "0x%x", HB_USABLE_RAM_TOP);
-	env_set("logo_addr", "0x1800000");
+	env_set("logo_addr", "0x1600000");
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
 
