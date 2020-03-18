@@ -167,7 +167,23 @@ struct hb_info_hdr {
 	unsigned int emmc_cfg;
 	unsigned int board_id;
 
-	unsigned int reserved[79];
+	unsigned int bpu_devid_addr[3];	/* BPU Device ID information */
+	unsigned int bpu_devid_size;
+	unsigned int bpu_devid_csum;
+
+	unsigned int bpu_rsakey_addr[3];	/* BPU RSA publish key bank */
+	unsigned int bpu_rsakey_size;
+	unsigned int bpu_rsakey_csum;
+
+	unsigned int bpuimg_addr[3];	/* BPU Image */
+	unsigned int bpuimg_size;
+	unsigned int bpuimg_csum;
+
+	unsigned int bl31img_addr[3];	/* BL31 image */
+	unsigned int bl31img_size;
+	unsigned int bl31img_csum;
+
+	unsigned int reserved[59];
 };
 
 struct hb_dtb_hdr {
