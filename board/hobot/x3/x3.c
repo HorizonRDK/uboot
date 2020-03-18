@@ -16,7 +16,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-unsigned int sys_sdram_size = 0; /* 0G */
+unsigned int sys_sdram_size = 0x80000000; /* 2G */
 uint32_t x3_board_id = 1;
 bool recovery_sys_enable = true;
 #define MHZ(x) ((x) * 1000000UL)
