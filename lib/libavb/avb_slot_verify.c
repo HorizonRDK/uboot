@@ -1189,6 +1189,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   bool allow_verification_error =
       (flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR);
   AvbCmdlineSubstList* additional_cmdline_subst = NULL;
+  char *bootargs = NULL;
+  char cmd[1024] = { 0 };
 
   /* Fail early if we're missing the AvbOps needed for slot verification.
    *
@@ -1325,9 +1327,16 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
       }
     }
 
+    bootargs = env_get("bootargs");
+    if (bootargs)
+        snprintf(cmd, sizeof(cmd), "%s", bootargs);
+
     /* config kernel cmdline: using vbmeta cmdline */
-    if (slot_data != NULL)
-        env_set("bootargs", slot_data->cmdline);
+    if (slot_data != NULL) {
+        snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
+
+        env_set("bootargs", cmd);
+    }
 
     if (out_data != NULL) {
       *out_data = slot_data;

@@ -160,8 +160,7 @@
 	"bootimage=Image\0" \
 	"bootfile=Image.gz\0" \
 	"fdtimage=hobot-x3-soc.dtb\0" \
-	"bootargs=" CONFIG_BOOTARGS \
-	    "root=/dev/mmcblk0p6 rootfstype=ext4 rw rootwait\0" \
+	"bootargs=" CONFIG_BOOTARGS "\0" \
 	"mmcload=mmc rescan;" \
 	    "ext4load mmc 0:4 ${gz_addr} ${bootfile};" \
 	    "ext4load mmc 0:4 ${fdt_addr} ${fdtimage}\0" \
