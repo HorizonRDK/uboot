@@ -179,8 +179,8 @@
 			compatible = "snps,dwc3";
 			reg = <0x0 0xb2000000 0x0 0x100000>,
 				<0x0 0xa1000000 0x0 0x1000>;
-			/* dr_mdoe: host, peripheral, otg */
-			dr_mode = "peripheral";
+			/* dr_mode: host, peripheral, otg, drd */
+			dr_mode = "drd";
 			/* phy_type = "utmi_wide"; */
 			/* snps,dis_u2_susphy_quirk; */
 			/* snps,dis_u3_susphy_quirk; */
