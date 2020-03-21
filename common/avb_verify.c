@@ -10,6 +10,17 @@
 #include <image.h>
 #include <malloc.h>
 #include <part.h>
+#include <linux/mtd/mtd.h>
+
+#if defined CONFIG_HB_NOR_BOOT
+extern struct spi_flash *flash;
+static struct sf_part vbmeta = {.start = -1,
+								.size = -1,
+								.maxsize = -1};
+static struct sf_part boot = {.start = -1,
+								.size = -1,
+								.maxsize = -1};
+#endif
 
 static unsigned char avb_root_pub[520] = {
 	0x00, 0x00, 0x08, 0x00, 0x15, 0xfa, 0xd8, 0x07,
@@ -211,17 +222,156 @@ char *avb_set_enforce_verity(const char *cmdline)
 	return newargs;
 }
 
+#if defined CONFIG_HB_NOR_BOOT
+/**
+ * ============================================================================
+ * IO(spi nor) auxiliary functions
+ * ============================================================================
+ */
+static uint64_t sf_read_and_flush(struct spi_flash *flash,
+					struct sf_part *part,
+					lbaint_t start,
+					lbaint_t len,
+					void *buffer)
+{
+	uint64_t blks;
+	if ((start + len) > (part->start + part->size)) {
+		len = part->start + part->size - start;
+		printf("%s: len aligned to nor partition bounds (%ld)\n",
+		       __func__, len);
+	}
+	blks = spi_flash_read(flash, start, len, buffer);
+	if (!blks) {
+		blks = len;
+	} else {
+		printf("Error: read nor flash fail\n");
+		return 0;
+	}
+	/* flush cache after read */
+	flush_cache((ulong)buffer, len);
+
+	return blks;
+}
+
+static uint64_t sf_write(struct spi_flash *flash, struct sf_part *part,
+					lbaint_t start, lbaint_t len, void *buffer)
+{
+	int ret = 0, bytes_written = 0, tmp_len = 0;
+	u8 *tmp_buf;
+	tmp_buf = (u8 *) malloc(sizeof(u8) * len);
+	if ((start + len) > (part->start + part->size)) {
+		len = part->start + part->size - start;
+		printf("%s: len aligned to nor partition bounds (%ld)\n",
+		       __func__, len);
+	}
+	while(len) {
+		if (len > flash->sector_size) {
+			tmp_len = flash->sector_size;
+		} else {
+			ret = spi_flash_read(flash, start, tmp_len, tmp_buf);
+			memcpy(tmp_buf, buffer, tmp_len);
+		}
+		ret = spi_flash_erase(flash, start, tmp_len);
+		if (ret) {
+			printf("SPI Flash Erase failed!\n");
+			return -1;
+		}
+		bytes_written += spi_flash_write(flash, start, tmp_len, tmp_buf);
+		len -= tmp_len;
+		start += tmp_len;
+		buffer += tmp_len;
+	}
+
+	return bytes_written;
+}
+
+static struct sf_part *sf_get_partition(const char *partition)
+{
+	int ret, dev = 0;
+	char *s;
+	char *vbmeta_arg[2] = {"vbmeta", "0x0"};
+	char *boot_arg[2] = {"boot", "0x0"};
+	if (!flash) {
+		s = "sf probe";
+		ret = run_command_list(s, -1, 0);
+		if (ret)
+			return NULL;
+	}
+
+	if (vbmeta.start < 0) {
+		if (mtd_arg_off_size(2, vbmeta_arg, &dev, &(vbmeta.start), &(vbmeta.maxsize),
+					&(vbmeta.size), 0x0001, flash->size))
+			return NULL;
+	}
+
+	if (boot.start < 0) {
+		if (mtd_arg_off_size(2, boot_arg, &dev, &(boot.start), &(boot.maxsize),
+					&(boot.size), 0x0001, flash->size))
+			return NULL;
+	}
+
+	if (!strcmp(partition, "vbmeta"))
+		return &vbmeta;
+
+	if (!strcmp(partition, "boot"))
+		return &boot;
+
+	return NULL;
+}
+
+static AvbIOResult sf_byte_io(AvbOps *ops,
+			       const char *partition,
+			       s64 offset,
+			       size_t num_bytes,
+			       void *buffer,
+			       size_t *out_num_read,
+			       enum io_type io_type)
+{
+	ulong ret;
+	u64 start_offset;
+	size_t io_cnt = 0;
+	struct sf_part *part_ptr;
+
+	if (!partition || !buffer || io_type > IO_WRITE)
+		return AVB_IO_RESULT_ERROR_IO;
+
+	part_ptr = sf_get_partition(partition);
+	offset = offset < 0 ? part_ptr->size + offset : offset;
+	start_offset = part_ptr->start + offset;
+	if (part_ptr == NULL)
+		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+
+	if (io_type == IO_READ) {
+		ret = sf_read_and_flush(flash, part_ptr,
+						start_offset,
+						num_bytes, buffer);
+	} else {
+		ret = sf_write(flash, part_ptr,
+				start_offset,
+				num_bytes, buffer);
+	}
+
+	io_cnt += ret;
+
+	/* Set counter for read operation */
+	if (io_type == IO_READ && out_num_read)
+		*out_num_read = io_cnt;
+
+	return AVB_IO_RESULT_OK;
+}
+
+#else
 /**
  * ============================================================================
  * IO(mmc) auxiliary functions
  * ============================================================================
  */
-static unsigned long mmc_read_and_flush(struct mmc_part *part,
+static uint64_t mmc_read_and_flush(struct mmc_part *part,
 					lbaint_t start,
 					lbaint_t sectors,
 					void *buffer)
 {
-	unsigned long blks;
+	uint64_t blks;
 	void *tmp_buf;
 	size_t buf_size;
 	bool unaligned = is_buf_unaligned(buffer);
@@ -262,7 +412,7 @@ static unsigned long mmc_read_and_flush(struct mmc_part *part,
 	return blks;
 }
 
-static unsigned long mmc_write(struct mmc_part *part, lbaint_t start,
+static uint64_t mmc_write(struct mmc_part *part, lbaint_t start,
 			       lbaint_t sectors, void *buffer)
 {
 	void *tmp_buf;
@@ -356,7 +506,7 @@ static AvbIOResult mmc_byte_io(AvbOps *ops,
 			       size_t num_bytes,
 			       void *buffer,
 			       size_t *out_num_read,
-			       enum mmc_io_type io_type)
+			       enum io_type io_type)
 {
 	ulong ret;
 	struct mmc_part *part;
@@ -470,6 +620,7 @@ static AvbIOResult mmc_byte_io(AvbOps *ops,
 
 	return AVB_IO_RESULT_OK;
 }
+#endif
 
 /**
  * ============================================================================
@@ -502,8 +653,13 @@ static AvbIOResult read_from_partition(AvbOps *ops,
 				       void *buffer,
 				       size_t *out_num_read)
 {
+#if defined CONFIG_HB_NOR_BOOT
+	return sf_byte_io(ops, partition_name, offset_from_partition,
+			   num_bytes, buffer, out_num_read, IO_READ);
+#else
 	return mmc_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, buffer, out_num_read, IO_READ);
+#endif
 }
 
 /**
@@ -529,8 +685,13 @@ static AvbIOResult write_to_partition(AvbOps *ops,
 				      size_t num_bytes,
 				      const void *buffer)
 {
+#if defined CONFIG_HB_NOR_BOOT
+	return sf_byte_io(ops, partition_name, offset_from_partition,
+			   num_bytes, (void *)buffer, NULL, IO_WRITE);
+#else
 	return mmc_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, (void *)buffer, NULL, IO_WRITE);
+#endif
 }
 
 /**
@@ -657,6 +818,9 @@ static AvbIOResult get_unique_guid_for_partition(AvbOps *ops,
 						 char *guid_buf,
 						 size_t guid_buf_size)
 {
+#if defined (CONFIG_HB_NOR_BOOT) || defined (CONFIG_HB_NAND_BOOT)
+	memset(guid_buf, 0xff, guid_buf_size);
+#else
 	struct mmc_part *part;
 	size_t uuid_size;
 
@@ -670,6 +834,7 @@ static AvbIOResult get_unique_guid_for_partition(AvbOps *ops,
 
 	memcpy(guid_buf, part->info.uuid, uuid_size);
 	guid_buf[uuid_size - 1] = 0;
+#endif
 
 	return AVB_IO_RESULT_OK;
 }
@@ -691,17 +856,23 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
 					 const char *partition,
 					 u64 *out_size_num_bytes)
 {
-	struct mmc_part *part;
-
 	if (!out_size_num_bytes)
 		return AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE;
+
+#if defined CONFIG_HB_NOR_BOOT
+	struct sf_part *cur_part = sf_get_partition(partition);
+	if (!cur_part)
+		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+	*out_size_num_bytes = cur_part->size;
+#else
+	struct mmc_part *part;
 
 	part = get_partition(ops, partition);
 	if (!part)
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 
 	*out_size_num_bytes = part->info.blksz * part->info.size;
-
+#endif
 	return AVB_IO_RESULT_OK;
 }
 
@@ -712,17 +883,29 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
  */
 AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 {
-	int i = 0;
 	enum if_type if_type = IF_TYPE_UNKNOWN;
 	struct AvbOpsData *ops_data;
 
-	for (i = 0; i < IF_TYPE_COUNT; i++) {
+#ifdef CONFIG_HB_NOR_BOOT
+	printf("Hobot SPI-NOR AVB Verify\n");
+	if_type = IF_TYPE_COUNT + 1;
+	char *s;
+	int ret;
+	if (!flash) {
+		s = "sf probe";
+		ret = run_command_list(s, -1, 0);
+		if (ret)
+			return NULL;
+	}
+#else
+	for (int i = 0; i < IF_TYPE_COUNT; i++) {
 		const char *if_typename_str = blk_get_if_type_name(i);
 		if (if_typename_str && !strcmp(if_typename, if_typename_str)) {
 			if_type = i;
 			break;
 		}
 	}
+#endif
 
 	if (if_type == IF_TYPE_UNKNOWN) {
 		printf("%s: Unknow interface type '%s'\n", __func__, if_typename);
@@ -745,7 +928,7 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 	ops_data->ops.get_unique_guid_for_partition =
 		get_unique_guid_for_partition;
 	ops_data->ops.get_size_of_partition = get_size_of_partition;
-	ops_data->mmc_dev = boot_device;
+	ops_data->dev = boot_device;
 
 	return &ops_data->ops;
 }

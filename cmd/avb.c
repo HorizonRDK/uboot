@@ -10,6 +10,7 @@
 #include <image.h>
 #include <malloc.h>
 #include <mmc.h>
+#include <configs/hb_config.h>
 
 #define AVB_BOOTARGS	"avb_bootargs"
 static struct AvbOps *avb_ops;
@@ -22,18 +23,18 @@ static const char * const requested_partitions[] = {"boot",
 int do_avb_init(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *interface;
-	unsigned long mmc_dev;
+	uint64_t dev;
 
 	if (argc != 3)
 		return CMD_RET_USAGE;
 
 	interface = (char *)argv[1];
-	mmc_dev = simple_strtoul(argv[2], NULL, 16);
+	dev = simple_strtoul(argv[2], NULL, 16);
 
 	if (avb_ops)
 		avb_ops_free(avb_ops);
 
-	avb_ops = avb_ops_alloc(interface, mmc_dev);
+	avb_ops = avb_ops_alloc(interface, dev);
 	if (avb_ops)
 		return CMD_RET_SUCCESS;
 
@@ -380,7 +381,13 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 	int ret = 0;
 
 	/* avb init */
+#if defined CONFIG_HB_NOR_BOOT
+	cmd = "avb init sf 0";
+#elif defined CONFIG_HB_NAND_BOOT
+	cmd = "avb init mtd 0";
+#else
 	cmd = "avb init mmc 0";
+#endif
 	ret = run_command(cmd, 0);
 	if (ret != 0)
 		printf("avb init failed! \n");

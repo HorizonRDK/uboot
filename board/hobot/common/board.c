@@ -38,6 +38,7 @@
 #include <asm/arch-x3/boot_mode.h>
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
+#include <linux/mtd/mtd.h>
 #include <x3_spacc.h>
 #include <x3_pka.h>
 
@@ -574,32 +575,6 @@ static void hb_nand_kernel_load(struct hb_kernel_hdr *config)
 #endif
 
 #ifndef CONFIG_FPGA_HOBOT
-static char *hb_mmc_dtb_load(unsigned int board_id,
-		struct hb_kernel_hdr *config)
-{
-	char *s = NULL;
-	uint32_t i = 0;
-	uint32_t count = config->dtb_number;
-	uint32_t board_type = hb_board_type_get();
-
-	if (count > DTB_MAX_NUM) {
-		printf("error: count %02x not support\n", count);
-		return NULL;
-	}
-
-	for (i = 0; i < count; i++) {
-		if (board_type == config->dtb[i].board_id) {
-			s = (char *)config->dtb[i].dtb_name;
-			break;
-		}
-	}
-
-	if (i == count)
-		printf("error: board_id %02x not support\n", board_id);
-
-	return s;
-}
-
 static void hb_bootargs_init(unsigned int rootfs_id)
 {
 	char *s;
@@ -765,41 +740,6 @@ static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 	return 0;
 }
 
-static int hb_nor_dtb_image_load(unsigned int addr, unsigned int leng)
-{
-	int ret;
-	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
-	struct hb_kernel_hdr *head = (struct hb_kernel_hdr *)dtb_addr;
-
-	if (!flash)
-		return -1;
-
-	ret = spi_flash_read(flash, addr, leng, (void *)dtb_addr);
-	if (ret) {
-		printf("dtb read failed!\n");
-		return ret;
-	}
-
-	ret = hb_nor_dtb_handle(head);
-
-	return ret;
-}
-
-static void hb_nor_env_init(void)
-{
-	char *tmp;
-
-	/* set bootargs */
-	tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused " \
-		"root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
-		env_set("bootargs", tmp);
-
-	/* set bootcmd */
-	tmp = "send_id;run unzipimage;ion_modify ${ion_size};" \
-		"mem_modify ${mem_size};run ddrboot;";
-		env_set("bootcmd", tmp);
-}
-
 static bool hb_nor_ota_upflag_check(void)
 {
 	char rootfs[32] = "system";
@@ -852,48 +792,46 @@ static bool hb_nor_ota_upflag_check(void)
 	return load_imggz;
 }
 
-static void hb_nor_kernel_load(void)
+static void hb_nor_boot(void)
 {
-	unsigned int kernel_addr, dtb_addr, head_addr;
-	struct hb_flash_kernel_hdr *kernel_hdr;
-	char *s;
-	bool load_imggz = true;
-	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
+	char *bootargs;
+	char *bootcmd;
+	char *boot_arg[2];
+	loff_t offset, size, maxsize;
+//	bool load_imggz = true;
+	int dev = 0;
 
 	if (flash == NULL) {
 		printf("Error: flash init failed\n");
 		return;
 	}
 
-	load_imggz = hb_nor_ota_upflag_check();
-	if (load_imggz)
-		head_addr = KERNEL_HEAD_ADDR;
-	else
-		head_addr = RECOVERY_HEAD_ADDR;
+//	load_imggz = hb_nor_ota_upflag_check();
+	boot_arg[1] = "0x0";
+/* 	if (load_imggz) {
+		boot_arg[0] = "boot";
+	} else {
+		boot_arg[0] = "recovery";
+	} */
+	boot_arg[0] = "boot";
 
-	/* load kernel head */
-	spi_flash_read(flash, head_addr, sizeof(struct hb_flash_kernel_hdr),
-		(void *)HB_DTB_CONFIG_ADDR);
-	kernel_hdr = (struct hb_flash_kernel_hdr *) HB_DTB_CONFIG_ADDR;
-	kernel_addr = kernel_hdr->Image_addr + head_addr;
-	dtb_addr = kernel_hdr->dtb_addr + head_addr;
-
-	/* check magic */
-	s = (char *)kernel_hdr->magic;
-	if (strcmp(s, "FLASH0") != 0) {
-		printf("Error: kernel magic check failed !\n");
+	/* set normal boot bootargs */
+	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+			 "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
+	env_set("bootargs", bootargs);
+	/* set secure boot bootcmd */
+	if (hb_check_secure()) {
+		if (run_command("avb_verify", 0))
+			return;
+	}
+	if (mtd_arg_off_size(2, boot_arg, &dev, &offset, &maxsize,
+						&size, 0x0001, flash->size)) {
 		return;
 	}
+	spi_flash_read(flash, offset, size, (void *) 0x10000000);
+	bootcmd = "bootm 0x10000000;";
 
-	/* init boorargs and bootcmd */
-	hb_nor_env_init();
-
-	/* load dtb file */
-	hb_nor_dtb_image_load(dtb_addr, kernel_hdr->dtb_size);
-
-	/* load kernel */
-	spi_flash_read(flash, kernel_addr, kernel_hdr->Image_size,
-		(void *)gz_addr);
+	env_set("bootcmd", bootcmd);
 }
 
 static void hb_usb_dtb_config(void) {
@@ -912,46 +850,12 @@ static void hb_usb_env_init(void)
 }
 
 #ifndef CONFIG_FPGA_HOBOT
-static void hb_dtb_mapping_load(void)
-{
-	int rcode = 0;
-	char partname[] = "boot";
-	char cmd[256] = { 0 };
-	int boot_mode = hb_boot_mode_get();
-
-	if (boot_mode == PIN_2ND_EMMC) {
-		/* load dtb-mapping.conf */
-		snprintf(cmd, sizeof(cmd), "ext4load mmc 0:%d 0x%x dtb-mapping.conf",
-		get_partition_id(partname), HB_DTB_CONFIG_ADDR);
-		printf("command is %s\n", cmd);
-		rcode = run_command_list(cmd, -1, 0);
-		if (rcode != 0) {
-			/* load recovery dtb-mapping.conf */
-			sprintf(cmd, "ext4load mmc 0:%d 0x%x recovery_dtb/dtb-mapping.conf",
-				get_partition_id(partname), HB_DTB_CONFIG_ADDR);
-			printf("command is %s\n", cmd);
-			rcode = run_command_list(cmd, -1, 0);
-			if (rcode !=0) {
-				printf("error: dtb-mapping.conf not exit! \n");
-				return;
-			}
-		}
-	}
-#ifdef CONFIG_HB_NAND_BOOT
-	ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
-#endif
-}
-
 static void hb_env_and_boardid_init(void)
 {
 	unsigned int board_id;
-	struct hb_kernel_hdr *hb_kernel_conf;
 	char *s = NULL;
 	char boot_reason[64] = { 0 };
 	unsigned int boot_mode = hb_boot_mode_get();
-
-	/* load config dtb_mapping */
-	hb_dtb_mapping_load();
 
 	/* board_id check */
 	board_id = x3_board_id;
@@ -970,20 +874,14 @@ static void hb_env_and_boardid_init(void)
 			VEEPROM_RESET_REASON_SIZE);
 	}
 
-	/* mmc or nor env init */
-	if (boot_mode == PIN_2ND_EMMC) {
-		hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
-		s = hb_mmc_dtb_load(board_id, hb_kernel_conf);
-		printf("fdtimage = %s\n", s);
-		env_set("fdtimage", s);
-
-		hb_mmc_env_init();
-	}  else if (boot_mode == PIN_2ND_NOR) {
+	if (boot_mode == PIN_2ND_NOR) {
 		/* load nor kernel and dtb */
-		hb_nor_kernel_load();
+		hb_nor_boot();
 	}
 
 #ifdef CONFIG_HB_NAND_BOOT
+	struct hb_kernel_hdr *hb_kernel_conf;
+	ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
 	/* load nand kernel and dtb */
 	hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
 	hb_nand_dtb_load(board_id, hb_kernel_conf);

@@ -59,8 +59,10 @@
 /* Boot strap Bit0 is reserved */
 #define PIN_1STBOOT_SEL(x)		((x) & 0x1)
 #define PIN_2NDBOOT_SEL(x)		(((x) >> 1) & 0x7)
-/* Reuse strap Bit15 as fastboot mode except usb boot */
+/* Reuse strap Bit16 as fastboot mode except usb boot */
 #define PIN_FASTBOOT_SEL(x)		(((x) >> 16) & 0x1)
+/* Boot strap Bit14 is the force secure pin */
+#define PIN_SECURE_SEL(x) (((x) >> 14) & 0x1)
 #define DDR_MANUF_SEL(x)  (((x) >> 28) & 0xf)
 #define DDR_TYPE_SEL(x) (((x) >> 24) & 0xf)
 #define DDR_FREQ_SEL(x)  (((x) >> 20) & 0xf)
@@ -93,6 +95,10 @@
 #define DTB_RESERVE_SIZE	((DTB_MAPPING_SIZE - (DTB_MAX_NUM*48) - 20)/4)
 #define KERNEL_HEAD_ADDR	0x234400
 #define RECOVERY_HEAD_ADDR	0x1634400
+#define SEC_REG_BASE		0xA6008000
+#define EFUSE_S_OFF		0x100
+#define SEFUSE_SECURE_CHIP	  (1<<1)
+#define SEFUSE_NON_SECURE_CHIP	  (1<<4)
 
 #define X2_BOARD_SVB 0
 #define X2_BOARD_SOM 1
@@ -183,7 +189,9 @@ struct hb_info_hdr {
 	unsigned int bl31img_size;
 	unsigned int bl31img_csum;
 
-	unsigned int reserved[59];
+	char secure_cfg[4];
+
+	unsigned int reserved[58];
 };
 
 struct hb_dtb_hdr {
@@ -217,6 +225,7 @@ struct hb_flash_kernel_hdr {
 
 int hb_boot_mode_get(void);
 int hb_fastboot_key_pressed(void);
+int hb_check_secure(void);
 uint32_t hb_board_type_get(void);
 uint32_t hb_base_board_type_get(void);
 

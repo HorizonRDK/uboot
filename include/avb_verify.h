@@ -10,6 +10,10 @@
 
 #include <../lib/libavb/libavb.h>
 #include <mmc.h>
+#include <spi_flash.h>
+#include <ubi_uboot.h>
+#include <configs/hb_config.h>
+#include <hb_info.h>
 
 #define AVB_MAX_ARGS			1024
 #define VERITY_TABLE_OPT_RESTART	"restart_on_corruption"
@@ -25,7 +29,7 @@ enum avb_boot_state {
 
 struct AvbOpsData {
 	struct AvbOps ops;
-	int mmc_dev;
+	int dev;
 	enum if_type if_type;
 	enum avb_boot_state boot_state;
 };
@@ -37,7 +41,13 @@ struct mmc_part {
 	disk_partition_t info;
 };
 
-enum mmc_io_type {
+struct sf_part {
+	loff_t start;
+	loff_t size;
+	loff_t maxsize;
+};
+
+enum io_type {
 	IO_READ,
 	IO_WRITE
 };
@@ -89,7 +99,7 @@ static inline int get_boot_device(AvbOps *ops)
 	if (ops) {
 		data = ops->user_data;
 		if (data)
-			return data->mmc_dev;
+			return data->dev;
 	}
 
 	return -1;

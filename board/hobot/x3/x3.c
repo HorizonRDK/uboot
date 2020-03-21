@@ -117,6 +117,24 @@ int hb_fastboot_key_pressed(void) {
 	return PIN_FASTBOOT_SEL(reg);
 }
 
+int hb_check_secure(void) {
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
+	uint32_t reg;
+	uint32_t sec_cfg;
+	char *if_secure = bootinfo->secure_cfg;
+	char *if_secure_env = env_get("verify_kernel");
+	int ret = 0;
+
+	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
+	sec_cfg = reg32_read(SEC_REG_BASE + EFUSE_S_OFF);
+	ret |= ((sec_cfg & SEFUSE_SECURE_CHIP)
+			&& ((sec_cfg & SEFUSE_NON_SECURE_CHIP) == 0));
+	ret |= PIN_SECURE_SEL(reg);
+	ret |= (!strcmp(if_secure, "avb"));
+	ret |= (!strcmp(if_secure_env, "true"));
+	return ret;
+}
+
 int dram_init(void)
 {
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;

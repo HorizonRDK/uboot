@@ -4,7 +4,7 @@
  * drivers and users.
  *
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
- * Copyright © 2006      Red Hat UK Limited 
+ * Copyright © 2006      Red Hat UK Limited
  *
  */
 
@@ -123,7 +123,7 @@ void *idr_get_next(struct idr *idp, int *next)
 	} else {
 		*next = 0;
 	}
-	
+
 	return ret;
 }
 
@@ -771,13 +771,14 @@ EXPORT_SYMBOL_GPL(__get_mtd_device);
  */
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
-	int err = -ENODEV;
+	int err = -ENODEV, ret;
 	struct mtd_info *mtd = NULL, *other;
 
 	mutex_lock(&mtd_table_mutex);
 
 	mtd_for_each_device(other) {
-		if (!strcmp(name, other->name)) {
+		ret = strncmp(name, other->name, 10);
+		if (!ret) {
 			mtd = other;
 			break;
 		}
