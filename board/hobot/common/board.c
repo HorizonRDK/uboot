@@ -1239,7 +1239,7 @@ static int hb_swinfo_dump_check(void)
 	char dump[128];
 	char *s = dump;
 	const char *dcmd, *ddev;
-	uint32_t dmmc, dpart;
+	uint32_t dmmc, dpart, dusb;
 
 	s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
 	if (s_magic == HB_SWINFO_MEM_MAGIC) {
@@ -1269,6 +1269,19 @@ static int hb_swinfo_dump_check(void)
 		s += sprintf(s, "mmc rescan; ");
 		s += sprintf(s, "%s mmc %d:%d 0x0 /dump_ddr_%x.img 0x%x",
 				dcmd, dmmc, dpart, sys_sdram_size, sys_sdram_size);
+
+		env_set("dumpcmd", dump);
+	} else if (s_boot == HB_SWINFO_BOOT_UDUMPUSB) {
+		stored_dumptype = 1;
+		ddev = "usb";
+		dcmd = "fatwrite";
+		dusb = 0;
+
+		printf("swinfo dump ddr 0x%x -> %s\n", sys_sdram_size, ddev);
+		s += sprintf(s, "usb start; ");
+		s += sprintf(s, "%s usb %d 0x0 dump_ddr_%x.img 0x%x; ",
+				dcmd, dusb, sys_sdram_size, sys_sdram_size);
+
 		env_set("dumpcmd", dump);
 	} else if (s_dump) {
 		stored_dumptype = 2;

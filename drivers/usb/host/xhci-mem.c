@@ -34,7 +34,9 @@
  */
 void xhci_flush_cache(uintptr_t addr, u32 len)
 {
-	BUG_ON((void *)addr == NULL || len == 0);
+	/* usb ramdump will do bulk transfer from addr 0x0 */
+	/* BUG_ON((void *)addr == NULL || len == 0); */
+	BUG_ON(len == 0);
 
 	flush_dcache_range(addr & ~(CACHELINE_SIZE - 1),
 				ALIGN(addr + len, CACHELINE_SIZE));
@@ -49,7 +51,9 @@ void xhci_flush_cache(uintptr_t addr, u32 len)
  */
 void xhci_inval_cache(uintptr_t addr, u32 len)
 {
-	BUG_ON((void *)addr == NULL || len == 0);
+	/* usb ramdump will do bulk transfer from addr 0x0 */
+	/* BUG_ON((void *)addr == NULL || len == 0); */
+	BUG_ON(len == 0);
 
 	invalidate_dcache_range(addr & ~(CACHELINE_SIZE - 1),
 				ALIGN(addr + len, CACHELINE_SIZE));

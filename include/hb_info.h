@@ -7,16 +7,17 @@
 #ifndef __HB_INFO_H__
 #define __HB_INFO_H__
 
-#define HB_SWINFO_MEM_ADDR                      0x020ff000
-#define HB_SWINFO_MEM_MAGIC                     0x57534248
-#define HB_SWINFO_BOOT_OFFSET           0x4
-#define HB_SWINFO_DUMP_OFFSET           0x8
-#define HB_SWINFO_BOOT_SPLONCE          0x1
-#define HB_SWINFO_BOOT_UBOOTONCE        0x2
-#define HB_SWINFO_BOOT_SPLWAIT          0x3
-#define HB_SWINFO_BOOT_UBOOTWAIT        0x4
-#define HB_SWINFO_BOOT_UDUMPTF          0x5
-#define HB_SWINFO_BOOT_UDUMPEMMC        0x6
+#define HB_SWINFO_MEM_ADDR		0x020ff000
+#define HB_SWINFO_MEM_MAGIC		0x57534248
+#define HB_SWINFO_BOOT_OFFSET		0x4
+#define HB_SWINFO_DUMP_OFFSET		0x8
+#define HB_SWINFO_BOOT_SPLONCE		0x1
+#define HB_SWINFO_BOOT_UBOOTONCE	0x2
+#define HB_SWINFO_BOOT_SPLWAIT		0x3
+#define HB_SWINFO_BOOT_UBOOTWAIT	0x4
+#define HB_SWINFO_BOOT_UDUMPTF		0x5
+#define HB_SWINFO_BOOT_UDUMPEMMC	0x6
+#define HB_SWINFO_BOOT_UDUMPUSB		0x7
 
 /* auto detection */
 #define AUTO_DETECTION	0x0
