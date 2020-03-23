@@ -1214,6 +1214,7 @@ static int hb_swinfo_dump_check(void)
 
 		printf("swinfo dump ddr 0x%x -> %s\n", sys_sdram_size, ddev);
 		s += sprintf(s, "usb start; ");
+		s += sprintf(s, "usb part %d; ", dusb);
 		s += sprintf(s, "%s usb %d 0x0 dump_ddr_%x.img 0x%x; ",
 				dcmd, dusb, sys_sdram_size, sys_sdram_size);
 
