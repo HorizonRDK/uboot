@@ -575,72 +575,20 @@ static void hb_nand_kernel_load(struct hb_kernel_hdr *config)
 #endif
 
 #ifndef CONFIG_FPGA_HOBOT
-static void hb_bootargs_init(unsigned int rootfs_id)
+static void hb_mmc_env_init(void)
 {
-	char *s;
-	unsigned int len = 0, i, j, offset;
-	char cmd[256] = { 0 };
-
-	/* init bootargs */
-	s = env_get("bootargs");
-	len = strlen(s);
-
-	for(i = 0; i < len; ++i) {
-		if (s[i]  == 'r') {
-			if (s[i + 1] == 'o' && s[i + 2] == 'o' && s[i + 3] == 't'
-				&& s[i + 4] == '=')
-				break;
-		}
-	}
-
-	strcpy(cmd, s);
-
-	if (i < len) {
-		if (rootfs_id < 10) {
-			cmd[i + 18] = hex_to_char(rootfs_id);
-		} else {
-			cmd[i + 18] = hex_to_char(rootfs_id/10);
-			cmd[i + 19] = hex_to_char(rootfs_id%10);
-
-			offset = len;
-			for (j = i + 19; j < len; j++) {
-				if (s[j] == ' ') {
-					offset = j;
-					break;
-				}
-			}
-
-			memcpy(cmd + offset + 1, s + offset, len - offset);
-		}
-	}
-	env_set("bootargs", cmd);
-}
-
- static void hb_mmc_env_init(void)
-{
-	char mmcload[256] = "mmc rescan;ext4load mmc 0:3 ${gz_addr} ${bootfile};";
-	char tmp[64] = "ext4load mmc 0:3 ${fdt_addr} ${fdtimage};";
-	char logo[64] = "ext4load mmc 0:3 ${logo_addr} logo.rgb";
-
-	char rootfs[32] = "system";
-	char kernel[32] = "boot";
 	char upmode[16] = { 0 };
-	unsigned int rootfs_id, kernel_id;
 	char boot_reason[64] = { 0 };
 	char *s;
+	char *verify = "avb_verify;";
 	char count;
+	char cmd[256] = { 0 };
 
-	//snprintf(logo_addr, sizeof(logo_addr), "0x%x", HB_USABLE_RAM_TOP);
-	env_set("logo_addr", "0x1600000");
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
 
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
-
-	/* get rootfs and kernel partition id */
-	rootfs_id = get_partition_id(rootfs);
-	kernel_id = get_partition_id(kernel);
 
 	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0)) {
 		if (strcmp(boot_reason, "normal") == 0) {
@@ -653,27 +601,20 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 			if (count <= 0) {
 				if (strcmp(upmode, "AB") == 0) {
 					/* AB mode, boot system backup partition */
-					ota_ab_boot_bak_partition(&rootfs_id, &kernel_id);
+					ota_ab_boot_bak_partition();
 				} else {
 					/* golden mode, boot recovery system */
 					ota_recovery_mode_set(true);
 				}
 			} else {
-				/* get rootfs and kernel partition id */
-				rootfs_id = ota_uboot_update_check(rootfs);
-				kernel_id = ota_uboot_update_check(kernel);
+				ota_upgrade_flag_check(upmode, boot_reason);
 			}
 		} else if (strcmp(boot_reason, "recovery") == 0) {
 			/* boot_reason is 'recovery', enter recovery mode */
 			env_set("bootdelay", "0");
 			ota_recovery_mode_set(false);
 		} else {
-			/* check update_success flag */
-			ota_check_update_success_flag();
-
-			/* get rootfs and kernel partition id */
-			rootfs_id = ota_uboot_update_check(rootfs);
-			kernel_id = ota_uboot_update_check(kernel);
+			ota_upgrade_flag_check(upmode, boot_reason);
 
 			/* auto extend last emmc partition */
 			if (strcmp(boot_reason, "all") == 0) {
@@ -683,24 +624,23 @@ static void hb_bootargs_init(unsigned int rootfs_id)
 		}
 	}
 
-	/* init bootargs */
-	hb_bootargs_init(rootfs_id);
-
-	/* init env mmcload */
-	mmcload[26] = hex_to_char(kernel_id);
-	tmp[15] = mmcload[26];
-	logo[15] = mmcload[26];
-	strcat(mmcload, tmp);
-	strcat(mmcload, logo);
-	env_set("mmcload", mmcload);
-
-	/* int  env mem_size */
-	memset(tmp, 0, sizeof(tmp));
+	/* init env mem_size */
 	s = env_get("mem_size");
 	if (s == NULL) {
-		uint32_to_char(sys_sdram_size, tmp);
-		env_set("mem_size", tmp);
+		// uint32_to_char(sys_sdram_size, cmd);
+		snprintf(cmd, sizeof(cmd), "%02x", sys_sdram_size);
+		env_set("mem_size", cmd);
 	}
+
+	if(strcmp(boot_partition, "recovery") == 0)
+		verify = "";
+
+	/* init env bootcmd init */
+	snprintf(cmd, sizeof(cmd), "%s part size mmc 0 %s " \
+		"bootimagesize;part start mmc 0 %s bootimageblk;"\
+		"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
+		"bootm 0x10000000;", verify, boot_partition, boot_partition);
+	env_set("bootcmd", cmd);
 }
 #endif
 
@@ -740,15 +680,13 @@ static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 	return 0;
 }
 
+#if 0
 static bool hb_nor_ota_upflag_check(void)
 {
-	char rootfs[32] = "system";
-	char kernel[32] = "kernel";
 	char upmode[16] = { 0 };
 	char boot_reason[64] = { 0 };
 	bool load_imggz = true;
 	char count;
-	unsigned int ret1, ret2;
 
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 		VEEPROM_RESET_REASON_SIZE);
@@ -781,16 +719,13 @@ static bool hb_nor_ota_upflag_check(void)
 				load_imggz = false;
 			} else {
 				/* ota partition status check */
-				ret1 = ota_uboot_update_check(rootfs);
-				ret2 = ota_uboot_update_check(kernel);
-
-				if ((ret1 == 1) || (ret2 == 1))
-					load_imggz = false;
+				ota_upgrade_flag_check(upmode, boot_reason);
 			}
 		}
 	}
 	return load_imggz;
 }
+#endif
 
 static void hb_nor_boot(void)
 {
@@ -852,14 +787,11 @@ static void hb_usb_env_init(void)
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_env_and_boardid_init(void)
 {
-	unsigned int board_id;
 	char *s = NULL;
 	char boot_reason[64] = { 0 };
 	unsigned int boot_mode = hb_boot_mode_get();
 
-	/* board_id check */
-	board_id = x3_board_id;
-	printf("bootinfo/board_id = %02x\n", board_id);
+	printf("bootinfo/board_id = %02x\n", x3_board_id);
 
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
@@ -874,7 +806,10 @@ static void hb_env_and_boardid_init(void)
 			VEEPROM_RESET_REASON_SIZE);
 	}
 
-	if (boot_mode == PIN_2ND_NOR) {
+	/* mmc or nor env init */
+	if (boot_mode == PIN_2ND_EMMC) {
+		hb_mmc_env_init();
+	}  else if (boot_mode == PIN_2ND_NOR) {
 		/* load nor kernel and dtb */
 		hb_nor_boot();
 	}
@@ -1367,9 +1302,8 @@ static void misc()
 static void hb_swinfo_boot(void)
 {
 	int retc;
-	const char *s;
-	int stored_bootdelay;
-
+	const char *s = NULL;
+	int stored_bootdelay = -1;
 #if defined(HB_SWINFO_DUMP_OFFSET)
 	if(hb_swinfo_dump_check()) {
 		s = env_get("dumpcmd");
@@ -1378,13 +1312,13 @@ static void hb_swinfo_boot(void)
 			cli_secure_boot_cmd(s);
 	}
 #endif
+
 #if defined(HB_SWINFO_BOOT_OFFSET)
 	if(hb_swinfo_boot_uboot_check()) {
 		env_set("ubootwait", "wait");
 		return;
 	}
 #endif
-
 	if (stored_bootdelay == 0 && s) {
 		retc = run_command_list(s, -1, 0);
 #if defined(HB_SWINFO_DUMP_OFFSET)
@@ -1538,11 +1472,9 @@ int last_stage_init(void)
 
 #ifndef	CONFIG_FPGA_HOBOT
 #ifndef CONFIG_DOWNLOAD_MODE
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND))
+	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND) \
+		|| (boot_mode == PIN_2ND_EMMC))
 		hb_env_and_boardid_init();
-
-	if (boot_mode == PIN_2ND_EMMC)
-		hb_mmc_env_init();
 
 	if (boot_mode == PIN_2ND_USB) {
 		hb_usb_dtb_config();
@@ -1555,6 +1487,7 @@ int last_stage_init(void)
 #ifdef HB_AUTORESET
 	prepare_autoreset();
 #endif
+
 #ifndef	CONFIG_FPGA_HOBOT
 	hb_swinfo_boot();
 #endif

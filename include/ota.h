@@ -18,6 +18,8 @@
 #define NOR_APP_ADDR 			(0x2000000)
 #define NOR_APP_MAX_SIZE 		(0x2000000)
 
+extern char boot_partition[64];
+extern char system_partition[64];
 
 char *printf_efiname(gpt_entry *pte);
 
@@ -30,26 +32,14 @@ int get_partition_id(char *partname);
 int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
         char *const argv[]);
 
-void ota_update_failed_output(char *boot_reason, char *partition);
-
-void ota_get_update_status(char *up_flag, char *partstatus,
-        char *boot_reason);
-
-void ota_update_set_bootdelay(char *boot_reason);
-
-int ota_normal_boot(bool boot_flag, char *partition);
-
-bool ota_kernel_or_system_update(char up_flag, bool part_status);
-
-bool ota_all_update(char up_flag, bool part_status);
-
 void ota_recovery_mode_set(bool upflag);
 
-void ota_ab_boot_bak_partition(unsigned int *rootfs_id,
-	unsigned int *kernel_id);
+void ota_ab_boot_bak_partition(void);
 
 unsigned int ota_check_update_success_flag(void);
 
-unsigned int ota_uboot_update_check(char *partition);
+void ota_upgrade_flag_check(char *up_mode, char *boot_reason);
+
+// bool hb_nor_ota_upflag_check(void);
 
 #endif

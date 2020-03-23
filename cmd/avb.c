@@ -11,14 +11,21 @@
 #include <malloc.h>
 #include <mmc.h>
 #include <configs/hb_config.h>
+#include <ota.h>
 
 #define AVB_BOOTARGS	"avb_bootargs"
 static struct AvbOps *avb_ops;
 
-static const char * const requested_partitions[] = {"boot",
+static const char * const requested_partitions[] = {
+					     "boot",
 					     "system",
-					     "vendor",
 					     NULL};
+
+static const char * const requested_recovery_partitions[] = {
+					     "recovery",
+					     "system",
+					     NULL};
+
 
 int do_avb_init(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -226,6 +233,7 @@ int do_avb_verify_part(cmd_tbl_t *cmdtp, int flag,
 
 	bool unlocked = false;
 	int res = CMD_RET_FAILURE;
+	const char* const* verity_partitions = NULL;
 
 	if (!avb_ops) {
 		printf("AVB 2.0 is not initialized, run 'avb init' first\n");
@@ -244,9 +252,14 @@ int do_avb_verify_part(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+	if (strcmp(boot_partition, "boot") == 0)
+		verity_partitions = requested_partitions;
+	else
+		verity_partitions = requested_recovery_partitions;
+
 	slot_result =
 		avb_slot_verify(avb_ops,
-				requested_partitions,
+				verity_partitions,
 				"",
 				unlocked,
 				AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,

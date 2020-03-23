@@ -16,6 +16,7 @@
 #include "avb_version.h"
 #include <malloc.h>
 #include <x3_spacc.h>
+#include <ota.h>
 
 uint64_t image_salt_len = 0;
 
@@ -361,6 +362,7 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 
 	ret = load_full_partition(
 		ops, part_name, image_size, &image_buf, &image_preloaded);
+	printf("avb load part_name: %s\n", part_name);
 	if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
 		goto out;
 	}
@@ -1333,7 +1335,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL) {
-        snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
+	if (strcmp(boot_partition, "boot") == 0)
+		snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
 
         env_set("bootargs", cmd);
     }

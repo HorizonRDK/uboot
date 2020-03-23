@@ -112,11 +112,8 @@
  *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
  */
 
-#define CONFIG_BOOTCOMMAND "avb_verify;" \
-		"part size mmc 0 boot bootimagesize;" \
-		"part start mmc 0 boot bootimageblk;" \
-		"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
-		"bootm 0x10000000;"
+#define CONFIG_BOOTCOMMAND "mmc read 0x10000000 ${bootimageblk} "\
+	"${bootimagesize};bootm 0x10000000;"
 
 /*
  * This include file must after CONFIG_BOOTCOMMAND
