@@ -819,7 +819,7 @@ static void hb_env_and_boardid_init(void)
 	ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
 	/* load nand kernel and dtb */
 	hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
-	hb_nand_dtb_load(board_id, hb_kernel_conf);
+	hb_nand_dtb_load(x3_board_id, hb_kernel_conf);
 	hb_nand_kernel_load(hb_kernel_conf);
 #endif
 }
