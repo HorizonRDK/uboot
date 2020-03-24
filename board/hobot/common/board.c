@@ -580,7 +580,6 @@ static void hb_mmc_env_init(void)
 	char upmode[16] = { 0 };
 	char boot_reason[64] = { 0 };
 	char *s;
-	char *verify = "avb_verify;";
 	char count;
 	char cmd[256] = { 0 };
 
@@ -632,15 +631,14 @@ static void hb_mmc_env_init(void)
 		env_set("mem_size", cmd);
 	}
 
-	if(strcmp(boot_partition, "recovery") == 0)
-		verify = "";
-
-	/* init env bootcmd init */
-	snprintf(cmd, sizeof(cmd), "%s part size mmc 0 %s " \
-		"bootimagesize;part start mmc 0 %s bootimageblk;"\
-		"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
-		"bootm 0x10000000;", verify, boot_partition, boot_partition);
-	env_set("bootcmd", cmd);
+	if(strcmp(boot_partition, "recovery") == 0) {
+		/* init env bootcmd init */
+		snprintf(cmd, sizeof(cmd), "part size mmc 0 %s " \
+			"bootimagesize;part start mmc 0 %s bootimageblk;"\
+			"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
+			"bootm 0x10000000;", boot_partition, boot_partition);
+		env_set("bootcmd", cmd);
+	}
 }
 #endif
 
