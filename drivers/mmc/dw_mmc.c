@@ -442,6 +442,14 @@ static int dwmci_init(struct mmc *mmc)
 		return -EIO;
 	}
 
+	/* DWC_mobile_storage_databook.pdf[p185]
+	 * 0 - Buffers supplied with 3.3V Vdd
+	 * 1 - Buffers supplied with 1.8V Vdd
+	 * /
+	/ * EMMC: X3J3 Config 1.8V Vdd*/
+	if (host->dev_index == 0)
+		dwmci_writel(host, DWMCI_UHS_REG, (1 << 0));
+
 	/* Enumerate at 400KHz */
 	dwmci_setup_bus(host, mmc->cfg->f_min);
 
