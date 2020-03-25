@@ -93,8 +93,8 @@ DECLARE_GLOBAL_DATA_PTR;
 #ifdef CONFIG_ARCH_HOBOT
 #define NAND_NAME "spi-nand"
 #define NAND_NAME_LEN 8
-#define NOR_NAME "spi-flash"
-#define NOR_NAME_LEN 9
+#define NOR_NAME "spi-nor"
+#define NOR_NAME_LEN 7
 #else
 #define NAND_NAME "nand"
 #define NAND_NAME_LEN 4

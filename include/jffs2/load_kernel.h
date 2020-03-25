@@ -16,7 +16,7 @@
 #define MTD_DEV_TYPE_ONENAND	0x0004
 #ifdef CONFIG_ARCH_HOBOT
 #define MTD_DEV_TYPE(type) ((type == MTD_DEV_TYPE_NAND) ? "spi-nand" :	\
-			(type == MTD_DEV_TYPE_ONENAND) ? "onenand" : "spi-flash")
+			(type == MTD_DEV_TYPE_ONENAND) ? "onenand" : "spi-nor")
 #else
 #define MTD_DEV_TYPE(type) ((type == MTD_DEV_TYPE_NAND) ? "nand" :	\
 			(type == MTD_DEV_TYPE_ONENAND) ? "onenand" : "nor")

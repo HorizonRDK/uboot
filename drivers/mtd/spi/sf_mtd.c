@@ -11,7 +11,7 @@
 
 static struct mtd_info sf_mtd_info;
 static bool sf_mtd_registered;
-static char sf_mtd_name[10];
+static char sf_mtd_name[9];
 
 static int spi_flash_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
@@ -96,8 +96,7 @@ int spi_flash_mtd_register(struct spi_flash *flash)
 	sf_mtd_registered = false;
 	memset(&sf_mtd_info, 0, sizeof(sf_mtd_info));
 	snprintf(sf_mtd_name, sizeof(sf_mtd_name),
-			"spi-flash%d", spi_flash_mtd_number());
-
+			"spi-nor%d", spi_flash_mtd_number());
 	sf_mtd_info.name = sf_mtd_name;
 	sf_mtd_info.type = MTD_NORFLASH;
 	sf_mtd_info.flags = MTD_CAP_NORFLASH;

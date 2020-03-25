@@ -777,7 +777,7 @@ struct mtd_info *get_mtd_device_nm(const char *name)
 	mutex_lock(&mtd_table_mutex);
 
 	mtd_for_each_device(other) {
-		ret = strncmp(name, other->name, 10);
+		ret = strcmp(name, other->name);
 		if (!ret) {
 			mtd = other;
 			break;

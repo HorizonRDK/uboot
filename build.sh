@@ -216,8 +216,6 @@ function set_uboot_config()
     sed -i '/CONFIG_MTDIDS_DEFAULT/d' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     sed -i '/CONFIG_MTDPARTS_DEFAULT/d' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     if [[ "$IMAGE_TYPE" = "nand" ]] || [[ "$bootmode" = "nand" ]] || [[ "$ifubi" = "true" ]];then
-        sed -i 's/# CONFIG_CMD_UBI is not set/CONFIG_CMD_UBI=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i 's/# CONFIG_CMD_UBIFS is not set/CONFIG_CMD_UBIFS=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
@@ -226,11 +224,9 @@ function set_uboot_config()
         sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:6815744@0x0(bootloader),20971520@0x680000(sys),62914560@0x1A80000(rootfs),-@0x5680000(userdata)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     elif [[ "$bootmode" = "nor" ]];then
         sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g'
-        sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-flash1=hr_nor"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:393216@0x20000(sbl),524288@0x80000(bl31),1048576@0x100000(uboot),131072@0x200000(bpu),131072@0x220000(vbmeta),10485760@0x240000(boot),10485760@0xC40000(recovery),34603008@0x1640000(system),-@0x3740000(app)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     else
-        sed -i 's/CONFIG_CMD_UBI=y/# CONFIG_CMD_UBI is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i 's/CONFIG_CMD_UBIFS=y/# CONFIG_CMD_UBIFS is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/# CONFIG_ENV_IS_IN_MMC is not set/CONFIG_ENV_IS_IN_MMC=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG

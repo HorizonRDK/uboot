@@ -79,7 +79,7 @@
 
 	nor0: is25wp512@0 {
 		u-boot,dm-pre-reloc;
-		compatible = "spi-flash";
+		compatible = "spi-nor";
 		reg = <0x0>;
 	};
 
