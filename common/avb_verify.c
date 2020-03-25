@@ -360,6 +360,107 @@ static AvbIOResult sf_byte_io(AvbOps *ops,
 	return AVB_IO_RESULT_OK;
 }
 
+#elif defined CONFIG_HB_NAND_BOOT
+/**
+ * ============================================================================
+ * IO(spi nand) auxiliary functions
+ * ============================================================================
+ */
+static uint64_t nand_read_and_flush(struct ubi_volume *part,
+					lbaint_t start,
+					lbaint_t len,
+					void *buffer)
+{
+	lbaint_t total_len = len;
+	uint64_t ret = 0;
+	void *tmp_buf;
+
+	tmp_buf = (void *) malloc(len * sizeof(char));
+	memset(tmp_buf, 0, sizeof(tmp_buf));
+	ret = ubi_volume_read(part->name, tmp_buf, 0);
+	if (ret) {
+		printf("UBI read %s failed!", part->name);
+		return ret;
+	}
+	if ((start + len) > part->used_bytes) {
+		debug("Attempting to read beyond boundary, stop at boundary\n");
+		len = part->used_bytes - start;
+	}
+	memcpy(buffer, tmp_buf + start, len);
+	return total_len;
+}
+
+static uint64_t nand_write(struct ubi_volume *part, lbaint_t start,
+			       lbaint_t len, void *buffer)
+{
+	uint64_t ret = 0, vol_size = 0;
+	void *tmp_buf;
+
+	tmp_buf = (void *) malloc(part->used_bytes * sizeof(char));
+	ret = ubi_volume_read(part->name, tmp_buf, 0);
+	if (ret) {
+		printf("UBI Volume %s access failed!\n", part->name);
+		return -1;
+	}
+	vol_size = part->reserved_pebs * (part->ubi->leb_size - part->data_pad);
+	if ((start + len) > vol_size) {
+		debug("Attempting to write outside of boundary, stops at boundary.\n");
+		len = vol_size - start;
+	}
+
+	memcpy(tmp_buf + start, buffer, len);
+	ret = ubi_volume_write(part->name, tmp_buf, len);
+
+	return ret;
+}
+
+static struct ubi_volume *nand_get_partition(const char *partition)
+{
+	if (ubi_part("sys", NULL))
+		return NULL;
+	return ubi_find_volume(partition);
+}
+
+static AvbIOResult nand_byte_io(AvbOps *ops,
+			       const char *partition,
+			       s64 offset,
+			       size_t num_bytes,
+			       void *buffer,
+			       size_t *out_num_read,
+			       enum io_type io_type)
+{
+	ulong ret;
+	u64 start_offset;
+	size_t io_cnt = 0;
+	struct ubi_volume *part = NULL;
+
+	if (!partition || !buffer || io_type > IO_WRITE)
+		return AVB_IO_RESULT_ERROR_IO;
+
+	part = nand_get_partition(partition);
+	if (part == NULL)
+		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+
+	start_offset = offset < 0 ? part->used_bytes + offset : offset;
+	if (io_type == IO_READ) {
+		ret = nand_read_and_flush(part,
+						start_offset,
+						num_bytes, buffer);
+	} else {
+		ret = nand_write(part,
+						start_offset,
+						num_bytes,  buffer);
+	}
+
+	io_cnt += ret;
+
+	/* Set counter for read operation */
+	if (io_type == IO_READ && out_num_read)
+		*out_num_read = io_cnt;
+
+	return AVB_IO_RESULT_OK;
+}
+
 #else
 /**
  * ============================================================================
@@ -656,6 +757,9 @@ static AvbIOResult read_from_partition(AvbOps *ops,
 #if defined CONFIG_HB_NOR_BOOT
 	return sf_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, buffer, out_num_read, IO_READ);
+#elif defined CONFIG_HB_NAND_BOOT
+	return nand_byte_io(ops, partition_name, offset_from_partition,
+			   num_bytes, buffer, out_num_read, IO_READ);
 #else
 	return mmc_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, buffer, out_num_read, IO_READ);
@@ -687,6 +791,9 @@ static AvbIOResult write_to_partition(AvbOps *ops,
 {
 #if defined CONFIG_HB_NOR_BOOT
 	return sf_byte_io(ops, partition_name, offset_from_partition,
+			   num_bytes, (void *)buffer, NULL, IO_WRITE);
+#elif defined CONFIG_HB_NAND_BOOT
+	return nand_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, (void *)buffer, NULL, IO_WRITE);
 #else
 	return mmc_byte_io(ops, partition_name, offset_from_partition,
@@ -864,6 +971,12 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
 	if (!cur_part)
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 	*out_size_num_bytes = cur_part->size;
+#elif defined CONFIG_HB_NAND_BOOT
+	struct ubi_volume *cur_part = nand_get_partition(partition);
+	if (!cur_part)
+		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+	*out_size_num_bytes = cur_part->reserved_pebs
+						* (cur_part->ubi->leb_size - cur_part->data_pad);
 #else
 	struct mmc_part *part;
 
@@ -888,6 +1001,10 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 
 #ifdef CONFIG_HB_NOR_BOOT
 	printf("Hobot SPI-NOR AVB Verify\n");
+	if (strcmp(if_typename, "sf")) {
+		printf("Wrong interface passed in, please use sf!\n");
+		return NULL;
+	}
 	if_type = IF_TYPE_COUNT + 1;
 	char *s;
 	int ret;
@@ -896,6 +1013,17 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 		ret = run_command_list(s, -1, 0);
 		if (ret)
 			return NULL;
+	}
+#elif defined CONFIG_HB_NAND_BOOT
+	printf("Hobot SPI-NAND AVB Verify\n");
+	if_type = IF_TYPE_COUNT + 2;
+	if (strcmp(if_typename, "nand")) {
+		printf("Wrong interface passed in, please use nand!\n");
+		return NULL;
+	}
+	if (ubi_part("sys", NULL)) {
+		printf("UBI Volume Init Failed!\n");
+		return NULL;
 	}
 #else
 	for (int i = 0; i < IF_TYPE_COUNT; i++) {

@@ -192,7 +192,7 @@ static int ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id)
 	return ubi_create_volume(ubi, &req);
 }
 
-static struct ubi_volume *ubi_find_volume(char *volume)
+struct ubi_volume *ubi_find_volume(const char *volume)
 {
 	struct ubi_volume *vol = NULL;
 	int i;
@@ -352,11 +352,11 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 		return 0;
 
 	if (size == 0) {
-		/* printf("No size specified -> Using max size (%lld)\n", vol->used_bytes); */
+		debug("No size specified -> Using max size (%lld)\n", vol->used_bytes);
 		size = vol->used_bytes;
 	}
 
-	printf("Read %zu bytes from volume %s to %p\n", size, volume, buf);
+	debug("Read %zu bytes from volume %s to %p\n", size, volume, buf);
 
 	if (vol->corrupted)
 		printf("read from corrupted volume %d", vol->vol_id);

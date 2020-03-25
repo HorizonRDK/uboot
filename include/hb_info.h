@@ -125,12 +125,6 @@
 
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 
-#ifdef CONFIG_ENV_IS_IN_UBI
-#define CONFIG_ENV_UBI_PART "sys"
-#define CONFIG_ENV_UBI_VOLUME "ubootenv"
-#define CONFIG_ENV_UBI_VOLUME_REDUND "ubootenvbak"
-#endif
-
 extern uint32_t x3_board_id;
 extern uint32_t x3_som_type;
 

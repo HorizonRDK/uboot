@@ -31,9 +31,7 @@
 #include <asm/arch/hb_share.h>
 #include <configs/hb_config.h>
 #include <hb_info.h>
-#ifdef CONFIG_HB_NAND_BOOT
 #include <ubi_uboot.h>
-#endif
 #include <asm/arch-x3/hb_reg.h>
 #include <asm/arch-x3/boot_mode.h>
 #include <asm/arch-x2/ddr.h>
@@ -476,106 +474,24 @@ uint32_t hb_board_type_get(void)
 	return board_type;
 }
 
-#ifdef CONFIG_HB_NAND_BOOT
-static void nand_boot(void)
+static void hb_nand_boot(void)
 {
 	run_command("mtd list", 0);
 	if (ubi_part("sys", NULL)) {
 		printf("system ubi image load failed!\n");
 	}
-}
-
-static void nand_dtb_image_load(unsigned int addr, unsigned int leng,
-	bool flag)
-{
-	char cmd[256] = { 0 };
-	ulong gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
-
-	if (flag == false) {
-		ubi_volume_read("dtb", (void *)dtb_addr, leng);
-	} else {
-		ubi_volume_read("dtb", (void *)gz_addr, 0);
-
-		snprintf(cmd, sizeof(cmd), "unzip 0x%lx 0x%lx", gz_addr, dtb_addr);
-		run_command_list(cmd, -1, 0);
-		gz_addr = dtb_addr + addr;
-		if (gz_addr != dtb_addr)
-			memcpy((void *)dtb_addr, (void *)gz_addr, NOR_SECTOR_SIZE);
-	}
-}
-
-static void hb_nand_env_init(void)
-{
-	char *tmp;
-
+	char *bootargs;
 	/* set bootargs */
-	tmp = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
 		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
-	env_set("bootargs", tmp);
-
-	/* set bootcmd */
-	tmp = "send_id;run unzipimage;ion_modify ${ion_size};"\
-		"mem_modify ${mem_size};run ddrboot;";
-	env_set("bootcmd", tmp);
-}
-
-static void hb_nand_dtb_load(unsigned int board_id,
-		struct hb_kernel_hdr *config)
-{
-	char *s = NULL;
-	bool gz_flag = false;
-	int i, count = config->dtb_number;
-	uint32_t board_type = hb_board_type_get();
-
-	if (count > DTB_MAX_NUM) {
-		printf("error: count %02x not support\n", count);
-		return;
+	env_set("bootargs", bootargs);
+	if (hb_check_secure()) {
+		env_set("bootcmd", "avb_verify; bootm 0x10000000");
+	} else {
+		env_set("bootcmd", "bootm 0x10000000");
 	}
-
-	if (config->dtb[0].dtb_addr == 0)
-		gz_flag = true;
-
-	for (i = 0; i < count; i++) {
-		if (board_type == config->dtb[i].board_id) {
-			s = (char *)config->dtb[i].dtb_name;
-
-			if ((config->dtb[i].dtb_addr == 0x0) && (gz_flag == false)) {
-				printf("error: dtb %s not exit\n", s);
-				return;
-			}
-
-			nand_dtb_image_load(config->dtb[i].dtb_addr,
-				config->dtb[i].dtb_size, gz_flag);
-
-			hb_nand_env_init();
-			break;
-		}
-	}
-
-	if (i == count)
-		printf("error: board_id %02x not support\n", board_id);
-
-	printf("fdtimage = %s\n", s);
-	env_set("fdtimage", s);
+	ubi_volume_read("boot", (void *) 0x10000000, 0);
 }
-
-static void hb_nand_kernel_load(struct hb_kernel_hdr *config)
-{
-	ulong gz_addr;
-	bool load_imggz = true;
-	int ret;
-	gz_addr = env_get_ulong("gz_addr", 16, GZ_ADDR);
-	ret = 0;
-
-	/* load Image.gz */
-	ret = ubi_volume_read("kernel", (void *)gz_addr, 0);
-
-	if (ret) {
-		printf("Load from ubi volume failed with error: -%d!\n", ret);
-	}
-}
-#endif
 
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_mmc_env_init(void)
@@ -724,7 +640,6 @@ static bool hb_nor_ota_upflag_check(void)
 static void hb_nor_boot(void)
 {
 	char *bootargs;
-	char *bootcmd;
 	char *boot_arg[2];
 	loff_t offset, size, maxsize;
 //	bool load_imggz = true;
@@ -750,17 +665,15 @@ static void hb_nor_boot(void)
 	env_set("bootargs", bootargs);
 	/* set secure boot bootcmd */
 	if (hb_check_secure()) {
-		if (run_command("avb_verify", 0))
-			return;
+		env_set("bootcmd", "avb_verify; bootm 0x10000000");
+	} else {
+		env_set("bootcmd", "bootm 0x10000000");
 	}
 	if (mtd_arg_off_size(2, boot_arg, &dev, &offset, &maxsize,
 						&size, 0x0001, flash->size)) {
 		return;
 	}
 	spi_flash_read(flash, offset, size, (void *) 0x10000000);
-	bootcmd = "bootm 0x10000000;";
-
-	env_set("bootcmd", bootcmd);
 }
 
 static void hb_usb_dtb_config(void) {
@@ -817,16 +730,10 @@ static void hb_env_and_boardid_init(void)
 	}  else if (boot_mode == PIN_2ND_NOR) {
 		/* load nor kernel and dtb */
 		hb_nor_boot();
+	} else if (boot_mode == PIN_2ND_NAND) {
+		hb_nand_boot();
 	}
 
-#ifdef CONFIG_HB_NAND_BOOT
-	struct hb_kernel_hdr *hb_kernel_conf;
-	ubi_volume_read("dtb_mapping", (void *)HB_DTB_CONFIG_ADDR, 0);
-	/* load nand kernel and dtb */
-	hb_kernel_conf =  (struct hb_kernel_hdr *)HB_DTB_CONFIG_ADDR;
-	hb_nand_dtb_load(x3_board_id, hb_kernel_conf);
-	hb_nand_kernel_load(hb_kernel_conf);
-#endif
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
@@ -1458,10 +1365,6 @@ int last_stage_init(void)
 	apbooting();
 #ifdef	CONFIG_AP_CP_COMN_MODE
 	hb_ap_communication();
-#endif
-
-#ifdef CONFIG_HB_NAND_BOOT
-	nand_boot();
 #endif
 
 	base_board_gpio_test();

@@ -401,7 +401,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 #if defined CONFIG_HB_NOR_BOOT
 	cmd = "avb init sf 0";
 #elif defined CONFIG_HB_NAND_BOOT
-	cmd = "avb init mtd 0";
+	cmd = "avb init nand 0";
 #else
 	cmd = "avb init mmc 0";
 #endif
