@@ -147,7 +147,7 @@ static int hb_dtb_property_config(int offset, char *prop, int value)
 		return 1;
 	}
 
-	snprintf(node_data, sizeof(node_data), "%d", value);
+	snprintf(node_data, sizeof(node_data), "%x", value);
 	len = strlen(node_data) + 1;
 
 	ret = fdt_setprop(hb_dtb, offset, prop, node_data, len);
