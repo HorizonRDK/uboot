@@ -39,8 +39,8 @@
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
 #include <linux/mtd/mtd.h>
-#include <x3_spacc.h>
-#include <x3_pka.h>
+#include <hb_spacc.h>
+#include <hb_pka.h>
 
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT

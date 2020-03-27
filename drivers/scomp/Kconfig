@@ -1,0 +1,8 @@
+config HBOT_SECURE_COMPONENT
+		bool "Hbot Secure component driver support"
+		default y
+        	help
+			This supports secure component drivers.
+			
+			Note that this application programming interface is EXPERIMENTAL
+			and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.

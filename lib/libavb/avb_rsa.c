@@ -13,8 +13,8 @@
 #include "avb_util.h"
 #include "avb_vbmeta_image.h"
 #include <malloc.h>
-#include <x3_pka.h>
-#include <x3_spacc.h>
+#include <hb_pka.h>
+#include <hb_spacc.h>
 
 #ifndef X3_PKA
 typedef struct IAvbKey {

@@ -2,7 +2,7 @@
  * (c) Copyright 2019.10.25
  */
 
-#include <x3_spacc.h>
+#include <hb_spacc.h>
 #include <common.h>
 #include <asm/arch/hb_bifsd.h>
 #include <asm/arch/hb_reg.h>

@@ -15,7 +15,7 @@
 #include "avb_vbmeta_image.h"
 #include "avb_version.h"
 #include <malloc.h>
-#include <x3_spacc.h>
+#include <hb_spacc.h>
 #include <ota.h>
 
 uint64_t image_salt_len = 0;

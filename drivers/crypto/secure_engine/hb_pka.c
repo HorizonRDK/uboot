@@ -2,10 +2,10 @@
  * (c) Copyright 2019.10.25
  */
 
-#include <x3_pka.h>
+#include <hb_pka.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <x3_spacc.h>
+#include <hb_spacc.h>
 #include <common.h>
 #include <asm/arch/hb_reg.h>
 #include <linux/string.h>

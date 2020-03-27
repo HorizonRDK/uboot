@@ -16,7 +16,7 @@ obj-$(CONFIG_$(SPL_TPL_)SPI_SUPPORT) += spi/
 obj-$(CONFIG_$(SPL_TPL_)TIMER) += timer/
 obj-$(CONFIG_$(SPL_)DM_MAILBOX) += mailbox/
 obj-$(CONFIG_$(SPL_)REMOTEPROC) += remoteproc/
-
+obj-$(CONFIG_HBOT_SECURE_COMPONENT) += scomp/
 ifndef CONFIG_TPL_BUILD
 ifdef CONFIG_SPL_BUILD
 

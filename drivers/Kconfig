@@ -90,6 +90,8 @@ source "drivers/smem/Kconfig"
 
 source "drivers/sound/Kconfig"
 
+source "drivers/scomp/Kconfig"
+
 source "drivers/spi/Kconfig"
 
 source "drivers/spmi/Kconfig"

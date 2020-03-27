@@ -12,7 +12,7 @@
 #include <../lib/libavb/avb_slot_verify.h>
 
 #include <malloc.h>
-#include <x3_spacc.h>
+#include <hb_spacc.h>
 
 AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     const uint8_t* data,

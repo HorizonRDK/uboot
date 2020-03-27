@@ -78,6 +78,7 @@ static int valid_fdt(struct fdt_header **blobp)
 	return 1;
 }
 
+#if 0
 static int socuid_read(u32 word, u32 *val)
 {
 	unsigned int i = 0, rv;
@@ -123,6 +124,42 @@ static int get_socuid(char *socuid)
 	}
 	return 0;
 }
+
+static int hb_set_socuid(int offset)
+{
+	int  len;		/* new length of the property */
+	int  ret;		/* return value */
+	const void *ptmp;
+	char *prop = "socuid";
+	static char node_data[SCRATCHPAD] __aligned(4);/* property storage */
+
+	ptmp = fdt_getprop(hb_dtb, offset, prop, &len);
+	if (len > SCRATCHPAD) {
+		printf("prop (%d) doesn't fit in scratchpad!\n",
+				len);
+		return 1;
+	}
+
+	if (ptmp != NULL)
+		memcpy(node_data, ptmp, len);
+
+	memset(node_data, 0, sizeof(node_data));
+	ret = get_socuid(node_data);
+	if(ret < 0) {
+		printf("get_socuid error\n");
+		return 1;
+	}
+
+	len = strlen(node_data) + 1;
+	ret = fdt_setprop(hb_dtb, offset, prop, node_data, len);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return 0;
+}
+#endif
 
 static int find_fdt(unsigned long fdt_addr)
 {
@@ -200,41 +237,6 @@ static int hb_set_boot_mode(int offset)
 	}
 
 	return ret;
-}
-
-static int hb_set_socuid(int offset)
-{
-	int  len;		/* new length of the property */
-	int  ret;		/* return value */
-	const void *ptmp;
-	char *prop = "socuid";
-	static char node_data[SCRATCHPAD] __aligned(4);/* property storage */
-
-	ptmp = fdt_getprop(hb_dtb, offset, prop, &len);
-	if (len > SCRATCHPAD) {
-		printf("prop (%d) doesn't fit in scratchpad!\n",
-				len);
-		return 1;
-	}
-
-	if (ptmp != NULL)
-		memcpy(node_data, ptmp, len);
-
-	memset(node_data, 0, sizeof(node_data));
-	ret = get_socuid(node_data);
-	if(ret < 0) {
-		printf("get_socuid error\n");
-		return 1;
-	}
-
-	len = strlen(node_data) + 1;
-	ret = fdt_setprop(hb_dtb, offset, prop, node_data, len);
-	if (ret < 0) {
-		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
-		return 1;
-	}
-
-	return 0;
 }
 
 static void hb_board_config_init(void) {

@@ -5,9 +5,9 @@
 #include <common.h>
 #include <malloc.h>
 #include <ota.h>
-#include <x3_crypt.h>
-#include <x3_spacc.h>
-#include <x3_pka.h>
+#include <hb_crypt.h>
+#include <hb_spacc.h>
+#include <hb_pka.h>
 #include <hb_info.h>
 
 /* kernel: raw partition */
