@@ -132,6 +132,13 @@ config FASTBOOT_CMD_OEM_FORMAT
 	  relies on the env variable partitions to contain the list of
 	  partitions as required by the gpt command.
 
+config FASTBOOT_CMD_OEM_RAMDUMP
+	bool "Enable the 'oem ramdump' command"
+	help
+	  Add support for the "oem ramdump" command from a client. This
+	  could help to dump indicated/whole dram data to host pc through
+	  fastboot oem command.
+
 endif # FASTBOOT
 
 endmenu

@@ -77,6 +77,16 @@ void fastboot_okay(const char *reason, char *response)
 }
 
 /**
+ * fastboot_none() - Skip the common write operation, nothing output.
+ *
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_none_resp(char *response)
+{
+	*response = 0;
+}
+
+/**
  * fastboot_set_reboot_flag() - Set flag to indicate reboot-bootloader
  *
  * Set flag which indicates that we should reboot into the bootloader

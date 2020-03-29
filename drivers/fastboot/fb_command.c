@@ -10,6 +10,11 @@
 #include <fb_nand.h>
 #include <part.h>
 #include <stdlib.h>
+#include <mapmem.h>
+
+DECLARE_GLOBAL_DATA_PTR;
+
+#define EP_BUFFER_SIZE			4096
 
 /**
  * image_size - final fastboot image size
@@ -20,6 +25,11 @@ static u32 image_size;
  * fastboot_bytes_received - number of bytes received in the current download
  */
 static u32 fastboot_bytes_received;
+
+/**
+ * fastboot_bytes_send - number of bytes received in the current upload
+ */
+static u32 fastboot_bytes_send;
 
 /**
  * fastboot_bytes_expected - number of bytes expected in the current download
@@ -36,6 +46,9 @@ static void erase(char *, char *);
 static void reboot_bootloader(char *, char *);
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 static void oem_format(char *, char *);
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_RAMDUMP)
+static void oem_ramdump(char *cmd_parameter, char *response);
 #endif
 
 static const struct {
@@ -84,6 +97,12 @@ static const struct {
 	[FASTBOOT_COMMAND_OEM_FORMAT] = {
 		.command = "oem format",
 		.dispatch = oem_format,
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_RAMDUMP)
+	[FASTBOOT_COMMAND_OEM_RAMDUMP] = {
+		.command = "oem ramdump",
+		.dispatch = oem_ramdump,
 	},
 #endif
 };
@@ -183,11 +202,11 @@ static void download(char *cmd_parameter, char *response)
 }
 
 /**
- * fastboot_data_remaining() - return bytes remaining in current transfer
+ * fastboot_download_remaining() - return bytes remaining in current transfer
  *
  * Return: Number of bytes left in the current download
  */
-u32 fastboot_data_remaining(void)
+u32 fastboot_download_remaining(void)
 {
 	return fastboot_bytes_expected - fastboot_bytes_received;
 }
@@ -237,13 +256,13 @@ void fastboot_data_download(const void *fastboot_data,
 }
 
 /**
- * fastboot_data_complete() - Mark current transfer complete
+ * fastboot_download_complete() - Mark current transfer complete
  *
  * @response: Pointer to fastboot response buffer
  *
  * Set image_size and ${filesize} to the total size of the downloaded image.
  */
-void fastboot_data_complete(char *response)
+void fastboot_download_complete(char *response)
 {
 	/* Download complete. Respond with "OKAY" */
 	fastboot_okay(NULL, response);
@@ -252,6 +271,22 @@ void fastboot_data_complete(char *response)
 	env_set_hex("filesize", image_size);
 	fastboot_bytes_expected = 0;
 	fastboot_bytes_received = 0;
+}
+
+/**
+ * fastboot_upload_complete() - Mark current transfer complete
+ *
+ * @response: Pointer to fastboot response buffer
+ *
+ * Mark current upload transfer complete, and reset global transfer info.
+ */
+void fastboot_upload_complete(char *response)
+{
+	/* Download complete. Respond with "OKAY" */
+	fastboot_okay(NULL, response);
+	printf("\nuploading of %d bytes finished\n", fastboot_bytes_send);
+	fastboot_bytes_expected = 0;
+	fastboot_bytes_send = 0;
 }
 
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
@@ -297,6 +332,56 @@ static void erase(char *cmd_parameter, char *response)
 #endif
 
 /**
+ * fastboot_upload_remaining() - return bytes remaining in current transfer
+ *
+ * Return: Number of bytes left in the current upload
+ */
+u32 fastboot_upload_remaining(void)
+{
+	return fastboot_bytes_expected - fastboot_bytes_send;
+}
+
+/**
+ * fastboot_data_upload() - Copy indicated data to in_ep->buf.
+ *
+ * @fastboot_data: Pointer to fastboot data need be sent
+ * @fastboot_data_len: Length of fastboot data need be sent
+ * @response: Pointer to fastboot response buffer
+ *
+ */
+void fastboot_data_upload(const void *fastboot_data,
+			    unsigned int fastboot_data_len,
+			    char *response)
+{
+#define BYTES_PER_DOT	0x20000
+	u32 pre_dot_num, now_dot_num;
+	u32 dram_start_addr = 0x0;
+
+	if (fastboot_data_len == 0 ||
+	    (fastboot_bytes_send + fastboot_data_len) >
+	    fastboot_bytes_expected) {
+		fastboot_fail("Invalid data length for send",
+			      response);
+		return;
+	}
+
+	/* Upload data to fastboot_data */
+	memcpy(fastboot_data, dram_start_addr + fastboot_bytes_send,
+			fastboot_data_len);
+
+	pre_dot_num = fastboot_bytes_send / BYTES_PER_DOT;
+	fastboot_bytes_send += fastboot_data_len;
+	now_dot_num = fastboot_bytes_send / BYTES_PER_DOT;
+
+	if (pre_dot_num != now_dot_num) {
+		putc('.');
+		if (!(now_dot_num % 74))
+			putc('\n');
+	}
+	*response = '\0';
+}
+
+/**
  * reboot_bootloader() - Sets reboot bootloader flag.
  *
  * @cmd_parameter: Pointer to command parameter
@@ -331,5 +416,35 @@ static void oem_format(char *cmd_parameter, char *response)
 		else
 			fastboot_okay(NULL, response);
 	}
+}
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_RAMDUMP)
+/**
+ * oem_ramdump() - Execute the OEM ramdump command
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void oem_ramdump(char *cmd_parameter, char *response)
+{
+	char *tmp;
+
+	if (!cmd_parameter)
+		fastboot_bytes_expected = gd->ram_size;
+	else
+		fastboot_bytes_expected = simple_strtoul(cmd_parameter, &tmp, 16);
+
+	if (!fastboot_bytes_expected) {
+		fastboot_fail("Expected nonzero image size", response);
+		return;
+	}
+
+	fastboot_response("DATA", response, "%08x", fastboot_bytes_expected);
+	fastboot_tx_write_more(response);
+
+	fastboot_upload_ramdump();
+
+	fastboot_none_resp(response);
 }
 #endif

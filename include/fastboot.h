@@ -36,6 +36,9 @@ enum {
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 	FASTBOOT_COMMAND_OEM_FORMAT,
 #endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_RAMDUMP)
+	FASTBOOT_COMMAND_OEM_RAMDUMP,
+#endif
 
 	FASTBOOT_COMMAND_COUNT
 };
@@ -66,6 +69,14 @@ void fastboot_fail(const char *reason, char *response);
  * @response: Pointer to fastboot response buffer
  */
 void fastboot_okay(const char *reason, char *response);
+
+/**
+ * fastboot_okay() - Write an OKAY response of the form "OKAY$reason".
+ *
+ * @reason: Pointer to returned reason string, or NULL to send a bare "OKAY"
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_none_resp(char *response);
 
 /**
  * fastboot_set_reboot_flag() - Set flag to indicate reboot-bootloader
@@ -122,11 +133,18 @@ void fastboot_boot(void);
 int fastboot_handle_command(char *cmd_string, char *response);
 
 /**
- * fastboot_data_remaining() - return bytes remaining in current transfer
+ * fastboot_download_remaining() - return bytes remaining in current transfer
  *
  * Return: Number of bytes left in the current download
  */
-u32 fastboot_data_remaining(void);
+u32 fastboot_download_remaining(void);
+
+/**
+ * fastboot_upload_remaining() - return bytes remaining in current transfer
+ *
+ * Return: Number of bytes left in the current upload
+ */
+u32 fastboot_upload_remaining(void);
 
 /**
  * fastboot_data_download() - Copy image data to fastboot_buf_addr.
@@ -143,12 +161,51 @@ void fastboot_data_download(const void *fastboot_data,
 			    unsigned int fastboot_data_len, char *response);
 
 /**
- * fastboot_data_complete() - Mark current transfer complete
+ * fastboot_download_complete() - Mark current transfer complete
  *
  * @response: Pointer to fastboot response buffer
  *
  * Set image_size and ${filesize} to the total size of the downloaded image.
  */
-void fastboot_data_complete(char *response);
+void fastboot_download_complete(char *response);
+
+/**
+ * fastboot_tx_write() - fastboot tx write data
+ *
+ * @buffer: buffer to be send
+ * @buffer_size: buffer size
+ *
+ * fastboot tx transfer data through usb bulk-ep1
+ * (fastboot_func->in_ep)
+ */
+int fastboot_tx_write(const char *buffer, unsigned int buffer_size);
+
+/**
+ * fastboot_tx_write_more() - fastboot tx write more buffer
+ *
+ * @buffer: string buffer to more fastboot response
+ *
+ * fastboot_tx_write(_str) use const bulk-ep1 to transfer data,
+ * fastboot_tx_write_more will alloc new urb/trb to transfer more
+ * buffer.
+ */
+int fastboot_tx_write_more(const char *buffer);
+
+/**
+ * fastboot_upload_ramdump() - wrapper function for upload ramdump to host
+ *
+ * wrapper function to upload requested ram data to host pc,
+ * used for oem ramdump feature..
+ */
+void fastboot_upload_ramdump(void);
+
+/**
+ * fastboot_upload_complete() - Mark current transfer complete
+ *
+ * @response: Pointer to fastboot response buffer
+ *
+ * Mark current upload transfer complete, and reset global transfer info.
+ */
+void fastboot_upload_complete(char *response);
 
 #endif /* _FASTBOOT_H_ */
