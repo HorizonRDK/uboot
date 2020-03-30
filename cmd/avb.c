@@ -26,7 +26,6 @@ static const char * const requested_recovery_partitions[] = {
 					     "system",
 					     NULL};
 
-
 int do_avb_init(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *interface;
@@ -234,6 +233,7 @@ int do_avb_verify_part(cmd_tbl_t *cmdtp, int flag,
 	bool unlocked = false;
 	int res = CMD_RET_FAILURE;
 	const char* const* verity_partitions = NULL;
+	const char* ab_suffix = "";
 
 	if (!avb_ops) {
 		printf("AVB 2.0 is not initialized, run 'avb init' first\n");
@@ -252,15 +252,19 @@ int do_avb_verify_part(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
-	if (strcmp(boot_partition, "boot") == 0)
+	if (strcmp(boot_partition, "boot") == 0) {
 		verity_partitions = requested_partitions;
-	else
+	} else if (strcmp(boot_partition, "boot_b") == 0) {
+		verity_partitions = requested_partitions;
+		ab_suffix = "_b";
+	} else {
 		verity_partitions = requested_recovery_partitions;
+	}
 
 	slot_result =
 		avb_slot_verify(avb_ops,
 				verity_partitions,
-				"",
+				ab_suffix,
 				unlocked,
 				AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
 				&out_data);

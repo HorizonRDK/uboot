@@ -21,6 +21,10 @@
 extern char boot_partition[64];
 extern char system_partition[64];
 
+extern char hb_upmode[32];
+extern char hb_bootreason[32];
+extern char hb_partstatus;
+
 char *printf_efiname(gpt_entry *pte);
 
 unsigned int hex_to_char(unsigned int temp);

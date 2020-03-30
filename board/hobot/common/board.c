@@ -54,6 +54,9 @@ static int stored_dumptype;
 extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
 uint32_t x3_som_type = SOM_TYPE_X3;
+char hb_upmode[32] = "golden";
+char hb_bootreason[32] = "normal";
+char hb_partstatus = 0;
 
 #ifdef CONFIG_SYSRESET
 static int print_resetinfo(void)
@@ -577,20 +580,12 @@ static void hb_nand_kernel_load(struct hb_kernel_hdr *config)
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_mmc_env_init(void)
 {
-	char upmode[16] = { 0 };
-	char boot_reason[64] = { 0 };
 	char *s;
 	char count;
 	char cmd[256] = { 0 };
 
-	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
-		VEEPROM_RESET_REASON_SIZE);
-
-	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
-			VEEPROM_UPDATE_MODE_SIZE);
-
-	if ((strcmp(upmode, "AB") == 0) || (strcmp(upmode, "golden") == 0)) {
-		if (strcmp(boot_reason, "normal") == 0) {
+	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
+		if (strcmp(hb_bootreason, "normal") == 0) {
 			/* boot_reason is 'normal', normal boot */
 			printf("uboot: normal boot \n");
 
@@ -598,7 +593,7 @@ static void hb_mmc_env_init(void)
 				VEEPROM_COUNT_SIZE);
 
 			if (count <= 0) {
-				if (strcmp(upmode, "AB") == 0) {
+				if (strcmp(hb_upmode, "AB") == 0) {
 					/* AB mode, boot system backup partition */
 					ota_ab_boot_bak_partition();
 				} else {
@@ -606,17 +601,17 @@ static void hb_mmc_env_init(void)
 					ota_recovery_mode_set(true);
 				}
 			} else {
-				ota_upgrade_flag_check(upmode, boot_reason);
+				ota_upgrade_flag_check(hb_upmode, hb_bootreason);
 			}
-		} else if (strcmp(boot_reason, "recovery") == 0) {
+		} else if (strcmp(hb_bootreason, "recovery") == 0) {
 			/* boot_reason is 'recovery', enter recovery mode */
 			env_set("bootdelay", "0");
 			ota_recovery_mode_set(false);
 		} else {
-			ota_upgrade_flag_check(upmode, boot_reason);
+			ota_upgrade_flag_check(hb_upmode, hb_bootreason);
 
 			/* auto extend last emmc partition */
-			if (strcmp(boot_reason, "all") == 0) {
+			if (strcmp(hb_bootreason, "all") == 0) {
 				s = "gpt extend mmc 0";
 				run_command_list(s, -1, 0);
 			}
@@ -631,7 +626,8 @@ static void hb_mmc_env_init(void)
 		env_set("mem_size", cmd);
 	}
 
-	if(strcmp(boot_partition, "recovery") == 0) {
+	if ((strcmp(boot_partition, "recovery") == 0) ||
+		strcmp(boot_partition, "boot_b") == 0) {
 		/* init env bootcmd init */
 		snprintf(cmd, sizeof(cmd), "part size mmc 0 %s " \
 			"bootimagesize;part start mmc 0 %s bootimageblk;"\
@@ -786,6 +782,7 @@ static void hb_usb_env_init(void)
 static void hb_env_and_boardid_init(void)
 {
 	char *s = NULL;
+	char upmode[16] = { 0 };
 	char boot_reason[64] = { 0 };
 	unsigned int boot_mode = hb_boot_mode_get();
 
@@ -803,6 +800,16 @@ static void hb_env_and_boardid_init(void)
 			veeprom_write(VEEPROM_RESET_REASON_OFFSET, "normal",
 			VEEPROM_RESET_REASON_SIZE);
 	}
+
+	/* init hb_bootreason */
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+			VEEPROM_RESET_REASON_SIZE);
+	snprintf(hb_bootreason, sizeof(hb_bootreason), "%s", boot_reason);
+
+	/* init hb_upmode */
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+	snprintf(hb_upmode, sizeof(hb_upmode), "%s", upmode);
 
 	/* mmc or nor env init */
 	if (boot_mode == PIN_2ND_EMMC) {

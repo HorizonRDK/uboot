@@ -1335,7 +1335,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL) {
-	if (strcmp(boot_partition, "boot") == 0)
+	if ((strcmp(boot_partition, "boot") == 0) ||
+		strcmp(boot_partition, "boot_b") == 0)
 		snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
 
         env_set("bootargs", cmd);

@@ -437,11 +437,11 @@ static void ota_normal_boot(bool root_flag, bool boot_flag)
 
 	if (root_flag == 1)
 		snprintf(boot_partition, sizeof(boot_partition),
-			"bootbak");
+			"boot_b");
 
 	if (boot_flag == 1)
 		snprintf(system_partition, sizeof(system_partition),
-			"systembak");
+			"system_b");
 }
 
 static void ota_uboot_upflag_check(char up_flag, char *upmode)
@@ -488,7 +488,7 @@ static void ota_kernel_upflag_check(char *upmode, char up_flag,
 			/* update failed, enter recovery mode */
 			ota_recovery_mode_set(true);
 		} else if (boot_flag == 1) {
-			snprintf(boot_partition, sizeof(boot_partition), "bootbak");
+			snprintf(boot_partition, sizeof(boot_partition), "boot_b");
 		}
 	}
 }
@@ -526,7 +526,7 @@ static void ota_system_upflag_check(char *upmode,
 			/* update failed, enter recovery mode */
 			ota_recovery_mode_set(true);
 		} else if (boot_flag == 1) {
-			snprintf(system_partition, sizeof(system_partition), "systembak");
+			snprintf(system_partition, sizeof(system_partition), "system_b");
 		}
 	}
 }
@@ -539,10 +539,8 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	bool boot_flag = boot_stat;
 	char count;
 
-	printf("check uboot flag\n");
 	/* uboot flag check */
 	ota_uboot_upflag_check(up_flag, upmode);
-	printf("check uboot flag\n");
 
 	/* update flag */
 	flash_success = (up_flag >> 2) & 0x1;
@@ -576,12 +574,12 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 		} else {
 			if (boot_flag == 1) {
 				snprintf(boot_partition,
-					sizeof(boot_partition), "bootbak");
+					sizeof(boot_partition), "boot_b");
 			}
 
 			if (root_flag == 1) {
 				snprintf(system_partition,
-					sizeof(system_partition), "systembak");
+					sizeof(system_partition), "system_b");
 			}
 		}
 	}
@@ -592,7 +590,7 @@ void ota_ab_boot_bak_partition(void)
 	char partstatus;
 	bool boot_flag, part_status;
 	char rootfs[32] = "system";
-	char kernel[32] = "kernel";
+	char kernel[32] = "boot";
 
 	veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
 			VEEPROM_ABMODE_STATUS_SIZE);
@@ -602,14 +600,14 @@ void ota_ab_boot_bak_partition(void)
 	boot_flag = part_status ^ 1;
 
 	if (boot_flag == 1)
-		snprintf(system_partition, sizeof(system_partition), "systembak");
+		snprintf(system_partition, sizeof(system_partition), "system_b");
 
 	/* get system backup partition id */
 	part_status = (partstatus >> partition_status_flag(kernel)) & 0x1;
 	boot_flag = part_status ^ 1;
 
 	if (boot_flag == 1)
-		snprintf(boot_partition, sizeof(boot_partition), "kernelbak");
+		snprintf(boot_partition, sizeof(boot_partition), "boot_b");
 }
 
 void ota_upgrade_flag_check(char *upmode, char *boot_reason)
@@ -627,6 +625,8 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 	veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
 			VEEPROM_ABMODE_STATUS_SIZE);
 
+	hb_partstatus = partstatus;
+
 	/* get rootfs and kernel partition status */
 	boot_stat = (partstatus >> partition_status_flag(kernel)) & 0x1;
 	root_stat = (partstatus >> partition_status_flag(rootfs)) & 0x1;
@@ -641,7 +641,7 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 		(strcmp(boot_reason, "all") != 0))  {
 			ota_normal_boot(root_stat, boot_stat);
 	}
-	printf("check flag all \n");
+
 	/* check flag: uboot, kernel, system or all */
 	if (strcmp(boot_reason, uboot) == 0) {
 		ota_uboot_upflag_check(up_flag, upmode);
