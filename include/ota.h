@@ -9,15 +9,6 @@
 
 #define NOR_SECTOR_SIZE (64*1024)
 
-#define NOR_UBOOT_ADDR 			(0x40000)
-#define NOR_UBOOT_MAX_SIZE 		(0x100000)
-#define NOR_KERNEL_ADDR 		(0x140000)
-#define NOR_KERNEL_MAX_SIZE 	(0xEC0000)
-#define NOR_ROOTFS_ADDR 		(0x1000000)
-#define NOR_ROOTFS_MAX_SIZE 	(0x1000000)
-#define NOR_APP_ADDR 			(0x2000000)
-#define NOR_APP_MAX_SIZE 		(0x2000000)
-
 extern char boot_partition[64];
 extern char system_partition[64];
 

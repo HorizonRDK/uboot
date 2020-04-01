@@ -256,8 +256,8 @@ int veeprom_read(int offset, char *buf, int size)
 	}
 #ifdef CONFIG_HB_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
-	ret = ubi_volume_read("veeprom", buffer, 0);
-	flush_cache((ulong)buffer, 2048);
+	ret = ubi_volume_read("veeprom", buffer, sizeof(buffer));
+	flush_cache((ulong)buffer, sizeof(buffer));
 	memcpy(buf, buffer + offset, size);
 #else
 	int sector_left = 0;
@@ -308,10 +308,13 @@ int veeprom_write(int offset, const char *buf, int size)
 		return -1;
 	}
 #ifdef CONFIG_HB_NAND_BOOT
+	printf("In nand veeprom write!\n");
 	memset(buffer, 0, sizeof(buffer));
-	ubi_volume_read("veeprom", buffer, 0);
-	flush_cache((ulong)buffer, 2048);
+	printf("In nand veeprom write buffer set success!\n");
+	ubi_volume_read("veeprom", buffer, sizeof(buffer));
+	flush_cache((ulong)buffer, sizeof(buffer));
 	memcpy(buffer + offset, buf, size);
+	printf("In nand veeprom write buffer cpy success!\n");
 	ubi_volume_write("veeprom", buffer, sizeof(buffer));
 #else
 	int sector_left = 0;

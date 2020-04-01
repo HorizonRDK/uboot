@@ -33,6 +33,8 @@
 #include <ota.h>
 #include <spi_flash.h>
 #include <hb_info.h>
+#include <linux/mtd/mtd.h>
+#include <ubi_uboot.h>
 
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
@@ -235,57 +237,51 @@ static unsigned int partition_status_flag(char *partition)
 
 static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
 {
-	unsigned int part_addr;
-	unsigned int part_size;
-	int ret;
+	loff_t part_addr, maxsize, part_size;
+	int ret = 0, dev = 0;
 	char *s;
 	void *realaddr;
 	unsigned int sector = (bytes + NOR_SECTOR_SIZE -1)/NOR_SECTOR_SIZE;
-
-	if (strcmp(name, "uboot") == 0) {
-		part_addr = NOR_UBOOT_ADDR;
-		part_size = NOR_UBOOT_MAX_SIZE;
-	} else if (strcmp(name, "kernel") == 0) {
-		part_addr = NOR_KERNEL_ADDR;
-		part_size = NOR_KERNEL_MAX_SIZE;
-	} else if ((strcmp(name, "system") == 0)) {
-		part_addr = NOR_ROOTFS_ADDR;
-		part_size = NOR_ROOTFS_MAX_SIZE;
-	} else if ((strcmp(name, "app") == 0)) {
-		part_addr = NOR_APP_ADDR;
-		part_size = NOR_APP_MAX_SIZE;
-	} else if ((strcmp(name, "all") == 0)) {
-		part_addr = 0;
-		part_size = 0x4000000;
-	} else {
-		printf("error: partition name %s not support! \n", name);
-		return CMD_RET_FAILURE;
-	}
-
-	if (bytes > part_size) {
-		printf("Error: image more than partition size %02x \n", part_size);
-		return CMD_RET_FAILURE;
-	}
+	char *part_arg[2];
+	part_arg[1] = "0x0";
+	part_arg[0] = (strcmp(name, "all")) ? name : "spi-nor1";
 
 	if (!flash) {
 		s = "sf probe";
 		ret = run_command_list(s, -1, 0);
 		if (ret < 0) {
-			printf("flash init failed !\n");
+			printf("NOR init failed !\n");
+			return CMD_RET_FAILURE;
+		}
+		s = "mtd list";
+		ret = run_command_list(s, -1, 0);
+		if (ret < 0) {
+			printf("NOR MTD Init Failed!\n");
 			return CMD_RET_FAILURE;
 		}
 	}
 
-	printf("sf erase %02x %02x\n", part_addr, sector * NOR_SECTOR_SIZE);
+	if (mtd_arg_off_size(2, part_arg, &dev, &part_addr, &maxsize,
+						&part_size, 0x0001, flash->size)) {
+		printf("error: partition name %s not found in MTD partitions! \n", name);
+		return CMD_RET_FAILURE;
+	}
+
+	if (bytes > part_size) {
+		printf("Error: image more than partition size %02x \n", (uint)part_size);
+		return CMD_RET_FAILURE;
+	}
+
+	printf("sf erase %02x %02x\n", (uint)part_addr, sector * NOR_SECTOR_SIZE);
 	ret = spi_flash_erase(flash, part_addr, sector * NOR_SECTOR_SIZE);
 	if (ret < 0) {
 		printf(" sf erase error \n");
 		return ret;
 	}
 
-	realaddr = (void *)simple_strtoul(addr, NULL, 16);
-	printf("sf write %s %02x %02x\n", (char *)realaddr, part_addr,
+	printf("sf write %s %02x %02x\n", addr, (uint)part_addr,
 		sector * NOR_SECTOR_SIZE);
+	realaddr = (void *)simple_strtoul(addr, NULL, 16);
 	ret = spi_flash_write(flash, part_addr, bytes, realaddr);
 	if (ret < 0) {
 		printf(" sf write error \n");
@@ -293,6 +289,18 @@ static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
 	}
 
 	return ret;
+}
+
+static int ota_nand_update_image(char *partition,
+								 char *addr,
+								 unsigned int bytes)
+{
+	char command[64];
+
+	snprintf(command, sizeof(command), "burn_nand %s %s %x",
+										partition, addr, bytes);
+
+	return run_command(command, 0);
 }
 
 static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
@@ -374,10 +382,12 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	if (argc == 5) {
-		if (strcmp(argv[4],"emmc") == 0) {
+		if (strcmp(argv[4], "emmc") == 0) {
 			boot_mode = PIN_2ND_EMMC;
-		} else if (strcmp(argv[4],"nor") == 0) {
+		} else if (strcmp(argv[4], "nor") == 0) {
 			boot_mode = PIN_2ND_NOR;
+		} else if (strcmp(argv[4], "nand") == 0) {
+			boot_mode = PIN_2ND_NAND;
 		} else {
 			printf("error: parameter %s not support! \n", argv[4]);
 			return CMD_RET_USAGE;
@@ -392,10 +402,13 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 			return CMD_RET_USAGE;
 
 	/* update image */
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND))
+	if (boot_mode == PIN_2ND_NOR)
 		ret = ota_nor_update_image(partition_name, argv[2], bytes);
+	else if (boot_mode == PIN_2ND_NAND)
+		ret = ota_nand_update_image(partition_name, argv[2], bytes);
 	else
 		ret = ota_mmc_update_image(partition_name, argv[2], bytes);
+
 	if (ret == 0)
 		printf("ota update image success!\n");
 	else
@@ -714,4 +727,3 @@ static void bootinfo_update_spl(char * addr, unsigned int spl_size)
 	bootinfo_cs_all(pinfo);
 	write_bootinfo();
 }
-

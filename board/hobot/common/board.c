@@ -475,25 +475,6 @@ uint32_t hb_board_type_get(void)
 	return board_type;
 }
 
-static void hb_nand_boot(void)
-{
-	run_command("mtd list", 0);
-	if (ubi_part("sys", NULL)) {
-		printf("system ubi image load failed!\n");
-	}
-	char *bootargs;
-	/* set bootargs */
-	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
-		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
-	env_set("bootargs", bootargs);
-	if (hb_check_secure()) {
-		env_set("bootcmd", "avb_verify; bootm 0x10000000");
-	} else {
-		env_set("bootcmd", "bootm 0x10000000");
-	}
-	ubi_volume_read("boot", (void *) 0x10000000, 0);
-}
-
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_mmc_env_init(void)
 {
@@ -553,6 +534,57 @@ static void hb_mmc_env_init(void)
 		env_set("bootcmd", cmd);
 	}
 }
+
+static void hb_nand_env_init(void)
+{
+	char *bootargs;
+	/* set bootargs */
+	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
+	env_set("bootargs", bootargs);
+	if (hb_check_secure()) {
+		env_set("bootcmd", "avb_verify; bootm 0x10000000");
+	} else {
+		env_set("bootcmd", "bootm 0x10000000");
+	}
+	ubi_volume_read("boot", (void *) 0x10000000, 0);
+}
+
+static void hb_nor_env_init(void)
+{
+	char *bootargs, *s;
+	char *boot_arg[2];
+	loff_t offset, size, maxsize;
+	int dev = 0, ret = 0;
+
+	if (!flash) {
+		s = "sf probe";
+		ret = run_command_list(s, -1, 0);
+		if (ret < 0) {
+			printf("Error: flash init failed\n");
+			return;
+		}
+	}
+
+	boot_arg[1] = "0x0";
+	boot_arg[0] = "boot";
+
+	/* set normal boot bootargs */
+	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+			 "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
+	env_set("bootargs", bootargs);
+	/* set secure boot bootcmd */
+	if (hb_check_secure()) {
+		env_set("bootcmd", "avb_verify; bootm 0x10000000");
+	} else {
+		env_set("bootcmd", "bootm 0x10000000");
+	}
+	if (mtd_arg_off_size(2, boot_arg, &dev, &offset, &maxsize,
+						&size, 0x0001, flash->size)) {
+		return;
+	}
+	spi_flash_read(flash, offset, size, (void *) 0x10000000);
+}
 #endif
 
 static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
@@ -591,92 +623,6 @@ static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
 	return 0;
 }
 
-#if 0
-static bool hb_nor_ota_upflag_check(void)
-{
-	char upmode[16] = { 0 };
-	char boot_reason[64] = { 0 };
-	bool load_imggz = true;
-	char count;
-
-	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
-		VEEPROM_RESET_REASON_SIZE);
-
-	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
-			VEEPROM_UPDATE_MODE_SIZE);
-
-	if ((strcmp(upmode, "golden") == 0)) {
-		if (strcmp(boot_reason, "normal") == 0) {
-			/* boot_reason is 'normal', normal boot */
-			printf("uboot: normal boot \n");
-
-			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
-					VEEPROM_COUNT_SIZE);
-			if (count <= 0) {
-				/* system boot failed, enter recovery mode */
-				ota_recovery_mode_set(true);
-
-				if (recovery_sys_enable)
-					load_imggz = false;
-			}
-		} else if (strcmp(boot_reason, "recovery") == 0) {
-			/* boot_reason is 'recovery', enter recovery mode */
-			env_set("bootdelay", "0");
-
-			load_imggz = false;
-		} else {
-			/* check update_success flag */
-			if (ota_check_update_success_flag()) {
-				load_imggz = false;
-			} else {
-				/* ota partition status check */
-				ota_upgrade_flag_check(upmode, boot_reason);
-			}
-		}
-	}
-	return load_imggz;
-}
-#endif
-
-static void hb_nor_boot(void)
-{
-	char *bootargs;
-	char *boot_arg[2];
-	loff_t offset, size, maxsize;
-//	bool load_imggz = true;
-	int dev = 0;
-
-	if (flash == NULL) {
-		printf("Error: flash init failed\n");
-		return;
-	}
-
-//	load_imggz = hb_nor_ota_upflag_check();
-	boot_arg[1] = "0x0";
-/* 	if (load_imggz) {
-		boot_arg[0] = "boot";
-	} else {
-		boot_arg[0] = "recovery";
-	} */
-	boot_arg[0] = "boot";
-
-	/* set normal boot bootargs */
-	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
-			 "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
-	env_set("bootargs", bootargs);
-	/* set secure boot bootcmd */
-	if (hb_check_secure()) {
-		env_set("bootcmd", "avb_verify; bootm 0x10000000");
-	} else {
-		env_set("bootcmd", "bootm 0x10000000");
-	}
-	if (mtd_arg_off_size(2, boot_arg, &dev, &offset, &maxsize,
-						&size, 0x0001, flash->size)) {
-		return;
-	}
-	spi_flash_read(flash, offset, size, (void *) 0x10000000);
-}
-
 static void hb_usb_dtb_config(void) {
 	ulong dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
 	struct hb_kernel_hdr *head = (struct hb_kernel_hdr *)dtb_addr;
@@ -701,7 +647,12 @@ static void hb_env_and_boardid_init(void)
 	unsigned int boot_mode = hb_boot_mode_get();
 
 	printf("bootinfo/board_id = %02x\n", x3_board_id);
-
+#ifdef CONFIG_HB_NAND_BOOT
+	run_command("mtd list", 0);
+	if (ubi_part("sys", NULL)) {
+		printf("system ubi image load failed!\n");
+	}
+#endif
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
 	if (strcmp(s, "disable") == 0) {
@@ -714,7 +665,6 @@ static void hb_env_and_boardid_init(void)
 			veeprom_write(VEEPROM_RESET_REASON_OFFSET, "normal",
 			VEEPROM_RESET_REASON_SIZE);
 	}
-
 	/* init hb_bootreason */
 	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 			VEEPROM_RESET_REASON_SIZE);
@@ -730,9 +680,9 @@ static void hb_env_and_boardid_init(void)
 		hb_mmc_env_init();
 	}  else if (boot_mode == PIN_2ND_NOR) {
 		/* load nor kernel and dtb */
-		hb_nor_boot();
+		hb_nor_env_init();
 	} else if (boot_mode == PIN_2ND_NAND) {
-		hb_nand_boot();
+		hb_nand_env_init();
 	}
 
 }
@@ -969,27 +919,33 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 {
 #define MAX_MTD_PART_NUM 16
 #define MAX_MTD_PART_NAME 128
-	int ret, last_part, total_part = 0, len = 0, name_len = 0;
+	int ret, last_part;
+	int total_part = 0, len = 0, name_len = 0;
 	u32 img_addr, img_size;
 	/*[0] - bl_size; [1] - boot_size; [2] - rootfs_size; [3] - userdata_size*/
-	u32 part_sizes[MAX_MTD_PART_NUM] = { 0 };
+	int64_t part_sizes[MAX_MTD_PART_NUM] = { 0 };
 	u32 offsets[MAX_MTD_PART_NUM] = { 0 };
 	char part_name[MAX_MTD_PART_NAME][MAX_MTD_PART_NUM] = { "" };
-	char *s1 = NULL;
-	char *s2 = NULL;
+	char *s1 = NULL, *s2 = NULL;
 	char *mtdparts_env = NULL;
-	char *name_start = NULL;
-	char *name_end = NULL;
+	char *name_start = NULL, *name_end = NULL;
+	char *target_part = NULL;
 	char curSize[16] = { 0 };
 	if (argc < 3) {
 		printf("image_addr and img_size must be given\n");
 		return 1;
+	} else if (argc == 4) {
+		target_part = argv[1];
+		s1 = argv[2];
+		s2 = argv[3];
+	} else {
+		s1 = argv[1];
+		s2 = argv[2];
 	}
 #ifndef CONFIG_HB_NAND_BOOT
 	run_command("mtd list", 0);
 #endif
-	s1 = argv[1];
-	s2 = argv[2];
+
 	img_addr = (u32)simple_strtoul(s1, NULL, 16);
 	img_size = (u32)simple_strtoul(s2, NULL, 16);
 	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
@@ -1015,9 +971,6 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	} while ((mtdparts_env != NULL) && (total_part < MAX_MTD_PART_NUM));
 	last_part = total_part - 1;
 	part_sizes[last_part] = img_size;
-	for (int i = 0; i < total_part - 1; i++) {
-		part_sizes[last_part] -= part_sizes[i];
-	}
 	ret = 0;
 #ifdef CONFIG_HB_NAND_BOOT
 	char veeprom[2048] = { 0 };
@@ -1025,11 +978,39 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	ubi_volume_read("veeprom", veeprom, 2048);
 	run_command("ubi detach", 0);
 #endif
-	for (int i = 0; i < total_part; i++) {
-		ret = nand_write_partition(part_name[i],
-								   img_addr + offsets[i],
+	if ((argc == 4) && strcmp(target_part, "all")) {
+		for (int i = 0; i < total_part; i++) {
+			if (!strcmp(target_part, part_name[i])) {
+				if (img_size > part_sizes[i]) {
+					printf("Image size larger than partition size, abort!\n");
+					break;
+				} else {
+					ret = nand_write_partition(part_name[i],
+								   img_addr,
 								   part_sizes[i]);
+					break;
+				}
+			} else if (i == (total_part - 1)) {
+				printf("Partition %s not found!\n", target_part);
+				ret = -1;
+			}
+		}
+	} else {
+		for (int i = 0; i < total_part - 1; i++) {
+			part_sizes[last_part] -= part_sizes[i];
+		}
+		if (part_sizes[last_part] < 0) {
+			printf("Image size too small!\n");
+			ret = -1;
+		} else {
+			for (int i = 0; i < total_part; i++) {
+				ret = nand_write_partition(part_name[i],
+									img_addr + offsets[i],
+									part_sizes[i]);
+			}
+		}
 	}
+
 #ifdef CONFIG_HB_NAND_BOOT
 	ubi_part("sys", 0);
 	ubi_volume_write("veeprom", veeprom, 2048);
@@ -1038,10 +1019,11 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 }
 
 U_BOOT_CMD(
-	burn_nand,	6,	0,	burn_nand_flash,
+	burn_nand,	4,	0,	burn_nand_flash,
 	"Burn Image at [addr] in DDR with [size] in bytes(hex) to nand flash",
-	"      [addr] [size] \n"
-	"      Note: partitions need to be defined by mtdparts"
+	"    [partition - optional] <addr> <size> \n"
+	"            Note: partitions need to be defined by mtdparts,"
+	"                  if no partiton is specified, whole flash is programmed"
 );
 
 
