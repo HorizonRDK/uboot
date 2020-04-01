@@ -132,11 +132,15 @@ void boot_fdt_add_mem_rsv_regions(struct lmb *lmb, void *fdt_blob)
 	}
 }
 
-static void x3_dts_node_modify(void) {
-	char cmd[128];
+static void hb_dts_node_modify(void) {
+	char cmd[128] = { 0 };
 
 	/* modify board id, som id and base board id */
 	snprintf(cmd, sizeof(cmd), "send_id");
+	run_command(cmd, 0);
+
+        /* modify ion mem size */
+	snprintf(cmd, sizeof(cmd), "ion_modify ${ion_size}");
 	run_command(cmd, 0);
 }
 
@@ -239,7 +243,7 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 		}
 		puts("OK\n");
 
-		x3_dts_node_modify();
+		hb_dts_node_modify();
 	}
 
 	*of_flat_tree = of_start;
