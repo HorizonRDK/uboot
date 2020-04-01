@@ -1131,6 +1131,13 @@ static int hb_swinfo_dump_check(void)
 				dcmd, dusb, sys_sdram_size, sys_sdram_size);
 
 		env_set("dumpcmd", dump);
+	} else if (s_boot == HB_SWINFO_BOOT_UDUMPFASTBOOT) {
+		stored_dumptype = 1;
+		s += sprintf(s, "fastboot 0");
+
+		env_set("dumpcmd", dump);
+		printf("enter fastboot ramdump mode\n");
+		printf("please use \"fastboot oem ramdump\" command in pc\n");
 	} else if (s_dump) {
 		stored_dumptype = 2;
 		d_ip[0] = (s_dump >> 24) & 0xff;
