@@ -804,6 +804,7 @@ typedef struct {
 
 /* API_efuse */
 int scomp_read_sw_efuse_bnk(enum EFS_TPE type, unsigned int bnk_num);
+unsigned int sw_efuse_set_register(enum EFS_TPE type);
 int api_efuse_write_data(enum EFS_TPE type, unsigned int bnk_num,
 		unsigned int val);
 int api_efuse_read_data(enum EFS_TPE type, unsigned int bnk_num);

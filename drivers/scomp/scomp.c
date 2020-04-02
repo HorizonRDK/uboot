@@ -118,6 +118,104 @@ static unsigned int _hw_efuse_store(enum EFS_TPE type, unsigned int bnk_num,
 	return HW_EFUSE_READ_OK;
 }
 
+static unsigned int _hw_efuse_load(enum EFS_TPE type, unsigned int bnk_num,
+		unsigned int *ret)
+{
+	unsigned int efs_bank_base;
+	unsigned int sta, val;
+
+	if (type == EFS_NS) {
+		efs_bank_base = HW_NORMAL_EFUSE_BASE;
+	} else if (type == EFS_S) {
+		efs_bank_base = HW_SEC_EFUSE_BASE;
+	} else {
+		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
+		return HW_EFUSE_READ_FAIL;
+	}
+
+	// enable efuse
+	mmio_write_32(efs_bank_base + HW_EFS_CFG, HW_EFS_CFG_EFS_EN);
+#if 0
+	// set bank addr to bnk31
+	mmio_write_32(efs_bank_base + HW_EFS_BANK_ADDR, HW_EFUSE_LOCK_BNK);
+
+	// trigger read action
+	mmio_write_32(efs_bank_base + HW_EFS_CFG,
+			HW_EFS_CFG_EFS_EN | HW_EFS_CFG_EFS_PROG_RD);
+
+	// polling efuse ready (check efs_rdy == 1)
+	do {
+		sta = mmio_read_32(efs_bank_base + HW_EFS_STATUS);
+
+		if (sta & HW_EFS_EFS_RDY)
+			break;
+	} while (1);
+
+	// check if bank is valid programmed data
+	val = mmio_read_32(efs_bank_base + HW_EFS_READ_DATA);
+
+	if (bnk_num == HW_EFUSE_LOCK_BNK) {
+		*ret = val;
+		return HW_EFUSE_READ_OK;
+	}
+
+	if (!(val & (1 << bnk_num))) {
+		printf("bank %d not locked, it is not a valid data\n", bnk_num);
+		*ret = 0;
+		return HW_EFUSE_READ_UNLOCK;
+	}
+#endif
+	// Set bank address to what we want
+	mmio_write_32(efs_bank_base + HW_EFS_BANK_ADDR, bnk_num);
+
+	// Trigger read action
+	mmio_write_32(efs_bank_base + HW_EFS_CFG,
+			HW_EFS_CFG_EFS_EN | HW_EFS_CFG_EFS_PROG_RD);
+
+	// polling efuse ready (check efs_rdy == 1)
+	do {
+		sta = mmio_read_32(efs_bank_base + HW_EFS_STATUS);
+
+		if (sta & HW_EFS_EFS_RDY)
+			break;
+	} while (1);
+
+	// read data
+	val = mmio_read_32(efs_bank_base + HW_EFS_READ_DATA);
+
+	*ret = val;
+
+	return HW_EFUSE_READ_OK;
+}
+
+unsigned int sw_efuse_set_register(enum EFS_TPE type)
+{
+	unsigned int efs_bank_off = 0;
+	unsigned int i, efs_bank_num, val;
+
+
+	if (type == EFS_NS) {
+		efs_bank_off = fw_base_addr + EFUSE_NS_OFF;
+		efs_bank_num = NS_EFUSE_NUM;
+	} else if (type == EFS_S) {
+		efs_bank_off = fw_base_addr + EFUSE_S_OFF;
+		efs_bank_num = S_EFUSE_NUM;
+	} else {
+		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
+		return SW_EFUSE_FAIL;
+	}
+
+	for (i = 0; i < efs_bank_num; i++) {
+		if (_hw_efuse_load(type, i, &val) == HW_EFUSE_READ_FAIL) {
+			printf("[ERR] HW Efuse read fail type: %d, bnk: %d\n", type, i);
+			return SW_EFUSE_FAIL;
+		}
+		mmio_write_32(efs_bank_off + i * 4, val);
+	}
+
+	return SW_EFUSE_OK;
+}
+
 int scomp_write_hw_efuse_bnk(enum EFS_TPE type, unsigned int bnk_num,
 		unsigned int val)
 {
@@ -232,9 +330,8 @@ int api_efuse_dump_data(enum EFS_TPE type)
 
 	/* Dump Bnk 0 ~ 30 */
 	for(efs_reg_bnk = 0; efs_reg_bnk < (efs_reg_size -1);  efs_reg_bnk++) {
-		printf("Bnk[0x%x] = 0x%x (Lock bit = %d)\n", efs_reg_bnk,
-				scomp_read_sw_efuse_bnk(type, efs_reg_bnk),
-				((lock_byte >> efs_reg_bnk) & 0x1));
+		printf("Bnk[0x%x] = 0x%x \n", efs_reg_bnk,
+				scomp_read_sw_efuse_bnk(type, efs_reg_bnk));
 	}
 
 	/* Dump Bnk 31. */

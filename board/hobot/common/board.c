@@ -7,6 +7,7 @@
 #include <cli.h>
 #include <sata.h>
 #include <ahci.h>
+#include <scomp.h>
 #include <scsi.h>
 #include <malloc.h>
 #include <asm/io.h>
@@ -1374,6 +1375,7 @@ int last_stage_init(void)
 	hb_ap_communication();
 #endif
 
+	sw_efuse_set_register(EFS_NS);
 	base_board_gpio_test();
 	boot_src_test();
 
