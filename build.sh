@@ -127,7 +127,8 @@ function change_dts_flash_config()
 
     nline=`getlinenum`
 
-    if [ x"$bootmode" = x"nor" ] || [ x"$bootmode" = x"nand" ];then
+    if [ x"$bootmode" = x"nor" ] || [ x"$bootmode" = x"nand" ] \
+       || [ "$FLASH_ENABLE" = "nor" ] || [ "$FLASH_ENABLE" = "nand" ];then
         sed -i "${nline}s#disabled#okay#g" $dts_file
     else
         sed -i "${nline}s#okay#disabled#g" $dts_file
