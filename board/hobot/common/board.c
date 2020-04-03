@@ -38,8 +38,11 @@
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
 #include <linux/mtd/mtd.h>
+
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 #include <hb_spacc.h>
 #include <hb_pka.h>
+#endif
 
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT
@@ -1361,9 +1364,11 @@ int last_stage_init(void)
 	base_board_gpio_test();
 	boot_src_test();
 
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 	/* spacc and pka init */
 	spacc_init();
 	pka_init();
+#endif
 
 #ifdef HB_AUTOBOOT
 	boot_stage_mark(2);

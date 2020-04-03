@@ -18,7 +18,6 @@
 
 #define PKA_IRQ_EN_STAT 30
 #define PKA_TEST 0
-#define X3_PKA 1
 
 int PKA_public_decrypt(int flen, const unsigned char *src,
 	const unsigned char *key, unsigned char *dest);

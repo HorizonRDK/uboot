@@ -82,8 +82,6 @@
 #define ROM_TEST_NUM	3
 #define SPACC_ALIGN (64*1024)
 
-#define X3_SPACC 1
-
 enum crypto_modes {
 	CRYPTO_MODE_NULL,
 

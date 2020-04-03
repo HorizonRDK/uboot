@@ -6,4 +6,4 @@
 obj-$(CONFIG_EXYNOS_ACE_SHA)	+= ace_sha.o
 obj-y += rsa_mod_exp/
 obj-y += fsl/
-obj-y += secure_engine/
+obj-$(CONFIG_HBOT_SECURE_COMPONENT) += secure_engine/

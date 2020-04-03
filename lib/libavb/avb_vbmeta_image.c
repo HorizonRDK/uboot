@@ -10,9 +10,11 @@
 #include "avb_util.h"
 #include "avb_version.h"
 #include <../lib/libavb/avb_slot_verify.h>
-
 #include <malloc.h>
+
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 #include <hb_spacc.h>
+#endif
 
 AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     const uint8_t* data,
@@ -23,7 +25,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
   AvbVBMetaImageHeader h;
   uint8_t* computed_hash;
   const AvbAlgorithmData* algorithm;
-#ifndef X3_SPACC
+#ifndef CONFIG_HBOT_SECURE_COMPONENT
   AvbSHA256Ctx sha256_ctx;
 #endif
   AvbSHA512Ctx sha512_ctx;
@@ -173,7 +175,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     case AVB_ALGORITHM_TYPE_SHA256_RSA2048:
     case AVB_ALGORITHM_TYPE_SHA256_RSA4096:
     case AVB_ALGORITHM_TYPE_SHA256_RSA8192:
-#ifndef X3_SPACC
+#ifndef CONFIG_HBOT_SECURE_COMPONENT
 	avb_sha256_init(&sha256_ctx);
 	avb_sha256_update(
 		&sha256_ctx, header_block, sizeof(AvbVBMetaImageHeader));

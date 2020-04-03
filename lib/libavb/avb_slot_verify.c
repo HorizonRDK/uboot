@@ -15,8 +15,11 @@
 #include "avb_vbmeta_image.h"
 #include "avb_version.h"
 #include <malloc.h>
-#include <hb_spacc.h>
 #include <ota.h>
+
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
+#include <hb_spacc.h>
+#endif
 
 uint64_t image_salt_len = 0;
 
@@ -166,7 +169,7 @@ static uint8_t *x3_calculate_hash(uint8_t *image_buf,
 {
 	uint64_t image_size = hash_desc->image_size;
 
-#ifndef X3_SPACC
+#ifndef CONFIG_HBOT_SECURE_COMPONENT
 	uint64_t image_offset = 0;
 	AvbSHA256Ctx sha256_ctx;
 	uint32_t block_size = 32768;
@@ -336,7 +339,7 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 	* since it's such a common workflow.
 	*/
 	image_size = hash_desc.image_size;
-#ifdef X3_SPACC
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 	image_salt_len = hash_desc.salt_len;
 #endif
 	if (allow_verification_error) {
@@ -368,9 +371,8 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 	}
 
 	if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha256") == 0) {
-#ifdef X3_SPACC
 		digest = x3_calculate_hash(image_buf, desc_salt, &hash_desc);
-#else
+#if 0
 		AvbSHA256Ctx sha256_ctx;
 		avb_sha256_init(&sha256_ctx);
 		avb_sha256_update(&sha256_ctx, desc_salt, hash_desc.salt_len);

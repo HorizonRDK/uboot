@@ -13,10 +13,13 @@
 #include "avb_util.h"
 #include "avb_vbmeta_image.h"
 #include <malloc.h>
+
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 #include <hb_pka.h>
 #include <hb_spacc.h>
+#endif
 
-#ifndef X3_PKA
+#ifndef CONFIG_HBOT_SECURE_COMPONENT
 typedef struct IAvbKey {
   unsigned int len; /* Length of n[] in number of uint32_t */
   uint32_t n0inv;   /* -1 / n[0] mod 2^32 */
@@ -222,7 +225,7 @@ void reverse_key(uint8_t *key_buf, int key_size)
 }
 #endif
 
-#ifdef X3_PKA
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 static bool x3_ras_pubkey_decryped(const uint8_t* key,
                     size_t key_num_bytes,
                     const uint8_t* sig,
@@ -270,7 +273,7 @@ bool avb_rsa_verify(const uint8_t* key,
                     size_t hash_num_bytes,
                     const uint8_t* padding,
                     size_t padding_num_bytes) {
-#ifndef X3_PKA
+#ifndef CONFIG_HBOT_SECURE_COMPONENT
 	uint8_t* buf = NULL;
 	IAvbKey* parsed_key = NULL;
 #endif
@@ -281,7 +284,7 @@ bool avb_rsa_verify(const uint8_t* key,
 		return success;
 	}
 
-#ifdef X3_PKA
+#ifdef CONFIG_HBOT_SECURE_COMPONENT
 	success = x3_ras_pubkey_decryped(key, key_num_bytes, sig, sig_num_bytes,
 		hash, hash_num_bytes, padding, padding_num_bytes);
 #else
