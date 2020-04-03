@@ -645,6 +645,7 @@ CONFIG_CLK_HB=y
 # CONFIG_FSL_CAAM is not set
 # CONFIG_SYS_FSL_SEC_BE is not set
 # CONFIG_SYS_FSL_SEC_LE is not set
+# CONFIG_HBOT_SECURE_ENGINE is not set
 
 #
 # Demo for driver model

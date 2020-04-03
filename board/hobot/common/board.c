@@ -39,7 +39,7 @@
 #include <i2c.h>
 #include <linux/mtd/mtd.h>
 
-#ifdef CONFIG_HBOT_SECURE_COMPONENT
+#ifdef CONFIG_HBOT_SECURE_ENGINE
 #include <hb_spacc.h>
 #include <hb_pka.h>
 #endif
@@ -1364,7 +1364,7 @@ int last_stage_init(void)
 	base_board_gpio_test();
 	boot_src_test();
 
-#ifdef CONFIG_HBOT_SECURE_COMPONENT
+#ifdef CONFIG_HBOT_SECURE_ENGINE
 	/* spacc and pka init */
 	spacc_init();
 	pka_init();

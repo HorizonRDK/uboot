@@ -17,7 +17,7 @@
 #include <malloc.h>
 #include <ota.h>
 
-#ifdef CONFIG_HBOT_SECURE_COMPONENT
+#ifdef CONFIG_HBOT_SECURE_ENGINE
 #include <hb_spacc.h>
 #endif
 
@@ -169,7 +169,7 @@ static uint8_t *x3_calculate_hash(uint8_t *image_buf,
 {
 	uint64_t image_size = hash_desc->image_size;
 
-#ifndef CONFIG_HBOT_SECURE_COMPONENT
+#ifndef CONFIG_HBOT_SECURE_ENGINE
 	uint64_t image_offset = 0;
 	AvbSHA256Ctx sha256_ctx;
 	uint32_t block_size = 32768;
@@ -339,7 +339,7 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 	* since it's such a common workflow.
 	*/
 	image_size = hash_desc.image_size;
-#ifdef CONFIG_HBOT_SECURE_COMPONENT
+#ifdef CONFIG_HBOT_SECURE_ENGINE
 	image_salt_len = hash_desc.salt_len;
 #endif
 	if (allow_verification_error) {

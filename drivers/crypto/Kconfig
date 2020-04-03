@@ -2,4 +2,12 @@ menu "Hardware crypto devices"
 
 source drivers/crypto/fsl/Kconfig
 
+config HBOT_SECURE_ENGINE
+		bool "Hbot Secure component driver support"
+		default n
+		help
+			This supports secure engine drivers.
+
+			Note that this application programming interface is EXPERIMENTAL
+			and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 endmenu
