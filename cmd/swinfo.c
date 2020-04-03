@@ -1,3 +1,8 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2020 Horizon Robotics, Inc.
+ *    All rights reserved.
+*/
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/hb_pmu.h>
@@ -7,7 +12,7 @@
 static const char *swinfo_boot_desp[] = {
 	"normal", "splonce", "ubootonce",
 	"splwait", "ubootwait", "udumptf", "udumpemmc",
-	"unknown"
+	"udumpusb", "udumpfastboot", "unknown"
 };
 static int do_swinfo(cmd_tbl_t *cmdtp, int flag, int argc,
 		char * const argv[])
