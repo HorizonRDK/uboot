@@ -484,6 +484,8 @@ static void hb_mmc_env_init(void)
 	char *s;
 	char count;
 	char cmd[256] = { 0 };
+	char *bootargs = NULL;
+	int system_id;
 
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
 		if (strcmp(hb_bootreason, "normal") == 0) {
@@ -527,14 +529,15 @@ static void hb_mmc_env_init(void)
 		env_set("mem_size", cmd);
 	}
 
-	if ((strcmp(boot_partition, "recovery") == 0) ||
-		strcmp(boot_partition, "boot_b") == 0) {
-		/* init env bootcmd init */
-		snprintf(cmd, sizeof(cmd), "part size mmc 0 %s " \
-			"bootimagesize;part start mmc 0 %s bootimageblk;"\
-			"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
-			"bootm 0x10000000;", boot_partition, boot_partition);
-		env_set("bootcmd", cmd);
+	if (!hb_check_secure()) {
+		system_id = get_partition_id("system");
+		bootargs = env_get("bootargs");
+		if (bootargs) {
+			snprintf(cmd, sizeof(cmd), "%s root=/dev/mmcblk0p%d" \
+				" rootfstype=ext4 rw rootwait raid=noautodetect",
+				bootargs, system_id);
+		}
+		env_set("bootargs", cmd);
 	}
 }
 

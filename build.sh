@@ -7,48 +7,26 @@ function choose()
     local conftmp=".config_tmp"
 
     echo "*********************************************************************"
-    echo "board = $board, boot mode= $bootmode"
+    echo "boot mode= $bootmode"
     echo "*********************************************************************"
     cp .config $conftmp
 
     echo "#ifndef __HB_CONFIG_H__" > $tmp
     echo "#define __HB_CONFIG_H__" >> $tmp
 
-    if [ "$bootmode" = "ap" ];then
-        echo "#define CONFIG_HB_AP_BOOT" >> $tmp
-        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-    elif [ "$bootmode" = "uart" ];then
-        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
-        echo "#define CONFIG_HB_YMODEM_BOOT" >> $tmp
-        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=y" >> $conftmp
-    elif [ "$bootmode" = "nor" ];then
-        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
+    if [ "$bootmode" = "nor" ];then
         echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
         echo "#define CONFIG_HB_NOR_BOOT" >> $tmp
         echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "nand" ];then
-        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
         echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "emmc" ];then
-        echo "/* #define CONFIG_HB_AP_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_YMODEM_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
         echo "#define CONFIG_HB_MMC_BOOT" >> $tmp
@@ -58,49 +36,6 @@ function choose()
         echo "Unknown BOOT_MODE value: $bootmode"
         exit 1
     fi
-
-    # echo "" >> $tmp
-    # echo "ddr_frequency=$ddr_frequency"
-    # if [ "$ddr_frequency" = "3200" ];then
-    #     echo "#define CONFIG_X2_LPDDR4_3200 (3200)" >> $tmp
-    # elif [ "$ddr_frequency" = "2133" ];then
-    #     echo "#define CONFIG_X2_LPDDR4_2133 (2133)" >> $tmp
-    # elif [ "$ddr_frequency" = "4266" ];then
-    #     echo "#define CONFIG_X2_LPDDR4_4266 (4266)" >> $tmp
-    # else
-    #     echo "#define CONFIG_X2_LPDDR4_2666 (2666)" >> $tmp
-    # fi
-
-    # echo "" >> $tmp
-    # if [ "$board" = "som" -o "$board" = "s202" -o "$board" = "cvb" -o "$board" = "dvb" ];then
-    #     echo "#define CONFIG_X2_SOM_BOARD" >> $tmp
-    #     echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    # elif [ "$board" = "svb" ];then
-    #     echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    # elif [ "$board" = "mono" ];then
-    #     echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-    #     echo "#define CONFIG_X2_MONO_BOARD" >> $tmp
-    #     echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    # elif [ "$board" = "quad" ];then
-    #     echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-    #     echo "#define CONFIG_X2_QUAD_BOARD" >> $tmp
-    #     echo "/* #define CONFIG_X2_SK_BOARD */" >> $tmp
-    # elif [ "$board" = "sk" ];then
-    #     echo "/* #define CONFIG_X2_SOM_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_MONO_BOARD */" >> $tmp
-    #     echo "/* #define CONFIG_X2_QUAD_BOARD */" >> $tmp
-    #     echo "#define CONFIG_X2_SK_BOARD" >> $tmp
-    # else
-    #     echo "Unknown BOARD_TYPE value: $board"
-    #     exit 1
-    # fi
 
     echo "#endif /* __HB_CONFIG_H__ */" >> $tmp
 
@@ -137,6 +72,7 @@ function change_dts_flash_config()
 
 function build()
 {
+    local uboot_image="u-boot.bin"
     prefix=$TARGET_UBOOT_DIR
     config=$UBOOT_DEFCONFIG
     echo "uboot config: $config"
@@ -156,54 +92,12 @@ function build()
     }
 
     # put binaries to dest directory
-    cpfiles "$UBOOT_IMAGE_NAME" "$prefix/"
-    # cd spl/
+    cpfiles "$uboot_image" "$prefix/"
 }
 
 function all()
 {
-    if $all_boot_mode ;then
-        bootmode="emmc"
         build
-        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        mv "u-boot-spl.bin" $splname
-        # cpfiles $splname "$prefix/"
-        cd ../
-
-        bootmode="nor"
-        build
-        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        mv "u-boot-spl.bin" $splname
-        # cpfiles $splname "$prefix/"
-        cd ../
-
-        bootmode="nand"
-        build
-        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        mv "u-boot-spl.bin" $splname
-        # cpfiles $splname "$prefix/"
-        cd ../
-
-        bootmode="uart"
-        build
-        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        mv "u-boot-spl.bin" $splname
-        # cpfiles $splname "$prefix/"
-        cd ../
-
-        bootmode="ap"
-        build
-        splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        mv "u-boot-spl.bin" $splname
-        # cpfiles $splname "$prefix/"
-        cd ../
-    else
-        build
-        # splname="spl-${board}-$bootmode-${ddr_frequency}.bin"
-        # mv "u-boot-spl.bin" $splname
-        # cpfiles $splname "$prefix/"
-        # cd ../
-    fi
 }
 
 function all_32()
@@ -241,32 +135,21 @@ function set_uboot_config()
 
 function usage()
 {
-    echo "Usage: build.sh [-o uart|emmc|ap|nor|nand|all ] [-b <som|svb|mono|quad|sk> ] [ -d 3200|2666|2133] [-u]"    echo "Options:"
+    echo "Usage: build.sh [-o emmc|nor|nand|all ] [-u]"    echo "Options:"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
-    echo "  -b  board type "
-    echo "  -d  set ddr frequency 3200 or 2666"
     echo "  -u  add ubi and ubifs support in uboot"
     echo "  -h  help info"
     echo "Command:"
     echo "  clean clean all the object files along with the executable"
 }
 
-board=$BOARD_TYPE
 bootmode=$BOOT_MODE
-ddr_frequency=$DDR_FREQ
-all_boot_mode=false
 ifubi=false
 
-while getopts "b:m:o:d:uh:" opt
+while getopts "uo:h:" opt
 do
     case $opt in
-        b)
-            export board="$OPTARG"
-            ;;
-        u)
-            ifubi=true
-            ;;
         o)
             arg="$OPTARG"
             if [ "$arg" = "all" ];then
@@ -277,20 +160,8 @@ do
                 echo "compile boot mode $bootmode"
             fi
             ;;
-        d)
-            arg="$OPTARG"
-            if [ "$arg" = "2666" ];then
-                ddr_frequency="2666"
-            elif [ "$arg" = "3200" ];then
-                ddr_frequency="3200"
-            elif [ "$arg" = "2133" ];then
-                ddr_frequency="2133"
-            elif [ "$arg" = "4266" ];then
-                ddr_frequency="4266"
-            else
-                usage
-                exit 1
-            fi
+        u)
+            ifubi=true
             ;;
         h)
             usage

@@ -12,6 +12,9 @@
 #include <mmc.h>
 #include <configs/hb_config.h>
 #include <ota.h>
+#include <hb_info.h>
+
+extern char boot_partition[64];
 
 #define AVB_BOOTARGS	"avb_bootargs"
 static struct AvbOps *avb_ops;
@@ -396,6 +399,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	char *cmd = NULL;
 	int ret = 0;
+	char cmd_boot[256] = { 0 };
 
 	/* avb init */
 #if defined CONFIG_HB_NOR_BOOT
@@ -405,6 +409,19 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 #else
 	cmd = "avb init mmc 0";
 #endif
+
+	/* normal and recovery boot flow */
+	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0) ||
+		(strcmp(boot_partition, "boot_b") == 0)) {
+		/* init env bootcmd init */
+		snprintf(cmd_boot, sizeof(cmd_boot), "part size mmc 0 %s " \
+			"bootimagesize;part start mmc 0 %s bootimageblk;"\
+			"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
+			"bootm 0x10000000;", boot_partition, boot_partition);
+
+		run_command_list(cmd_boot, -1, 0);
+	}
+
 	ret = run_command(cmd, 0);
 	if (ret != 0)
 		printf("avb init failed! \n");

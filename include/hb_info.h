@@ -184,8 +184,8 @@ struct hb_info_hdr {
 	unsigned int bl31img_addr[3];	/* BL31 image */
 	unsigned int bl31img_size;
 	unsigned int bl31img_csum;
-
-	char secure_cfg[4];
+	char secure_cfg[4];	/* avb 2.0 */
+	unsigned int crypt_cfg;	/* spl decrypt and verify flag */
 
 	unsigned int reserved[58];
 };
