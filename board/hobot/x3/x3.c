@@ -16,7 +16,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-unsigned int sys_sdram_size = 0x80000000; /* 2G */
+phys_size_t sys_sdram_size = 0x80000000; /* 2G */
 uint32_t x3_board_id = 1;
 bool recovery_sys_enable = true;
 #define MHZ(x) ((x) * 1000000UL)
@@ -139,19 +139,37 @@ int dram_init(void)
 {
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 	unsigned int boardid = bootinfo->board_id;
-	unsigned int ddr_size = (boardid >> 16) & 0xf;
+	phys_size_t ddr_size = (boardid >> 16) & 0xf;
 
-	if ((ddr_size > 2) || (ddr_size == 0))
+	if (ddr_size == 0)
 		ddr_size = 1;
 
 	sys_sdram_size = ddr_size * 1024 * 1024 * 1024;
-	printf("system DDR size: 0x%02x\n", sys_sdram_size);
+	printf("system DDR size: 0x%llx\n", sys_sdram_size);
 
-	x3_mem_map[0].size = sys_sdram_size;
 	gd->ram_size = sys_sdram_size;
+	x3_mem_map[0].size = get_effective_memsize();
 
 	x3_board_id = boardid;
 
+	return 0;
+}
+
+int dram_init_banksize(void)
+{
+#if defined(CONFIG_NR_DRAM_BANKS) && defined(CONFIG_SYS_SDRAM_BASE)
+#if defined(PHYS_SDRAM_2) && defined(CONFIG_MAX_MEM_MAPPED)
+	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
+	gd->bd->bi_dram[0].size = get_effective_memsize();
+	gd->bd->bi_dram[1].start =
+		gd->ram_size > CONFIG_MAX_MEM_MAPPED ? PHYS_SDRAM_2 : 0;
+	gd->bd->bi_dram[1].size =
+		gd->ram_size > CONFIG_MAX_MEM_MAPPED ? PHYS_SDRAM_2_SIZE : 0;
+#else
+	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
+	gd->bd->bi_dram[0].size = get_effective_memsize();
+#endif
+#endif
 	return 0;
 }
 

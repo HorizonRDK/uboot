@@ -27,9 +27,14 @@
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
 #define X3_USABLE_RAM_TOP		0x3900000	/* Top is 58MB */
 
+#define CONFIG_VERY_BIG_RAM
+#define CONFIG_MAX_MEM_MAPPED		0x80000000	/* 2G */
+
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x00000000
 #define PHYS_SDRAM_1_SIZE			0x80000000	/* 2G */
+#define PHYS_SDRAM_2				0x100000000
+#define PHYS_SDRAM_2_SIZE			0x80000000	/* 2G */
 
 #define CONFIG_SYS_SDRAM_BASE		PHYS_SDRAM_1
 #define CONFIG_SYS_SDRAM_SIZE		PHYS_SDRAM_1_SIZE

@@ -838,10 +838,22 @@ static int do_set_tag_memsize(cmd_tbl_t *cmdtp, int flag,
 	}
 
 	printf("uboot mem_size = %02x\n", size);
+#if defined(CONFIG_NR_DRAM_BANKS)
 	printf("gd mem size is %02llx\n", gd->bd->bi_dram[0].size);
 
+#if defined(PHYS_SDRAM_2) && defined(CONFIG_MAX_MEM_MAPPED)
+	/* set mem size */
+	gd->bd->bi_dram[0].size =
+		size > CONFIG_MAX_MEM_MAPPED ? CONFIG_MAX_MEM_MAPPED : size;
+	gd->bd->bi_dram[1].start =
+		size > CONFIG_MAX_MEM_MAPPED ? PHYS_SDRAM_2 : 0;
+	gd->bd->bi_dram[1].size =
+		size > CONFIG_MAX_MEM_MAPPED ? PHYS_SDRAM_2_SIZE : 0;
+#else
 	/* set mem size */
 	gd->bd->bi_dram[0].size = size;
+#endif
+#endif
 
 	return 0;
 }
