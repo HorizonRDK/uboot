@@ -143,8 +143,6 @@ int dram_init(void)
 
 	if (ddr_size == 0)
 		ddr_size = 1;
-	else if (ddr_size > 2)
-		ddr_size = 2;
 
 	sys_sdram_size = ddr_size * 1024 * 1024 * 1024;
 	printf("system DDR size: 0x%llx\n", sys_sdram_size);
