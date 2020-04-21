@@ -655,7 +655,7 @@ static void hb_env_and_boardid_init(void)
 	printf("bootinfo/board_id = %02x\n", x3_board_id);
 #ifdef CONFIG_HB_NAND_BOOT
 	run_command("mtd list", 0);
-	if (ubi_part("sys", NULL)) {
+	if (ubi_part("boot", NULL)) {
 		printf("system ubi image load failed!\n");
 	}
 #endif
@@ -992,7 +992,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	ret = 0;
 #ifdef CONFIG_HB_NAND_BOOT
 	char veeprom[2048] = { 0 };
-	ubi_part("sys", 0);
+	ubi_part("boot", NULL);
 	ubi_volume_read("veeprom", veeprom, 2048);
 	run_command("ubi detach", 0);
 #endif
@@ -1030,7 +1030,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	}
 
 #ifdef CONFIG_HB_NAND_BOOT
-	ubi_part("sys", 0);
+	ubi_part("boot", NULL);
 	ubi_volume_write("veeprom", veeprom, 2048);
 #endif
 	return ret;

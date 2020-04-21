@@ -416,7 +416,7 @@ static uint64_t nand_write(struct ubi_volume *part, lbaint_t start,
 
 static struct ubi_volume *nand_get_partition(const char *partition)
 {
-	if (ubi_part("sys", NULL))
+	if (ubi_part("boot", NULL))
 		return NULL;
 	return ubi_find_volume(partition);
 }
@@ -1021,7 +1021,7 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 		printf("Wrong interface passed in, please use nand!\n");
 		return NULL;
 	}
-	if (ubi_part("sys", NULL)) {
+	if (ubi_part("boot", NULL)) {
 		printf("UBI Volume Init Failed!\n");
 		return NULL;
 	}
