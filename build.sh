@@ -121,7 +121,7 @@ function set_uboot_config()
         sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g'
         sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),393216@0xC0000(bl31),2097152@0x120000(uboot),131072@0x320000(bpu),131072@0x340000(vbmeta),10485760@0x360000(boot),34603008@0xD60000(system),-@0x386000(app)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),393216@0xC0000(bl31),2097152@0x120000(uboot),131072@0x320000(bpu),131072@0x340000(vbmeta),10485760@0x360000(boot),34603008@0xD60000(system),-@0x2E60000(app)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     else
         sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
