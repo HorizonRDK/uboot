@@ -128,6 +128,34 @@ static void write_raw_image(struct blk_desc *dev_desc, disk_partition_t *info,
 	fastboot_okay(NULL, response);
 }
 
+/**
+ * write_raw_image_to_addr - write raw image to addr
+ */
+static void write_raw_image_to_addr(struct blk_desc *dev_desc, long addr,
+		int blksz, void *buffer, u32 download_bytes, char *response)
+{
+	lbaint_t blkcnt;
+	lbaint_t blks;
+
+	/* determine number of blocks to write */
+	blkcnt = ((download_bytes + (blksz - 1)) & ~(blksz - 1));
+	blkcnt = lldiv(blkcnt, blksz);
+
+	puts("Flashing Raw Image\n");
+
+	blks = fb_mmc_blk_write(dev_desc, addr, blkcnt, buffer);
+
+	if (blks != blkcnt) {
+		pr_err("failed writing to device %d\n", dev_desc->devnum);
+		fastboot_fail("failed writing to device", response);
+		return;
+	}
+
+	printf("........ wrote " LBAFU " bytes to 0x%lx\n",
+			blkcnt * blksz, addr);
+	fastboot_okay(NULL, response);
+}
+
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 /**
  * Read Android boot image header from boot partition.
@@ -335,6 +363,7 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 {
 	struct blk_desc *dev_desc;
 	disk_partition_t info;
+	long start_addr = -1;
 
 	dev_desc = blk_get_dev("mmc", CONFIG_FASTBOOT_FLASH_MMC_DEV);
 	if (!dev_desc || dev_desc->type == DEV_TYPE_UNKNOWN) {
@@ -397,7 +426,12 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 	if (part_get_info_by_name_or_alias(dev_desc, cmd, &info) < 0) {
 		pr_err("cannot find partition: '%s'\n", cmd);
 		fastboot_fail("cannot find partition", response);
-		return;
+
+		/* fallback on using the 'partition name' as a number */
+		if (strict_strtoul(cmd, 16, &start_addr) < 0)
+			return;
+
+		printf("fastboot emmc flash start_addr: 0x%x\n", start_addr);
 	}
 
 	if (is_sparse_image(download_buffer)) {
@@ -406,10 +440,15 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 		int err;
 
 		sparse_priv.dev_desc = dev_desc;
-
-		sparse.blksz = info.blksz;
-		sparse.start = info.start;
-		sparse.size = info.size;
+		if (start_addr == -1) {
+			sparse.blksz = info.blksz;
+			sparse.start = info.start;
+			sparse.size = info.size;
+		} else {
+			sparse.blksz = dev_desc->blksz;
+			sparse.start = start_addr;
+			sparse.size  = dev_desc->lba * dev_desc->blksz;
+		}
 		sparse.write = fb_mmc_sparse_write;
 		sparse.reserve = fb_mmc_sparse_reserve;
 		sparse.mssg = fastboot_fail;
@@ -423,8 +462,13 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 		if (!err)
 			fastboot_okay(NULL, response);
 	} else {
-		write_raw_image(dev_desc, &info, cmd, download_buffer,
-				download_bytes, response);
+		if (start_addr == -1)
+			write_raw_image(dev_desc, &info, cmd, download_buffer,
+					download_bytes, response);
+		else
+			write_raw_image_to_addr(dev_desc, start_addr,
+					dev_desc->blksz, download_buffer,
+					download_bytes, response);
 	}
 }
 
