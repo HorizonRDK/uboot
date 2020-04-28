@@ -139,6 +139,14 @@ config FASTBOOT_CMD_OEM_RAMDUMP
 	  could help to dump indicated/whole dram data to host pc through
 	  fastboot oem command.
 
+config FASTBOOT_OEM_GPT_EXTEND
+	bool "Enable 'gpt extend mmc 0' command and run it after flash gpt"
+	help
+	  Extend last partition size to maximum size after fastboot flash
+	  gpt partitions, which match with other flash tools (eg. tftp, ota).
+	  Then it can avoid some mount problem that gpt partition table mismatch
+	  with real partition. It is for hobot or other similar platforms.
+
 endif # FASTBOOT
 
 endmenu

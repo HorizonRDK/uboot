@@ -50,6 +50,9 @@ static void oem_format(char *, char *);
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_RAMDUMP)
 static void oem_ramdump(char *cmd_parameter, char *response);
 #endif
+#if CONFIG_IS_ENABLED(FASTBOOT_OEM_GPT_EXTEND)
+static void oem_gpt_extend(char *cmd_parameter, char *response);
+#endif
 
 static const struct {
 	const char *command;
@@ -103,6 +106,12 @@ static const struct {
 	[FASTBOOT_COMMAND_OEM_RAMDUMP] = {
 		.command = "oem ramdump",
 		.dispatch = oem_ramdump,
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_OEM_GPT_EXTEND)
+	[FASTBOOT_COMMAND_OEM_GPT_EXTEND] = {
+		.command = "oem gpt-extend",
+		.dispatch = oem_gpt_extend,
 	},
 #endif
 };
@@ -446,5 +455,27 @@ static void oem_ramdump(char *cmd_parameter, char *response)
 	fastboot_upload_ramdump();
 
 	fastboot_none_resp(response);
+}
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_OEM_GPT_EXTEND)
+/**
+ * oem_gpt_extend() - Execute the OEM gpt extend command
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void oem_gpt_extend(char *cmd_parameter, char *response)
+{
+	char cmdbuf[32];
+
+	sprintf(cmdbuf, "gpt extend mmc %x",
+		CONFIG_FASTBOOT_FLASH_MMC_DEV);
+	printf("do '%s'\n", cmdbuf);
+
+	if (run_command(cmdbuf, 0))
+		fastboot_fail("", response);
+	else
+		fastboot_okay(NULL, response);
 }
 #endif

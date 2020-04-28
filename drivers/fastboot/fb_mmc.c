@@ -363,6 +363,7 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 {
 	struct blk_desc *dev_desc;
 	disk_partition_t info;
+	char cmdbuf[32];
 	long start_addr = -1;
 
 	dev_desc = blk_get_dev("mmc", CONFIG_FASTBOOT_FLASH_MMC_DEV);
@@ -388,6 +389,14 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 				      response);
 			return;
 		}
+
+#if CONFIG_IS_ENABLED(FASTBOOT_OEM_GPT_EXTEND)
+		/* extend last partition size to maximum size */
+		sprintf(cmdbuf, "gpt extend mmc %x",
+			CONFIG_FASTBOOT_FLASH_MMC_DEV);
+		printf("do '%s'\n", cmdbuf);
+		run_command(cmdbuf, 0);
+#endif
 		printf("........ success\n");
 		fastboot_okay(NULL, response);
 		return;
