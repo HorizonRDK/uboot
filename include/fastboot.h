@@ -163,6 +163,19 @@ void fastboot_data_download(const void *fastboot_data,
 			    unsigned int fastboot_data_len, char *response);
 
 /**
+ * fastboot_data_upload() - Copy specify data to fastboot_data.
+ *
+ * @fastboot_data: Pointer to send fastboot data
+ * @fastboot_data_len: Length of send fastboot data
+ * @response: Pointer to fastboot response buffer
+ *
+ * Copies specify data(Only support ramdump currently) to fastboot_data.
+ * Writes to response. fastboot_bytes_send is updated to indicate the number
+ * of bytes that have been transferred.
+ */
+void fastboot_data_upload(void *fastboot_data,
+			    unsigned int fastboot_data_len, char *response);
+/**
  * fastboot_download_complete() - Mark current transfer complete
  *
  * @response: Pointer to fastboot response buffer

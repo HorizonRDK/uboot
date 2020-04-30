@@ -437,10 +437,10 @@ void fastboot_mmc_flash_write(const char *cmd, void *download_buffer,
 		fastboot_fail("cannot find partition", response);
 
 		/* fallback on using the 'partition name' as a number */
-		if (strict_strtoul(cmd, 16, &start_addr) < 0)
+		if (strict_strtoul(cmd, 16, (unsigned long *)&start_addr) < 0)
 			return;
 
-		printf("fastboot emmc flash start_addr: 0x%x\n", start_addr);
+		printf("fastboot emmc flash start_addr: 0x%lx\n", start_addr);
 	}
 
 	if (is_sparse_image(download_buffer)) {

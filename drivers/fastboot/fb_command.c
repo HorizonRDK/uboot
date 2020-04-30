@@ -358,13 +358,13 @@ u32 fastboot_upload_remaining(void)
  * @response: Pointer to fastboot response buffer
  *
  */
-void fastboot_data_upload(const void *fastboot_data,
+void fastboot_data_upload(void *fastboot_data,
 			    unsigned int fastboot_data_len,
 			    char *response)
 {
 #define BYTES_PER_DOT	0x20000
 	u32 pre_dot_num, now_dot_num;
-	u32 dram_start_addr = 0x0;
+	void *dram_start_addr = 0;
 
 	if (fastboot_data_len == 0 ||
 	    (fastboot_bytes_send + fastboot_data_len) >
