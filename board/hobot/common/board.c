@@ -1113,9 +1113,9 @@ static int hb_swinfo_dump_check(void)
 			dmmc = 0;
 			dpart = get_partition_id("userdata");
 		}
-		printf("swinfo dump ddr 0x%x -> %s:%d\n", sys_sdram_size, ddev, dpart);
+		printf("swinfo dump ddr 0x%x -> %s:p%d\n", sys_sdram_size, ddev, dpart);
 		s += sprintf(s, "mmc rescan; ");
-		s += sprintf(s, "%s mmc %d:%d 0x0 /dump_ddr_%x.img 0x%x",
+		s += sprintf(s, "%s mmc %x:%x 0x0 /dump_ddr_%x.img 0x%x",
 				dcmd, dmmc, dpart, sys_sdram_size, sys_sdram_size);
 
 		env_set("dumpcmd", dump);
