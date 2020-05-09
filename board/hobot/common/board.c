@@ -522,7 +522,7 @@ static void hb_mmc_env_init(void)
 	}
 
 	//snprintf(logo_addr, sizeof(logo_addr), "0x%x", HB_USABLE_RAM_TOP);
-	env_set("logo_addr", "0x1600000");
+//	env_set("logo_addr", "0x1600000");
 
 	/* init env mem_size */
 	s = env_get("mem_size");
