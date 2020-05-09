@@ -243,14 +243,11 @@ static void hb_board_config_init(void) {
 	uint32_t ddr_model, ddr_freq;
 	uint32_t reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
 
-	/* init board id */
-	x3_origin_board_id = x3_board_id;
-
 	/* init base board type */
 	x3_base_board_type = hb_base_board_type_get();
 
 	/* init ddr vender */
-	ddr_model = DDR_MANUF_SEL(x3_origin_board_id);
+	ddr_model = DDR_MANUF_SEL(x3_board_id);
 	if (ddr_model == 0) {
 		/* use strap pin to decide ddr model */
 		if (PIN_DDR_TYPE_SEL(reg) == 0)
@@ -261,14 +258,13 @@ static void hb_board_config_init(void) {
 	x3_ddr_vender = ddr_model;
 
 	/* init ddr type */
-	x3_ddr_type = DDR_TYPE_LPDDR4;
+	x3_ddr_type = DDR_TYPE_SEL(x3_board_id);
 
 	/* init ddr size */
-	x3_ddr_size = DDR_CAPACITY_SEL(x3_origin_board_id);
-	x3_origin_board_id = x3_origin_board_id & (~(0xf << 16));
+	x3_ddr_size = DDR_CAPACITY_SEL(x3_board_id);
 
 	/* init ddr freq */
-	ddr_freq = DDR_FREQ_SEL(x3_origin_board_id);
+	ddr_freq = DDR_FREQ_SEL(x3_board_id);
 	if (ddr_freq == 0) {
 		if (x3_base_board_type == BASE_BOARD_CVB) {
 			x3_ddr_freq = DDR_FREQC_4266;

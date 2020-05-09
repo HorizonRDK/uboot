@@ -158,7 +158,7 @@ static char *x3_image_get_dtb(unsigned int board_type,
 		return NULL;
 	}
 
-	for (i = 0; i < count - 1; i++) {
+	for (i = 0; i < count; i++) {
 		if (board_type == config->dtb[i].board_id) {
 			s = (char *)config->dtb[i].dtb_name;
 			base_addr = ((ulong)config) + sizeof(struct hb_kernel_hdr);

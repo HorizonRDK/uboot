@@ -521,6 +521,9 @@ static void hb_mmc_env_init(void)
 		}
 	}
 
+	//snprintf(logo_addr, sizeof(logo_addr), "0x%x", HB_USABLE_RAM_TOP);
+	env_set("logo_addr", "0x1600000");
+
 	/* init env mem_size */
 	s = env_get("mem_size");
 	if (s == NULL) {
@@ -652,7 +655,7 @@ static void hb_env_and_boardid_init(void)
 	char boot_reason[64] = { 0 };
 	unsigned int boot_mode = hb_boot_mode_get();
 
-	printf("bootinfo/board_id = %02x\n", x3_board_id);
+	printf("board_id = %02x\n", x3_board_id);
 #ifdef CONFIG_HB_NAND_BOOT
 	run_command("mtd list", 0);
 	if (ubi_part("boot", NULL)) {
