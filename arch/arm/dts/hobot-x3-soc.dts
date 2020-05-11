@@ -71,22 +71,25 @@
 
 &qspi {
 	status = "okay";
-	spi-max-frequency = <50000000>;
 	#address-cells = <1>;
-	#size-cells = <1>;
-	spi-tx-bus-width = <4>;
-	spi-rx-bus-width = <4>;
+	#size-cells = <0>;
 
-	nor0: is25wp512@0 {
+	is25wp512@0 {
 		u-boot,dm-pre-reloc;
-		compatible = "spi-nor";
+		compatible = "jedec,spi-nor";
 		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
-	spi-nand@0 {
+	5f1gq4rc9ig@0 {
 		u-boot,dm-pre-reloc;
 		compatible = "spi-nand";
 		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 	};
 
 };

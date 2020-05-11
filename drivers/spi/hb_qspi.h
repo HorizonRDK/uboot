@@ -85,8 +85,10 @@
 
 /* Read commands */
 #define CMD_QUAD_PAGE_PROGRAM       0x32
+#define CMD_QUAD_PAGE_PROGRAM_4A       0x34
 #define CMD_READ_DUAL_OUTPUT_FAST   0x3b
 #define CMD_READ_QUAD_OUTPUT_FAST   0x6b
+#define CMD_READ_QUAD_OUTPUT_FAST_4A 0x6c
 
 /* Some op macron */
 #define HB_QSPI_OP_RX_EN            0x01
@@ -96,7 +98,7 @@
 #define HB_QSPI_OP_BAT_EN           0x05
 #define HB_QSPI_OP_BAT_DIS          0x06
 
-#define TRYS_TOTAL_NUM              0x8000000
+#define TRYS_TOTAL_NUM              0x10000
 #define BATCH_MAX_CNT               0x10000
 #define MIN(a, b)   ((a < b) ? (a) : (b))
 #define MAX(a, b)   ((a > b) ? (a) : (b))

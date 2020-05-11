@@ -7,6 +7,7 @@
  */
 
 #ifndef __UBOOT__
+#include <log.h>
 #include <linux/dmaengine.h>
 #include <linux/pm_runtime.h>
 #include "internals.h"
@@ -123,6 +124,12 @@ static int spi_check_buswidth_req(struct spi_slave *slave, u8 buswidth, bool tx)
 			return 0;
 
 		break;
+	case 8:
+		if ((tx && (mode & SPI_TX_OCTAL)) ||
+		    (!tx && (mode & SPI_RX_OCTAL)))
+			return 0;
+
+		break;
 
 	default:
 		break;
@@ -145,7 +152,7 @@ bool spi_mem_default_supports_op(struct spi_slave *slave,
 	    spi_check_buswidth_req(slave, op->dummy.buswidth, true))
 		return false;
 
-	if (op->data.nbytes &&
+	if (op->data.dir != SPI_MEM_NO_DATA &&
 	    spi_check_buswidth_req(slave, op->data.buswidth,
 				   op->data.dir == SPI_MEM_DATA_OUT))
 		return false;
@@ -201,7 +208,6 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	unsigned int pos = 0;
 	const u8 *tx_buf = NULL;
 	u8 *rx_buf = NULL;
-	u8 *op_buf;
 	int op_len;
 	u32 flag;
 	int ret;
@@ -210,7 +216,11 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	if (!spi_mem_supports_op(slave, op))
 		return -ENOTSUPP;
 
-	if (ops->mem_ops) {
+	ret = spi_claim_bus(slave);
+	if (ret < 0)
+		return ret;
+
+	if (ops->mem_ops && ops->mem_ops->exec_op) {
 #ifndef __UBOOT__
 		/*
 		 * Flush the message queue before executing our SPI memory
@@ -232,6 +242,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 		mutex_lock(&ctlr->io_mutex);
 #endif
 		ret = ops->mem_ops->exec_op(slave, op);
+
 #ifndef __UBOOT__
 		mutex_unlock(&ctlr->io_mutex);
 		mutex_unlock(&ctlr->bus_lock_mutex);
@@ -245,8 +256,10 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 		 * read path) and expect the core to use the regular SPI
 		 * interface in other cases.
 		 */
-		if (!ret || ret != -ENOTSUPP)
+		if (!ret || ret != -ENOTSUPP) {
+			spi_release_bus(slave);
 			return ret;
+		}
 	}
 
 #ifndef __UBOOT__
@@ -322,16 +335,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	if (msg.actual_length != totalxferlen)
 		return -EIO;
 #else
-	#if 0
-	/* U-Boot does not support parallel SPI data lanes */
-	if ((op->cmd.buswidth != 1) ||
-	    (op->addr.nbytes && op->addr.buswidth != 1) ||
-	    (op->dummy.nbytes && op->dummy.buswidth != 1) ||
-	    (op->data.nbytes && op->data.buswidth != 1)) {
-		printf("Dual/Quad raw SPI transfers not supported\n");
-		return -ENOTSUPP;
-	}
-	#endif
+
 	if (op->data.nbytes) {
 		if (op->data.dir == SPI_MEM_DATA_IN)
 			rx_buf = op->data.buf.in;
@@ -340,11 +344,17 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	}
 
 	op_len = sizeof(op->cmd.opcode) + op->addr.nbytes + op->dummy.nbytes;
-	op_buf = calloc(1, op_len);
 
-	ret = spi_claim_bus(slave);
-	if (ret < 0)
-		return ret;
+	/*
+	 * Avoid using malloc() here so that we can use this code in SPL where
+	 * simple malloc may be used. That implementation does not allow free()
+	 * so repeated calls to this code can exhaust the space.
+	 *
+	 * The value of op_len is small, since it does not include the actual
+	 * data being sent, only the op-code and address. In fact, it should be
+	 * possible to just use a small fixed value here instead of op_len.
+	 */
+	u8 op_buf[op_len];
 
 	op_buf[pos++] = op->cmd.opcode;
 
@@ -365,7 +375,7 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	if (!tx_buf && !rx_buf)
 		flag |= SPI_XFER_END;
 
-	ret = spi_xfer(slave, op_len * 8, op_buf, NULL, flag|SPI_XFER_CMD);
+	ret = spi_xfer(slave, op_len * 8, op_buf, NULL, flag);
 	if (ret)
 		return ret;
 
@@ -387,8 +397,6 @@ int spi_mem_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
 	for (i = 0; i < op->data.nbytes; i++)
 		debug("%02x ", tx_buf ? tx_buf[i] : rx_buf[i]);
 	debug("[ret %d]\n", ret);
-
-	free(op_buf);
 
 	if (ret < 0)
 		return ret;
@@ -420,6 +428,27 @@ int spi_mem_adjust_op_size(struct spi_slave *slave, struct spi_mem_op *op)
 
 	if (ops->mem_ops && ops->mem_ops->adjust_op_size)
 		return ops->mem_ops->adjust_op_size(slave, op);
+
+	if (!ops->mem_ops || !ops->mem_ops->exec_op) {
+		unsigned int len;
+
+		len = sizeof(op->cmd.opcode) + op->addr.nbytes +
+			op->dummy.nbytes;
+		if (slave->max_write_size && len > slave->max_write_size)
+			return -EINVAL;
+
+		if (op->data.dir == SPI_MEM_DATA_IN) {
+			if (slave->max_read_size)
+				op->data.nbytes = min(op->data.nbytes,
+					      slave->max_read_size);
+		} else if (slave->max_write_size) {
+			op->data.nbytes = min(op->data.nbytes,
+					      slave->max_write_size - len);
+		}
+
+		if (!op->data.nbytes)
+			return -EINVAL;
+	}
 
 	return 0;
 }

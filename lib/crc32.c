@@ -10,6 +10,7 @@
 
 #ifdef USE_HOSTCC
 #include <arpa/inet.h>
+#include <u-boot/crc.h>
 #else
 #include <common.h>
 #include <efi_loader.h>
@@ -65,7 +66,8 @@ static void __efi_runtime make_crc_table(void)
   int n, k;
   uLong poly;		/* polynomial exclusive-or pattern */
   /* terms of polynomial defining this crc (except x^32): */
-  static const Byte p[] = {0,1,2,4,5,7,8,10,11,12,16,22,23,26};
+  static Byte __efi_runtime_data p[] = {
+		0, 1, 2, 4, 5, 7, 8, 10, 11, 12, 16, 22, 23, 26};
 
   /* make exclusive-or pattern from polynomial (0xedb88320L) */
   poly = 0L;
@@ -243,12 +245,12 @@ uint32_t crc32_wd(uint32_t crc, const unsigned char *buf, uInt len,
 		chunk = end - curr;
 		if (chunk > chunk_sz)
 			chunk = chunk_sz;
-		crc = crc32 (crc, curr, chunk);
+		crc = crc32(crc, curr, chunk);
 		curr += chunk;
 		WATCHDOG_RESET ();
 	}
 #else
-	crc = crc32 (crc, buf, len);
+	crc = crc32(crc, buf, len);
 #endif
 
 	return crc;

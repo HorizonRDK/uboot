@@ -15,7 +15,8 @@
 #include <dm/device-internal.h>
 #include <clk.h>
 #include <linux/kernel.h>
-#include "hb_qspi.h"
+#include <spi-mem.h>
+#include "./hb_qspi.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -36,14 +37,15 @@ static struct hb_qspi_platdata {
 	u32 speed_hz;
 	u32 xfer_mode;
 	u32 num_cs;
+	u32 bus_width;
 } *plat;
 
 static struct hb_qspi_priv {
 	void __iomem *regs_base;
 } *hbqspi;
 
-#define hb_qspi_rd(dev, reg)	   readl((dev)->regs_base + (reg))
-#define hb_qspi_wr(dev, reg, val)  writel((val), (dev)->regs_base + (reg))
+#define hb_qspi_rd_reg(dev, reg)	   readl((dev)->regs_base + (reg))
+#define hb_qspi_wr_reg(dev, reg, val)  writel((val), (dev)->regs_base + (reg))
 
 #ifdef QSPI_DEBUG
 void qspi_dump_reg(struct hb_qspi_priv *xqspi)
@@ -51,7 +53,7 @@ void qspi_dump_reg(struct hb_qspi_priv *xqspi)
 	uint32_t val = 0, i;
 
 	for (i = HB_QSPI_DAT_REG; i <= HB_QSPI_XIP_REG; i = i + 4) {
-		val = hb_qspi_rd(xqspi, i);
+		val = hb_qspi_rd_reg(xqspi, i);
 		printf("reg[0x%08x] ==> [0x%08x]\n", xqspi->regs_base + i, val);
 	}
 }
@@ -74,7 +76,7 @@ void trace_transfer(const void * buf, u32 len, bool dir)
 #define QSPI_DEBUG_DATA_LEN	16
 		for (i = 0; i < ((len < QSPI_DEBUG_DATA_LEN) ?
 			len : QSPI_DEBUG_DATA_LEN); i++) {
-			snprintf(tmp_prbuf, 32, "%02X ", tmpbuf[i]);
+			snprintf(tmp_prbuf, sizeof(tmp_prbuf), "%02X ", tmpbuf[i]);
 			strcat(prbuf, tmp_prbuf);
 		}
 	}
@@ -82,7 +84,7 @@ void trace_transfer(const void * buf, u32 len, bool dir)
 }
 #endif
 
-static int hb_qspi_set_speed(struct udevice *bus, uint speed)
+static inline int hb_qspi_set_speed(struct udevice *bus, uint speed)
 {
 	int confr, prescaler, divisor;
 	unsigned int max_br, min_br, br_div;
@@ -90,12 +92,12 @@ static int hb_qspi_set_speed(struct udevice *bus, uint speed)
 	max_br = plat->freq / 2;
 	min_br = plat->freq / 1048576;
 	if (speed > max_br) {
-		printf("Warning:speed[%d] > max_br[%d],speed will be set to default br: %d\n",
+		debug("Warning:speed[%d] > max_br[%d],speed will be set to default br: %d\n",
 				speed, max_br, HB_QSPI_DEF_BR);
 		speed = HB_QSPI_DEF_BR;
 	}
 	if (speed < min_br) {
-		printf("Warning:speed[%d] < min_br[%d],speed will be set to default br: %d\n",
+		debug("Warning:speed[%d] < min_br[%d],speed will be set to default br: %d\n",
 				speed, min_br, HB_QSPI_DEF_BR);
 		speed = HB_QSPI_DEF_BR;
 	}
@@ -106,7 +108,7 @@ static int hb_qspi_set_speed(struct udevice *bus, uint speed)
 			if ((plat->freq / br_div) >= speed) {
 				confr = (prescaler | (divisor << 4)) & 0xFF;
 
-				hb_qspi_wr(hbqspi, HB_QSPI_BDR_REG, confr);
+				hb_qspi_wr_reg(hbqspi, HB_QSPI_BDR_REG, confr);
 				return 0;
 			}
 		}
@@ -115,11 +117,11 @@ static int hb_qspi_set_speed(struct udevice *bus, uint speed)
 	return 0;
 }
 
-static int hb_qspi_set_mode(struct udevice *bus, uint mode)
+static inline int hb_qspi_set_mode(struct udevice *bus, uint mode)
 {
 	unsigned int val = 0;
 
-	val = hb_qspi_rd(hbqspi, HB_QSPI_CTL1_REG);
+	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL1_REG);
 	if (mode & SPI_CPHA)
 		val |= HB_QSPI_CPHA;
 	if (mode & SPI_CPOL)
@@ -128,33 +130,30 @@ static int hb_qspi_set_mode(struct udevice *bus, uint mode)
 		val |= HB_QSPI_LSB;
 	if (mode & SPI_SLAVE)
 		val &= (~HB_QSPI_MST);
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL1_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL1_REG, val);
 
 	return 0;
 }
 
 /* currend driver only support BYTE/DUAL/QUAD for both RX and TX */
-static int hb_qspi_set_wire(struct hb_qspi_priv *hbqspi, uint mode)
+static void hb_qspi_set_wire(struct hb_qspi_priv *hbqspi, uint mode)
 {
-	unsigned int val = 0;
+	uint32_t val = hb_qspi_rd_reg(hbqspi, HB_QSPI_DQM_REG) & 0xFC;
 
-	switch (mode & 0x3F00) {
-	case SPI_TX_BYTE | SPI_RX_SLOW:
-		val = 0xFC;
+	switch (mode) {
+	case 1:
 		break;
-	case SPI_TX_DUAL | SPI_RX_DUAL:
-		val = HB_QSPI_DUAL;
+	case 2:
+		val |= HB_QSPI_DUAL;
 		break;
-	case SPI_TX_QUAD | SPI_RX_QUAD:
-		val = HB_QSPI_QUAD;
+	case 4:
+		val |= HB_QSPI_QUAD;
 		break;
 	default:
-		val = 0xFC;
 		break;
 	}
-	hb_qspi_wr(hbqspi, HB_QSPI_DQM_REG, val);
 
-	return 0;
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_DQM_REG, val);
 }
 
 static int hb_qspi_claim_bus(struct udevice *dev)
@@ -169,28 +168,26 @@ static int hb_qspi_release_bus(struct udevice *dev)
 	return 0;
 }
 
-static void hb_qspi_reset_fifo(struct hb_qspi_priv *hbqspi)
+static inline void hb_qspi_reset_fifo(struct hb_qspi_priv *hbqspi)
 {
 	u32 val;
 
-	val = hb_qspi_rd(hbqspi, HB_QSPI_CTL3_REG);
+	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL3_REG);
 	val |= HB_QSPI_RST_ALL;
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL3_REG, val);
-	mdelay(1);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL3_REG, val);
 	val = (~HB_QSPI_RST_ALL);
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL3_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL3_REG, val);
 
 	return;
 }
 
 /* tx almost empty */
-static int hb_qspi_tx_ae(struct hb_qspi_priv *hbqspi)
+static inline int hb_qspi_tx_ae(struct hb_qspi_priv *hbqspi)
 {
 	u32 val, trys = 0;
 
 	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST1_REG);
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST1_REG);
 		trys++;
 	} while ((!(val & HB_QSPI_TX_AE)) && (trys < TRYS_TOTAL_NUM));
 	if (trys >= TRYS_TOTAL_NUM)
@@ -200,13 +197,12 @@ static int hb_qspi_tx_ae(struct hb_qspi_priv *hbqspi)
 }
 
 /* rx almost full */
-static int hb_qspi_rx_af(struct hb_qspi_priv *hbqspi)
+static inline int hb_qspi_rx_af(struct hb_qspi_priv *hbqspi)
 {
 	u32 val, trys = 0;
 
 	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST1_REG);
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST1_REG);
 		trys++;
 	} while ((!(val & HB_QSPI_RX_AF)) && (trys < TRYS_TOTAL_NUM));
 	if (trys >= TRYS_TOTAL_NUM)
@@ -215,47 +211,44 @@ static int hb_qspi_rx_af(struct hb_qspi_priv *hbqspi)
 	return trys < TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-static int hb_qspi_tb_done(struct hb_qspi_priv *hbqspi)
-{
-	u32 val, trys=0;
-
-	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST1_REG);
-		trys++;
-	} while ((!(val & HB_QSPI_TBD)) && (trys < TRYS_TOTAL_NUM));
-	if (trys >= TRYS_TOTAL_NUM)
-		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
-	hb_qspi_wr(hbqspi, HB_QSPI_ST1_REG, (val|HB_QSPI_TBD));
-
-
-	return trys < TRYS_TOTAL_NUM ? 0 : -1;
-}
-
-static int hb_qspi_rb_done(struct hb_qspi_priv *hbqspi)
-{
-	u32 val, trys=0;
-
-	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST1_REG);
-		trys++;
-	} while ((!(val & HB_QSPI_RBD)) && (trys < TRYS_TOTAL_NUM));
-	if (trys >= TRYS_TOTAL_NUM)
-		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
-	hb_qspi_wr(hbqspi, HB_QSPI_ST1_REG, (val|HB_QSPI_RBD));
-
-
-	return trys < TRYS_TOTAL_NUM ? 0 : -1;
-}
-
-static int hb_qspi_tx_full(struct hb_qspi_priv *hbqspi)
+static inline int hb_qspi_tb_done(struct hb_qspi_priv *hbqspi)
 {
 	u32 val, trys = 0;
 
 	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST2_REG);
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST1_REG);
+		trys++;
+	} while ((!(val & HB_QSPI_TBD)) && (trys < TRYS_TOTAL_NUM));
+	if (trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_ST1_REG, (val | HB_QSPI_TBD));
+
+
+	return trys < TRYS_TOTAL_NUM ? 0 : -1;
+}
+
+static inline int hb_qspi_rb_done(struct hb_qspi_priv *hbqspi)
+{
+	u32 val, trys = 0;
+
+	do {
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST1_REG);
+		trys++;
+	} while ((!(val & HB_QSPI_RBD)) && (trys < TRYS_TOTAL_NUM));
+	if (trys >= TRYS_TOTAL_NUM)
+		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_ST1_REG, (val | HB_QSPI_RBD));
+
+
+	return trys < TRYS_TOTAL_NUM ? 0 : -1;
+}
+
+static inline int hb_qspi_tx_full(struct hb_qspi_priv *hbqspi)
+{
+	u32 val, trys = 0;
+
+	do {
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST2_REG);
 		trys++;
 	} while ((val & HB_QSPI_TX_FULL) && (trys < TRYS_TOTAL_NUM));
 
@@ -265,13 +258,12 @@ static int hb_qspi_tx_full(struct hb_qspi_priv *hbqspi)
 	return trys < TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-static int hb_qspi_tx_empty(struct hb_qspi_priv *hbqspi)
+static inline int hb_qspi_tx_empty(struct hb_qspi_priv *hbqspi)
 {
 	u32 val, trys = 0;
 
 	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST2_REG);
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST2_REG);
 		trys++;
 	} while ((!(val & HB_QSPI_TX_EP)) && (trys < TRYS_TOTAL_NUM));
 
@@ -281,42 +273,41 @@ static int hb_qspi_tx_empty(struct hb_qspi_priv *hbqspi)
 	return trys < TRYS_TOTAL_NUM ? 0 : -1;
 }
 
-static int hb_qspi_rx_empty(struct hb_qspi_priv *hbqspi)
+static inline int hb_qspi_rx_empty(struct hb_qspi_priv *hbqspi)
 {
 	u32 val, trys = 0;
 
 	do {
-		ndelay(10);
-		val = hb_qspi_rd(hbqspi, HB_QSPI_ST2_REG);
+		val = hb_qspi_rd_reg(hbqspi, HB_QSPI_ST2_REG);
 		trys++;
 	} while ((val & HB_QSPI_RX_EP) && (trys < TRYS_TOTAL_NUM));
 
 	if (trys >= TRYS_TOTAL_NUM)
 		printf("%s_%d:val=%x, trys=%d\n", __func__, __LINE__, val, trys);
 
-	return trys<TRYS_TOTAL_NUM ? 0 : -1;
+	return trys < TRYS_TOTAL_NUM ? 0 : -1;
 }
 
 /* config fifo width */
-static void hb_qspi_set_fw(struct hb_qspi_priv *hbqspi, u32 fifo_width)
+static inline void hb_qspi_set_fw(struct hb_qspi_priv *hbqspi, u32 fifo_width)
 {
 	u32 val;
 
-	val = hb_qspi_rd(hbqspi, HB_QSPI_CTL1_REG);
+	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL1_REG);
 	val &= (~0x3);
 	val |= fifo_width;
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL1_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL1_REG, val);
 
 	return;
 }
 
 /*config xfer mode:enable/disable BATCH/RX/TX */
-static void hb_qspi_set_xfer(struct hb_qspi_priv *hbqspi, u32 op_flag)
+static inline void hb_qspi_set_xfer(struct hb_qspi_priv *hbqspi, u32 op_flag)
 {
 	u32 ctl1_val = 0, ctl3_val = 0;
 
-	ctl1_val = hb_qspi_rd(hbqspi, HB_QSPI_CTL1_REG);
-	ctl3_val = hb_qspi_rd(hbqspi, HB_QSPI_CTL3_REG);
+	ctl1_val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL1_REG);
+	ctl3_val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL3_REG);
 
 	switch (op_flag) {
 	case HB_QSPI_OP_RX_EN:
@@ -341,13 +332,13 @@ static void hb_qspi_set_xfer(struct hb_qspi_priv *hbqspi, u32 op_flag)
 		printf("Op(0x%x) if error, please check it!\n", op_flag);
 		break;
 	}
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL1_REG, ctl1_val);
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL3_REG, ctl3_val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL1_REG, ctl1_val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL3_REG, ctl3_val);
 
 	return;
 }
 
-static int hb_qspi_rd_batch(struct hb_qspi_priv *hbqspi,
+static inline int hb_qspi_rd_batch(struct hb_qspi_priv *hbqspi,
 							void *pbuf, uint32_t len)
 {
 	u32 i, rx_len, offset = 0, ret = 0;
@@ -360,7 +351,7 @@ static int hb_qspi_rd_batch(struct hb_qspi_priv *hbqspi,
 
 	while (tmp_len > 0) {
 		rx_len = MIN(tmp_len, BATCH_MAX_CNT);
-		hb_qspi_wr(hbqspi, HB_QSPI_RBC_REG, rx_len);
+		hb_qspi_wr_reg(hbqspi, HB_QSPI_RBC_REG, rx_len);
 		/* enbale rx */
 		hb_qspi_set_xfer(hbqspi, HB_QSPI_OP_RX_EN);
 
@@ -369,11 +360,12 @@ static int hb_qspi_rd_batch(struct hb_qspi_priv *hbqspi,
 				ret = -1;
 				goto rb_err;
 			}
-			dbuf[offset++] = hb_qspi_rd(hbqspi, HB_QSPI_DAT_REG);
-			dbuf[offset++] = hb_qspi_rd(hbqspi, HB_QSPI_DAT_REG);
+			dbuf[offset++] = hb_qspi_rd_reg(hbqspi, HB_QSPI_DAT_REG);
+			dbuf[offset++] = hb_qspi_rd_reg(hbqspi, HB_QSPI_DAT_REG);
 		}
 		if (hb_qspi_rb_done(hbqspi)) {
-			printf("%s_%d:rx failed! len=%d, received=%d, i=%d\n", __func__, __LINE__, len, offset, i);
+			printf("%s_%d:rx failed! len=%d, received=%d, i=%d\n",
+					__func__, __LINE__, len, offset, i);
 			ret = -1;
 			goto rb_err;
 		}
@@ -390,7 +382,7 @@ rb_err:
 	return ret;
 }
 
-static int hb_qspi_wr_batch(struct hb_qspi_priv *hbqspi,
+static inline int hb_qspi_wr_batch(struct hb_qspi_priv *hbqspi,
 							const void *pbuf, uint32_t len)
 {
 	u32 i, tx_len, offset = 0, tmp_len = len, ret = 0;
@@ -401,21 +393,22 @@ static int hb_qspi_wr_batch(struct hb_qspi_priv *hbqspi,
 
 	while (tmp_len > 0) {
 		tx_len = MIN(tmp_len, BATCH_MAX_CNT);
-		hb_qspi_wr(hbqspi, HB_QSPI_TBC_REG, tx_len);
+		hb_qspi_wr_reg(hbqspi, HB_QSPI_TBC_REG, tx_len);
 
 		/* enbale tx */
 		hb_qspi_set_xfer(hbqspi, HB_QSPI_OP_TX_EN);
 
-		for (i=0; i<tx_len; i+=8) {
+		for (i=0; i < tx_len; i += 8) {
 			if (hb_qspi_tx_ae(hbqspi)) {
 				ret = -1;
 				goto tb_err;
 			}
-			hb_qspi_wr(hbqspi, HB_QSPI_DAT_REG, dbuf[offset++]);
-			hb_qspi_wr(hbqspi, HB_QSPI_DAT_REG, dbuf[offset++]);
+			hb_qspi_wr_reg(hbqspi, HB_QSPI_DAT_REG, dbuf[offset++]);
+			hb_qspi_wr_reg(hbqspi, HB_QSPI_DAT_REG, dbuf[offset++]);
 		}
 		if (hb_qspi_tb_done(hbqspi)) {
-			printf("%s_%d:tx failed! len=%d, received=%d, i=%d\n", __func__, __LINE__, len, offset, i);
+			printf("%s_%d:tx failed! len=%d, received=%d, i=%d\n",
+					__func__, __LINE__, len, offset, i);
 			ret = -1;
 			goto tb_err;
 		}
@@ -431,7 +424,7 @@ tb_err:
 	return ret;
 }
 
-static int hb_qspi_rd_byte(struct hb_qspi_priv *hbqspi,
+static inline int hb_qspi_rd_byte(struct hb_qspi_priv *hbqspi,
 							void *pbuf, uint32_t len)
 {
 	u32 i, ret = 0;
@@ -440,18 +433,17 @@ static int hb_qspi_rd_byte(struct hb_qspi_priv *hbqspi,
 	/* enbale rx */
 	hb_qspi_set_xfer(hbqspi, HB_QSPI_OP_RX_EN);
 
-	for (i=0; i<len; i++)
-	{
+	for (i = 0; i < len; i++) {
 		if (hb_qspi_tx_empty(hbqspi)) {
 			ret = -1;
 			goto rd_err;
 		}
-		hb_qspi_wr(hbqspi, HB_QSPI_DAT_REG, 0x00);
+		hb_qspi_wr_reg(hbqspi, HB_QSPI_DAT_REG, 0x00);
 		if (hb_qspi_rx_empty(hbqspi)) {
 			ret = -1;
 			goto rd_err;
 		}
-		dbuf[i] = hb_qspi_rd(hbqspi, HB_QSPI_DAT_REG) & 0xFF;
+		dbuf[i] = hb_qspi_rd_reg(hbqspi, HB_QSPI_DAT_REG) & 0xFF;
 	}
 
 rd_err:
@@ -463,7 +455,7 @@ rd_err:
 	return ret;
 }
 
-static int hb_qspi_wr_byte(struct hb_qspi_priv *hbqspi,
+static inline int hb_qspi_wr_byte(struct hb_qspi_priv *hbqspi,
 							const void *pbuf, uint32_t len)
 {
 	u32 i, ret = 0;
@@ -472,13 +464,12 @@ static int hb_qspi_wr_byte(struct hb_qspi_priv *hbqspi,
 	/* enbale tx */
 	hb_qspi_set_xfer(hbqspi, HB_QSPI_OP_TX_EN);
 
-	for (i=0; i<len; i++)
-	{
+	for (i = 0; i < len; i++) {
 		if (hb_qspi_tx_full(hbqspi)) {
 			ret = -1;
 			goto wr_err;
 		}
-		hb_qspi_wr(hbqspi, HB_QSPI_DAT_REG, dbuf[i]);
+		hb_qspi_wr_reg(hbqspi, HB_QSPI_DAT_REG, dbuf[i]);
 	}
 	/* Check tx complete */
 	if (hb_qspi_tx_empty(hbqspi))
@@ -493,7 +484,7 @@ wr_err:
 	return ret;
 }
 
-static int hb_qspi_read(struct hb_qspi_priv *hbqspi,
+static inline int hb_qspi_read(struct hb_qspi_priv *hbqspi,
 						void *pbuf, uint32_t len)
 {
 	u32 ret = 0;
@@ -510,7 +501,7 @@ static int hb_qspi_read(struct hb_qspi_priv *hbqspi,
 	return ret;
 }
 
-static int hb_qspi_write(struct hb_qspi_priv *hbqspi,
+static inline int hb_qspi_write(struct hb_qspi_priv *hbqspi,
 						 const void *pbuf, uint32_t len)
 {
 	u32 ret = 0;
@@ -527,11 +518,11 @@ static int hb_qspi_write(struct hb_qspi_priv *hbqspi,
 	return ret;
 }
 
-int hb_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
-		 void *din, unsigned long flags)
+static inline int hb_qspi_xfer(struct udevice *dev, unsigned int bitlen,
+						const void *dout, void *din, unsigned long flags)
 {
 	int ret = 0;
-	unsigned int len, cs;
+	uint32_t len, cs;
 	struct dm_spi_slave_platdata *slave_plat = dev_get_parent_platdata(dev);
 
 	if (bitlen == 0) {
@@ -539,32 +530,19 @@ int hb_qspi_xfer(struct udevice *dev, unsigned int bitlen, const void *dout,
 	}
 	len = bitlen / 8;
 	cs	= slave_plat->cs;
+	hb_qspi_set_wire(hbqspi, 1);
 
 	if (flags & SPI_XFER_BEGIN)
-		hb_qspi_wr(hbqspi, HB_QSPI_CS_REG, 1 << cs);  /* Assert CS before transfer */
+		hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 1 << cs);
 
-	if (dout) {
+	if (dout)
 		ret = hb_qspi_write(hbqspi, dout, len);
-	}
-	else if (din) {
+	else if (din)
 		ret = hb_qspi_read(hbqspi, din, len);
-	}
 
-	if (flags & SPI_XFER_END) {
-		hb_qspi_wr(hbqspi, HB_QSPI_CS_REG, 0);  /* Deassert CS after transfer */
-	}
+	if (flags & SPI_XFER_END)
+		hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 0);  /* Deassert CS after transfer */
 
-	if (flags & SPI_XFER_CMD) {
-		switch (((u8 *) dout) [0]) {
-		case CMD_READ_QUAD_OUTPUT_FAST:
-		case CMD_QUAD_PAGE_PROGRAM:
-		case CMD_READ_DUAL_OUTPUT_FAST:
-			hb_qspi_set_wire(hbqspi, slave_plat->mode);
-			break;
-		}
-	} else {
-		hb_qspi_set_wire(hbqspi, 0);
-	}
 #ifdef QSPI_DEBUG
 		trace_transfer(dout ? dout : din, len, dout ? false : true);
 #endif
@@ -576,46 +554,152 @@ static void hb_qspi_hw_init(struct hb_qspi_priv *hbqspi)
 	uint32_t val;
 
 	/* disable batch operation and reset fifo */
-	val = hb_qspi_rd(hbqspi, HB_QSPI_CTL3_REG);
+	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL3_REG);
 	val |= HB_QSPI_BATCH_DIS;
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL3_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL3_REG, val);
 	hb_qspi_reset_fifo(hbqspi);
 
 	/* clear status */
 	val = HB_QSPI_MODF | HB_QSPI_RBD | HB_QSPI_TBD;
-	hb_qspi_wr(hbqspi, HB_QSPI_ST1_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_ST1_REG, val);
 	val = HB_QSPI_TXRD_EMPTY | HB_QSPI_RXWR_FULL;
-	hb_qspi_wr(hbqspi, HB_QSPI_ST2_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_ST2_REG, val);
 
 	/* set qspi work mode */
-	val = hb_qspi_rd(hbqspi, HB_QSPI_CTL1_REG);
+	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL1_REG);
 	val |= HB_QSPI_MST;
 	val &= (~HB_QSPI_FW_MASK);
 	val |= HB_QSPI_FW8;
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL1_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL1_REG, val);
 
 	/* Disable all interrupt */
-	hb_qspi_wr(hbqspi, HB_QSPI_CTL2_REG, 0x0);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CTL2_REG, 0x0);
 
 	/* unselect chip */
-	hb_qspi_wr(hbqspi, HB_QSPI_CS_REG, 0x0);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 0x0);
 
 	/* Always set SPI to one line as init. */
-	val = hb_qspi_rd(hbqspi, HB_QSPI_DQM_REG);
-	val |= 0xfc;
-	hb_qspi_wr(hbqspi, HB_QSPI_DQM_REG, val);
+	val = 0x48;
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_DQM_REG, val);
 
 	/* Disable hardware xip mode */
-	val = hb_qspi_rd(hbqspi, HB_QSPI_XIP_REG);
+	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_XIP_REG);
 	val &= ~(1 << 1);
-	hb_qspi_wr(hbqspi, HB_QSPI_XIP_REG, val);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_XIP_REG, val);
 
 	/* Set Rx/Tx fifo trig level  */
-	hb_qspi_wr(hbqspi, HB_QSPI_RTL_REG, HB_QSPI_TRIG_LEVEL);
-	hb_qspi_wr(hbqspi, HB_QSPI_TTL_REG, HB_QSPI_TRIG_LEVEL);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_RTL_REG, HB_QSPI_TRIG_LEVEL);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_TTL_REG, HB_QSPI_TRIG_LEVEL);
 
 	return;
 }
+
+/**
+ * hb_qspi_exec_mem_op() - Initiates the QSPI transfer
+ * @mem: the SPI memory
+ * @op: the memory operation to execute
+ *
+ * Executes a memory operation.
+ *
+ * This function first selects the chip and starts the memory operation.
+ *
+ * Return: 0 in case of success, a negative error code otherwise.
+ */
+static int hb_qspi_exec_mem_op(struct spi_slave *slave,
+				 const struct spi_mem_op *op)
+{
+	struct dm_spi_slave_platdata *slave_plat = dev_get_parent_platdata(slave->dev);
+	int ret = 0, non_data_size = 0, i;
+	uint8_t *non_data_buf = NULL, *tmp_ptr;
+#if (QSPI_DEBUG > 1)
+	if (op->cmd.opcode != 0x0f) {
+		printf("qspi_mem_op:");
+		printf("cmd:0x%02x addr_dum_dat_nbytes:%d%d%d bus_widths:%d%d%d%d\n",
+			op->cmd.opcode,
+			op->addr.nbytes, op->dummy.nbytes, op->data.nbytes,
+			op->cmd.buswidth, op->addr.buswidth,
+			op->dummy.buswidth, op->data.buswidth);
+	}
+#endif
+	/* First deal with non-data transmits: cmd/addr/dummy */
+	non_data_size = sizeof(op->cmd.opcode) + op->addr.nbytes + op->dummy.nbytes;
+	non_data_buf = (uint8_t *) malloc(non_data_size);
+	memset(non_data_buf, 0x0, non_data_size);
+	tmp_ptr = non_data_buf;
+
+	if (op->cmd.opcode) {
+		memcpy(tmp_ptr, (u8 *)&op->cmd.opcode, sizeof(op->cmd.opcode));
+		tmp_ptr += sizeof(op->cmd.opcode);
+	}
+
+	if (op->addr.nbytes) {
+		memset(tmp_ptr, 0, sizeof(op->addr.nbytes));
+		for (i = 0; i < op->addr.nbytes; i++)
+			tmp_ptr[i] = op->addr.val >>
+					(8 * (op->addr.nbytes - i - 1));
+
+		tmp_ptr += op->addr.nbytes;
+	}
+
+	if (op->dummy.nbytes) {
+		memset(tmp_ptr, 0xff, op->dummy.nbytes);
+	}
+
+	hb_qspi_set_wire(hbqspi, 1);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 1 << slave_plat->cs);
+
+	ret = hb_qspi_wr_byte(hbqspi, non_data_buf, non_data_size);
+
+	if(ret) {
+		ret = -1;
+		goto exec_end;
+	}
+
+	ret = 0;
+	if (op->data.nbytes) {
+		if (op->data.buswidth == 4)
+			hb_qspi_set_wire(hbqspi, 4);
+		else if (op->data.buswidth == 2)
+			hb_qspi_set_wire(hbqspi, 2);
+		else
+			hb_qspi_set_wire(hbqspi, 1);
+
+		if (op->data.dir == SPI_MEM_DATA_OUT) {
+			ret = hb_qspi_write(hbqspi, op->data.buf.out, op->data.nbytes);
+		} else {
+			ret = hb_qspi_read(hbqspi, op->data.buf.in, op->data.nbytes);
+		}
+	}
+
+exec_end:
+	if (non_data_buf)
+		kfree(non_data_buf);
+	hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 0);
+	hb_qspi_set_wire(hbqspi, 1);
+
+	if (ret)
+		printf("QSPI Exec op failed! cmd:%#02x err: %d\n",
+				op->cmd.opcode, ret);
+	return ret;
+}
+
+static bool hb_supports_op(struct spi_slave *slave,
+						   const struct spi_mem_op *op)
+{
+	struct hb_qspi_platdata *slave_plat = dev_get_parent_platdata(slave->dev);
+	if (op->cmd.buswidth > 1
+		|| op->addr.buswidth > 1
+		|| op->dummy.buswidth > 1
+		|| op->data.buswidth > slave_plat->bus_width)
+		return false;
+
+	return true;
+}
+static const struct spi_controller_mem_ops hb_mem_ops = {
+	.supports_op = hb_supports_op,
+	.exec_op = hb_qspi_exec_mem_op,
+};
+
 static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 {
 	int ret = 0;
@@ -623,8 +707,16 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 	const void *blob = gd->fdt_blob;
 	int node = dev_of_offset(bus);
 	struct clk hbqspi_clk;
+	u32 tmp_bus_width;
 
 	plat->regs_base = (u32 *)fdtdec_get_addr(blob, node, "reg");
+	plat->speed_hz = fdtdec_get_uint(blob, node,
+									"spi-max-frequency", HB_QSPI_DEF_BR);
+	/* obtain bus width from dts */
+	plat->bus_width = fdtdec_get_uint(blob, node, "spi-tx-bus-width", 1);
+	tmp_bus_width = fdtdec_get_uint(blob, node, "spi-rx-bus-width", 1);
+	plat->bus_width =  tmp_bus_width < plat->bus_width ?
+						tmp_bus_width : plat->bus_width;
 
 	ret = clk_get_by_index(bus, 0, &hbqspi_clk);
 	if (!(ret < 0)) {
@@ -632,7 +724,8 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 	}
 	if ((ret < 0) || (plat->freq <= 0)) {
 		printf("Failed to get clk!\n");
-		plat->freq = fdtdec_get_int(blob, node, "spi-max-frequency", 50000000);
+		plat->freq = fdtdec_get_int(blob, node,
+									"spi-max-frequency", HB_QSPI_DEF_BR);
 	}
 	// TODO: Chip Select Define
 	return 0;
@@ -663,6 +756,7 @@ static const struct dm_spi_ops hb_qspi_ops = {
 	.xfer		 = hb_qspi_xfer,
 	.set_speed	 = hb_qspi_set_speed,
 	.set_mode	 = hb_qspi_set_mode,
+	.mem_ops	 = &hb_mem_ops,
 };
 
 static const struct udevice_id hb_qspi_ids[] = {

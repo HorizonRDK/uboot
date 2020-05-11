@@ -6,12 +6,16 @@
  */
 
 #include <common.h>
+#include <command.h>
 #include <div64.h>
 #include <dm.h>
+#include <flash.h>
+#include <log.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <spi.h>
 #include <spi_flash.h>
+#include <asm/cache.h>
 #include <jffs2/jffs2.h>
 #include <linux/mtd/mtd.h>
 #include <hb_info.h>
@@ -32,8 +36,10 @@
 #include "w1/x1_gpio.h"
 
 #include "keros/keros.h"
+#include "legacy-mtd-utils.h"
 
 struct spi_flash *flash;
+
 /*
  * This function computes the length argument for the erase command.
  * The length on which the command is to operate can be given in two forms:
@@ -91,18 +97,17 @@ static ulong bytes_per_second(unsigned int len, ulong start_ms)
 		return 1024 * len / max(get_timer(start_ms), 1UL);
 }
 
-static int do_spi_flash_probe(int argc, char * const argv[])
+static int do_spi_flash_probe(int argc, char *const argv[])
 {
 	unsigned int bus = CONFIG_SF_DEFAULT_BUS;
 	unsigned int cs = CONFIG_SF_DEFAULT_CS;
+	/* In DM mode, defaults speed and mode will be taken from DT */
 	unsigned int speed = CONFIG_SF_DEFAULT_SPEED;
 	unsigned int mode = CONFIG_SF_DEFAULT_MODE;
 	char *endp;
 #ifdef CONFIG_DM_SPI_FLASH
 	struct udevice *new, *bus_dev;
 	int ret;
-	/* In DM mode defaults will be taken from DT */
-	speed = 0, mode = 0;
 #else
 	struct spi_flash *new;
 #endif
@@ -154,13 +159,10 @@ static int do_spi_flash_probe(int argc, char * const argv[])
 
 	new = spi_flash_probe(bus, cs, speed, mode);
 	flash = new;
-
 	if (!new) {
 		printf("Failed to initialize SPI flash at %u:%u\n", bus, cs);
 		return 1;
 	}
-
-	flash = new;
 #endif
 
 	return 0;
@@ -272,7 +274,7 @@ static int spi_flash_update(struct spi_flash *flash, u32 offset,
 	return 0;
 }
 
-static int do_spi_flash_read_write(int argc, char * const argv[])
+static int do_spi_flash_read_write(int argc, char *const argv[])
 {
 	unsigned long addr;
 	void *buf;
@@ -330,7 +332,7 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 	return ret == 0 ? 0 : 1;
 }
 
-static int do_spi_flash_erase(int argc, char * const argv[])
+static int do_spi_flash_erase(int argc, char *const argv[])
 {
 	int ret;
 	int dev = 0;
@@ -362,7 +364,7 @@ static int do_spi_flash_erase(int argc, char * const argv[])
 	return ret == 0 ? 0 : 1;
 }
 
-static int do_spi_protect(int argc, char * const argv[])
+static int do_spi_protect(int argc, char *const argv[])
 {
 	int ret = 0;
 	loff_t start, len;
@@ -427,7 +429,7 @@ static void show_time(struct test_info *test, int stage)
 		do_div(speed, test->time_ms[stage] * 1024);
 	bps = speed * 8;
 
-	printf("%d %s: %d ticks, %d KiB/s %d.%03d Mbps\n", stage,
+	printf("%d %s: %u ticks, %d KiB/s %d.%03d Mbps\n", stage,
 	       stage_name[stage], test->time_ms[stage],
 	       (int)speed, bps / 1000, bps % 1000);
 }
@@ -511,7 +513,7 @@ static int spi_flash_test(struct spi_flash *flash, uint8_t *buf, ulong len,
 	return 0;
 }
 
-static int do_spi_flash_test(int argc, char * const argv[])
+static int do_spi_flash_test(int argc, char *const argv[])
 {
 	unsigned long offset;
 	unsigned long len;
@@ -556,7 +558,7 @@ static int do_spi_flash_test(int argc, char * const argv[])
 #endif /* CONFIG_CMD_SF_TEST */
 
 static int do_spi_flash(cmd_tbl_t *cmdtp, int flag, int argc,
-			char * const argv[])
+			char *const argv[])
 {
 	const char *cmd;
 	int ret;
@@ -608,8 +610,6 @@ usage:
 #else
 #define SF_TEST_HELP
 #endif
-
-
 
 #define  SECURE_IC_ID     0x4B
 #define  HEADER_FIX       0x31764750

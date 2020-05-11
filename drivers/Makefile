@@ -6,12 +6,11 @@ obj-$(CONFIG_$(SPL_TPL_)DRIVERS_MISC_SUPPORT) += misc/ sysreset/ firmware/
 obj-$(CONFIG_$(SPL_TPL_)I2C_SUPPORT) += i2c/
 obj-$(CONFIG_$(SPL_TPL_)LED) += led/
 obj-$(CONFIG_$(SPL_TPL_)MMC_SUPPORT) += mmc/
-obj-$(CONFIG_$(SPL_TPL_)NAND_SUPPORT) += mtd/nand/raw/
 obj-$(CONFIG_$(SPL_TPL_)PHY) += phy/
 obj-$(CONFIG_$(SPL_TPL_)PINCTRL) += pinctrl/
 obj-$(CONFIG_$(SPL_TPL_)RAM) += ram/
 obj-$(CONFIG_$(SPL_TPL_)SERIAL_SUPPORT) += serial/
-obj-$(CONFIG_$(SPL_TPL_)SPI_FLASH_SUPPORT) += mtd/spi/
+obj-y += mtd/
 obj-$(CONFIG_$(SPL_TPL_)SPI_SUPPORT) += spi/
 obj-$(CONFIG_$(SPL_TPL_)TIMER) += timer/
 obj-$(CONFIG_$(SPL_)DM_MAILBOX) += mailbox/
@@ -32,9 +31,6 @@ obj-$(CONFIG_SPL_POWER_SUPPORT) += power/ power/pmic/
 obj-$(CONFIG_SPL_POWER_SUPPORT) += power/regulator/
 obj-$(CONFIG_SPL_POWER_DOMAIN) += power/domain/
 obj-$(CONFIG_SPL_DM_RESET) += reset/
-obj-$(CONFIG_SPL_MTD_SUPPORT) += mtd/
-obj-$(CONFIG_SPL_ONENAND_SUPPORT) += mtd/onenand/
-obj-$(CONFIG_SPL_UBI) += mtd/ubispl/
 obj-$(CONFIG_SPL_DMA_SUPPORT) += dma/
 obj-$(CONFIG_SPL_ETH_SUPPORT) += net/
 obj-$(CONFIG_SPL_ETH_SUPPORT) += net/phy/
@@ -66,7 +62,6 @@ endif
 
 ifeq ($(CONFIG_SPL_BUILD)$(CONFIG_TPL_BUILD),)
 
-#obj-y += w1/
 obj-y += adc/
 obj-y += ata/
 obj-$(CONFIG_DM_DEMO) += demo/
@@ -98,6 +93,7 @@ obj-$(CONFIG_QE) += qe/
 obj-$(CONFIG_U_QE) += qe/
 obj-y += mailbox/
 obj-y += memory/
+obj-y += mtd/
 obj-y += pwm/
 obj-y += reset/
 obj-y += input/

@@ -3,8 +3,8 @@
  * Core registration and callback routines for MTD
  * drivers and users.
  *
- * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
- * Copyright © 2006      Red Hat UK Limited
+ * Copyright @ 1999-2010 David Woodhouse <dwmw2@infradead.org>
+ * Copyright @ 2006      Red Hat UK Limited
  *
  */
 
@@ -76,8 +76,6 @@ static struct class mtd_class = {
 	.resume = mtd_cls_resume,
 };
 #else
-struct mtd_info *mtd_table[MAX_MTD_DEVICES];
-
 #define MAX_IDR_ID	64
 
 struct idr_layer {
@@ -528,6 +526,13 @@ int del_mtd_device(struct mtd_info *mtd)
 	struct mtd_notifier *not;
 #endif
 
+	ret = del_mtd_partitions(mtd);
+	if (ret) {
+		debug("Failed to delete MTD partitions attached to %s (err %d)\n",
+		      mtd->name, ret);
+		return ret;
+	}
+
 	mutex_lock(&mtd_table_mutex);
 
 	if (idr_find(&mtd_idr, mtd->index) != mtd) {
@@ -771,14 +776,13 @@ EXPORT_SYMBOL_GPL(__get_mtd_device);
  */
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
-	int err = -ENODEV, ret;
+	int err = -ENODEV;
 	struct mtd_info *mtd = NULL, *other;
 
 	mutex_lock(&mtd_table_mutex);
 
 	mtd_for_each_device(other) {
-		ret = strcmp(name, other->name);
-		if (!ret) {
+		if (!strcmp(name, other->name)) {
 			mtd = other;
 			break;
 		}
@@ -1045,13 +1049,13 @@ static int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
 		return -EINVAL;
 
 	if (ops->ooblen) {
-		u64 maxooblen;
+		size_t maxooblen;
 
 		if (ops->ooboffs >= mtd_oobavail(mtd, ops))
 			return -EINVAL;
 
-		maxooblen = ((mtd_div_by_ws(mtd->size, mtd) -
-			      mtd_div_by_ws(offs, mtd)) *
+		maxooblen = ((size_t)(mtd_div_by_ws(mtd->size, mtd) -
+				      mtd_div_by_ws(offs, mtd)) *
 			     mtd_oobavail(mtd, ops)) - ops->ooboffs;
 		if (ops->ooblen > maxooblen)
 			return -EINVAL;

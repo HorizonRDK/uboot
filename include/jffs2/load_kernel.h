@@ -10,17 +10,19 @@
  *-----------------------------------------------------------------------*/
 
 #include <linux/list.h>
+
 /* mtd device types */
 #define MTD_DEV_TYPE_NOR	0x0001
 #define MTD_DEV_TYPE_NAND	0x0002
+#define MTD_DEV_TYPE_SPINOR	0x0003
 #define MTD_DEV_TYPE_ONENAND	0x0004
-#ifdef CONFIG_ARCH_HOBOT
-#define MTD_DEV_TYPE(type) ((type == MTD_DEV_TYPE_NAND) ? "spi-nand" :	\
-			(type == MTD_DEV_TYPE_ONENAND) ? "onenand" : "spi-nor")
-#else
-#define MTD_DEV_TYPE(type) ((type == MTD_DEV_TYPE_NAND) ? "nand" :	\
-			(type == MTD_DEV_TYPE_ONENAND) ? "onenand" : "nor")
-#endif
+#define MTD_DEV_TYPE_SPINAND	0x0008
+
+#define MTD_DEV_TYPE(type) (type == MTD_DEV_TYPE_NAND ? "nand" :	\
+			    (type == MTD_DEV_TYPE_NOR ? "nor" :		\
+				(type == MTD_DEV_TYPE_SPINOR ? "spi-nor" : \
+			     (type == MTD_DEV_TYPE_ONENAND ? "onenand" : \
+			      "spi-nand"))))				\
 
 struct mtd_device {
 	struct list_head link;

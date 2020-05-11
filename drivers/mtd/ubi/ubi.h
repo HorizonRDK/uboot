@@ -40,16 +40,12 @@
 /* UBI name used for character devices, sysfs, etc */
 #define UBI_NAME_STR "ubi"
 
-/* Uncomment the following line to enable more info */
-/* #define UBI_DEBUG */
-
-#ifdef UBI_DEBUG
 /* Normal UBI messages */
+#ifdef CONFIG_UBI_SILENCE_MSG
+#define ubi_msg(ubi, fmt, ...)
+#else
 #define ubi_msg(ubi, fmt, ...) printk(UBI_NAME_STR "%d: " fmt "\n", \
 					 ubi->ubi_num, ##__VA_ARGS__)
-#else
-/* Silent ubi_msg */
-#define ubi_msg(ubi, fmt, ...)
 #endif
 
 /* UBI warning messages */
@@ -297,6 +293,9 @@ struct ubi_fm_pool {
  *           atomic LEB change
  *
  * @eba_tbl: EBA table of this volume (LEB->PEB mapping)
+ * @skip_check: %1 if CRC check of this static volume should be skipped.
+ *		Directly reflects the presence of the
+ *		%UBI_VTBL_SKIP_CRC_CHECK_FLG flag in the vtbl entry
  * @checked: %1 if this static volume was checked
  * @corrupted: %1 if the volume is corrupted (static volumes only)
  * @upd_marker: %1 if the update marker is set for this volume
@@ -345,6 +344,7 @@ struct ubi_volume {
 	void *upd_buf;
 
 	int *eba_tbl;
+	unsigned int skip_check:1;
 	unsigned int checked:1;
 	unsigned int corrupted:1;
 	unsigned int upd_marker:1;

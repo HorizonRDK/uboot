@@ -39,6 +39,7 @@
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
 #include <mtd.h>
+#include "../../../cmd/legacy-mtd-utils.h"
 
 #ifdef CONFIG_HBOT_SECURE_ENGINE
 #include <hb_spacc.h>

@@ -2,7 +2,7 @@
 /*
  * MTD device concatenation layer definitions
  *
- * Copyright © 2002      Robert Kaiser <rkaiser@sysgo.de>
+ * Copyright @ 2002      Robert Kaiser <rkaiser@sysgo.de>
  *
  */
 

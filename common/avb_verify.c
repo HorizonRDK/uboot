@@ -10,7 +10,8 @@
 #include <image.h>
 #include <malloc.h>
 #include <part.h>
-#include <linux/mtd/mtd.h>
+#include <mtd.h>
+#include "../cmd/legacy-mtd-utils.h"
 
 #if defined CONFIG_HB_NOR_BOOT
 extern struct spi_flash *flash;
@@ -300,13 +301,13 @@ static struct sf_part *sf_get_partition(const char *partition)
 
 	if (vbmeta.start < 0) {
 		if (mtd_arg_off_size(2, vbmeta_arg, &dev, &(vbmeta.start), &(vbmeta.maxsize),
-					&(vbmeta.size), 0x0001, flash->size))
+					&(vbmeta.size), 0x3, flash->size))
 			return NULL;
 	}
 
 	if (boot.start < 0) {
 		if (mtd_arg_off_size(2, boot_arg, &dev, &(boot.start), &(boot.maxsize),
-					&(boot.size), 0x0001, flash->size))
+					&(boot.size), 0x3, flash->size))
 			return NULL;
 	}
 

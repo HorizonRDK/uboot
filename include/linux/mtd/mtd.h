@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org> et al.
+ * Copyright @ 1999-2010 David Woodhouse <dwmw2@infradead.org> et al.
  *
  */
 
@@ -153,7 +153,7 @@ struct mtd_info {
 	uint32_t flags;
 	uint64_t size;	 // Total size of the MTD
 
-	/* "Major" erase size for the device. Naïve users may take this
+	/* "Major" erase size for the device. Na�ve users may take this
 	 * to be the only erase size available, or may use the more detailed
 	 * information below if they desire
 	 */
@@ -392,7 +392,7 @@ static inline void mtd_set_ooblayout(struct mtd_info *mtd,
 	mtd->ooblayout = ooblayout;
 }
 
-static inline int mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
+static inline u32 mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
 {
 	return ops->mode == MTD_OPS_AUTO_OOB ? mtd->oobavail : mtd->oobsize;
 }
@@ -587,12 +587,6 @@ struct mtd_info *__mtd_next_device(int i);
 	for ((mtd) = __mtd_next_device(0);		\
 	     (mtd) != NULL;				\
 	     (mtd) = __mtd_next_device(mtd->index + 1))
-
-int mtd_arg_off(const char *arg, int *idx, loff_t *off, loff_t *size,
-		loff_t *maxsize, int devtype, uint64_t chipsize);
-int mtd_arg_off_size(int argc, char *const argv[], int *idx, loff_t *off,
-		     loff_t *size, loff_t *maxsize, int devtype,
-		     uint64_t chipsize);
 
 /* drivers/mtd/mtdcore.c */
 void mtd_get_len_incl_bad(struct mtd_info *mtd, uint64_t offset,

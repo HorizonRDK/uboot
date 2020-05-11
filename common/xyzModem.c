@@ -24,7 +24,7 @@
 #include <common.h>
 #include <xyzModem.h>
 #include <stdarg.h>
-#include <crc.h>
+#include <u-boot/crc.h>
 
 /* Assumption - run xyzModem protocol over the console port */
 
@@ -194,7 +194,7 @@ parse_num (char *s, unsigned long *val, char **es, char *delim)
 }
 
 
-#if defined(DEBUG) && !defined(CONFIG_USE_TINY_PRINTF)
+#if defined(DEBUG) && !CONFIG_IS_ENABLED(USE_TINY_PRINTF)
 /*
  * Note: this debug setup works by storing the strings in a fixed buffer
  */

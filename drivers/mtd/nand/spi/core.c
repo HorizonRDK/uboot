@@ -846,7 +846,7 @@ static int spinand_manufacturer_detect(struct spinand_device *spinand)
 	unsigned int i;
 	int ret;
 	u8 *id = spinand->id.data;
-	printf("raw ID: %02x%02x%02x%02x\n", id[0], id[1], id[2], id[3]);
+	debug("raw ID: %02x%02x%02x%02x\n", id[0], id[1], id[2], id[3]);
 	for (i = 0; i < ARRAY_SIZE(spinand_manufacturers); i++) {
 		ret = spinand_manufacturers[i]->ops->detect(spinand);
 		if (ret > 0) {
