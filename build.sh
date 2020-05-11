@@ -116,12 +116,12 @@ function set_uboot_config()
         sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7471104@0x0(bootloader),20971520@0x720000(boot),62914560@0x1B20000(rootfs),-@0x5720000(userdata)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7864320@0x0(bootloader),20971520@0x780000(boot),62914560@0x1B80000(rootfs),-@0x5780000(userdata)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     elif [[ "$bootmode" = "nor" ]];then
         sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g'
         sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),393216@0xC0000(bl31),2097152@0x120000(uboot),131072@0x320000(bpu),131072@0x340000(vbmeta),10485760@0x360000(boot),34603008@0xD60000(system),-@0x2E60000(app)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     else
         sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
