@@ -110,14 +110,14 @@ function set_uboot_config()
 {
     sed -i '/CONFIG_MTDIDS_DEFAULT/d' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
     sed -i '/CONFIG_MTDPARTS_DEFAULT/d' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    if [[ "$bootmode" = "nand" ]] || [[ "$ifubi" = "true" ]];then
+    if [[ "$bootmode" = "nand" ]] || [[ "$FLASH_ENABLE" = "nand" ]];then
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7864320@0x0(bootloader),20971520@0x780000(boot),62914560@0x1B80000(rootfs),-@0x5780000(userdata)"' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    elif [[ "$bootmode" = "nor" ]];then
+    elif [[ "$bootmode" = "nor" ]] || [[ "$FLASH_ENABLE" = "nor" ]];then
         sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g'
         sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
         sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
@@ -138,14 +138,12 @@ function usage()
     echo "Usage: build.sh [-o emmc|nor|nand|all ] [-u]"    echo "Options:"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
-    echo "  -u  add ubi and ubifs support in uboot"
     echo "  -h  help info"
     echo "Command:"
     echo "  clean clean all the object files along with the executable"
 }
 
 bootmode=$BOOT_MODE
-ifubi=false
 
 while getopts "uo:h:" opt
 do
@@ -160,9 +158,7 @@ do
                 echo "compile boot mode $bootmode"
             fi
             ;;
-        u)
-            ifubi=true
-            ;;
+
         h)
             usage
             exit 0
