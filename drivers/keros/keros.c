@@ -1,3 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+
+ *
+ * Keros secure chip driver
+ *
+ * Copyright (C) 2020, Horizon Robotics, <yu.kong@horizon.ai>
+ */
+
 #include <common.h>
 #include <bootretry.h>
 #include <cli.h>
@@ -18,7 +25,7 @@
 #define I2C_MAX_OFFSET_LEN 4
 
 static struct udevice *i2c_cur_bus;
-static uint8_t slave_addr = 0x1c;
+// static uint8_t slave_addr = 0x1c;
 
 static int keros_cmd_i2c_set_bus_num(unsigned int busnum)
 {
@@ -76,7 +83,7 @@ static int keros_i2c_report_err(int ret, int op)
     return CMD_RET_FAILURE;
 }
 
-int keros_interface_i2c_init()
+int keros_interface_i2c_init(void)
 {
     return keros_cmd_i2c_set_bus_num(0);
 }
@@ -103,6 +110,7 @@ uint8_t I2CWrite(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
     ret = dm_i2c_write(dev, offset, pbData, wDataLen);
     if (ret)
         return keros_i2c_report_err(ret, 1);
+    return 0;
 }
 
 
@@ -128,6 +136,7 @@ uint8_t I2CRead(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
     ret = dm_i2c_read(dev, offset, pbData, wDataLen);
     if (ret)
         return keros_i2c_report_err(ret, 0);
+    return 0;
 }
 
 /*****************************************************************************
@@ -172,7 +181,7 @@ int keros_init(void)
     int ret = 0;
     int i = 0;
     uint8_t keros_sn[5] = {0};
-
+    keros_power_on();
     ret = keros_power_on();
     if (ret != 0) {
         printf("keros poweron failed\n");
@@ -212,20 +221,21 @@ int keros_authentication(void)
     return 0;
 }
 
-int keros_write_key(uint8_t *key)
+int keros_write_key(uint32_t password, uint8_t page, uint8_t *key,
+                    uint8_t encrytion)
 {
     int ret = 0;
     int i = 0;
     uint8_t match_key[EEPROM_BANK_LEN] = {0};
 
-    ret = keros_eeprom_write_1_8v(0, 0, key, 0);
+    ret = keros_eeprom_write_1_8v(password, page, key, encrytion);
     if (ret != KEROS_STATUS_OK)
     {
         printf("keros write eeprom failed, error code: %d\n", ret);
         return -1;
     }
     memset(match_key, 0, EEPROM_BANK_LEN);
-    ret = keros_eeprom_read_1_8v(0, 0, match_key, 0);
+    ret = keros_eeprom_read_1_8v(password, page, match_key, encrytion);
     if (ret != KEROS_STATUS_OK) {
         printf("keros read eeprom failed, error code: %d\n", ret);
         return -1;
@@ -239,6 +249,17 @@ int keros_write_key(uint8_t *key)
     debug("\n");
     if (ret != 0) {
         printf("keros read data and write data match failed\n");
+        return -1;
+    }
+    return 0;
+}
+
+int keros_pwchg(uint8_t page, int old_password, int new_password)
+{
+    int ret = 0;
+    ret = keros_eeprom_pwchg_1_8v(page, old_password, new_password);
+    if (ret != KEROS_STATUS_OK) {
+        printf("keros page %d password change faild\n", page);
         return -1;
     }
     return 0;

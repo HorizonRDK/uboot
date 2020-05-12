@@ -987,12 +987,12 @@ int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 	int i = 0;
 	int ret = 0;
 	unsigned long offset;
+	uint8_t page, encrytion;
+	uint32_t old_password, new_password;
 	uint32_t header,type,d_length,crc,c_crc;
 	uint8_t  package[SECURE_KEY_LEN] = {0};
 	uint8_t  secure_key[SECURE_KEY_LEN] ={0};
 	uint32_t *p_pack = (uint32_t *)package;
-	uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
-	uint8_t real_key[32] = {0};
 
 	if (!mark_register_cnt)
 		ret = keros_init();
@@ -1026,14 +1026,28 @@ int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	if (d_length <= SECURE_KEY_LEN) {
-		memcpy(&secure_key[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
+		page = *(p_pack + DATA_INDEX);
+		encrytion = *(p_pack + DATA_INDEX + 1);
+		old_password = *(p_pack + DATA_INDEX + 2);
+		new_password = *(p_pack + DATA_INDEX + 3);
+		memcpy(&secure_key[0], (uint8_t *)(p_pack + DATA_INDEX + 4), d_length - 4*4);
 	} else {
 		printf("burn_key_length_error, length > 1k\n");
 		printf("burn_key_failed\n");
 		return 0;
 	}
 
-	c_crc=check_Crc(0,&package[PACK_LEN],d_length);
+	debug("page： %d\n", page);
+	debug("encrytion: %d\n", encrytion);
+	debug("old password: %d\n", old_password);
+	debug("new password: %d\n", new_password);
+	debug("content:\n");
+	for (int i = 0; i < d_length; ++i) {
+		debug("%x", secure_key[i]);
+	}
+	debug("\n");
+
+	c_crc = check_Crc(0, &package[PACK_LEN], d_length);
 	if (crc !=c_crc){
 		printf("burn_key_crc_error\n");
 		printf("burn_key_failed\n");
@@ -1042,17 +1056,19 @@ int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	ret = keros_authentication();
 	if (ret != 0) {
-		printf("w1_master_is_write_auth_mode failed\n");
+		printf("keros authentication failed\n");
 		printf("burn_key_failed\n");
 		return 0;
 	}
 
-	/* decrypt to realy key */
-	//hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
-	//memcpy(&secure_key[32], real_key, 32);
+	ret = keros_pwchg(page, old_password, new_password);
+	if (ret != 0) {
+		printf("keros password chang faild\n");
+		printf("burn_key_failed\n");
+	}
 
 	/* load the secure key only */
-	ret = keros_write_key(secure_key);
+	ret = keros_write_key(new_password, page, secure_key, encrytion);
 	if (ret != 0) {
 		printf("write key to eeprom failed\n");
 		printf("burn_key_failed\n");

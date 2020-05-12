@@ -21,5 +21,7 @@
 
 int keros_init(void);
 int keros_authentication(void);
-int keros_write_key(uint8_t *key);
+int keros_write_key(uint32_t password, uint8_t page, uint8_t *key,
+                    uint8_t encrytion);
+int keros_pwchg(uint8_t page, int old_password, int new_password);
 #endif /* __KEROS_INTERFACE_H_ */
