@@ -400,6 +400,8 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 	char *cmd = NULL;
 	int ret = 0;
 	char cmd_boot[256] = { 0 };
+	char *bootargs = NULL;
+	int system_id;
 
 	/* avb init */
 #if defined CONFIG_HB_NOR_BOOT
@@ -409,6 +411,18 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 #else
 	cmd = "avb init mmc 0";
 #endif
+	/* init bootargs */
+	if (!hb_check_secure()) {
+		system_id = get_partition_id(system_partition);
+		bootargs = env_get("bootargs");
+		if (bootargs) {
+			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
+				" rootfstype=ext4 rw rootwait raid=noautodetect",
+				bootargs, system_id);
+		}
+		env_set("bootargs", cmd_boot);
+		memset(cmd_boot, 0, sizeof(cmd_boot));
+	}
 
 	/* normal and recovery boot flow */
 	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0) ||

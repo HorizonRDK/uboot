@@ -484,8 +484,7 @@ static void hb_mmc_env_init(void)
 	char *s;
 	char count;
 	char cmd[256] = { 0 };
-	char *bootargs = NULL;
-	int system_id;
+
 
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
 		if (strcmp(hb_bootreason, "normal") == 0) {
@@ -532,16 +531,6 @@ static void hb_mmc_env_init(void)
 		env_set("mem_size", cmd);
 	}
 
-	if (!hb_check_secure()) {
-		system_id = get_partition_id("system");
-		bootargs = env_get("bootargs");
-		if (bootargs) {
-			snprintf(cmd, sizeof(cmd), "%s root=/dev/mmcblk0p%d" \
-				" rootfstype=ext4 rw rootwait raid=noautodetect",
-				bootargs, system_id);
-		}
-		env_set("bootargs", cmd);
-	}
 }
 
 static void hb_nand_env_init(void)

@@ -248,7 +248,7 @@ static void hb_board_config_init(void) {
 
 	/* init ddr vender */
 	ddr_model = DDR_MANUF_SEL(x3_board_id);
-	if (ddr_model == 0) {
+	if (!ddr_model) {
 		/* use strap pin to decide ddr model */
 		if (PIN_DDR_TYPE_SEL(reg) == 0)
 			ddr_model = DDR_MANU_HYNIX;
@@ -265,12 +265,8 @@ static void hb_board_config_init(void) {
 
 	/* init ddr freq */
 	ddr_freq = DDR_FREQ_SEL(x3_board_id);
-	if (ddr_freq == 0) {
-		if (x3_base_board_type == BASE_BOARD_CVB) {
-			x3_ddr_freq = DDR_FREQC_4266;
-		} else {
-			x3_ddr_freq = DDR_FREQC_2666;
-		}
+	if (!ddr_freq) {
+		x3_ddr_freq = DDR_FREQC_2666;
 	} else {
 		x3_ddr_freq = ddr_freq;
 	}
