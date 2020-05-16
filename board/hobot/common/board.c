@@ -727,6 +727,126 @@ static int fdt_pack_reg(const void *fdt, void *buf, u64 address, u64 size)
 	return p - (char *)buf;
 }
 
+static int do_change_model_reserved_size(cmd_tbl_t *cmdtp, int flag,
+					 int argc, char * const argv[])
+{
+	const char *model_path;
+	const char *ion_path;
+	int  model_nodeoffset;
+	int  ion_nodeoffset;
+	char *prop;
+	static char data[1024] __aligned(4);
+	void *model_ptmp;
+	void *ion_ptmp;
+	int  len;
+	void *fdt;
+	phys_addr_t fdt_paddr;
+	u64 model_start;
+	u64 ion_start, old_size, new_size;
+	u32 size;
+	char *s = NULL;
+	int ret;
+
+	printf("Orign(MAX) bpu model Reserve Mem Size to 64M\n");
+	if (argc > 1)
+		s = argv[1];
+
+	if (s) {
+		size = (u32)simple_strtoul(s, NULL, 10);
+		if (size == 0 || size > 64)
+			return 0;
+
+
+	} else {
+		return 0;
+	}
+
+	s = env_get("fdt_addr");
+	if (s) {
+		fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
+		fdt = map_sysmem(fdt_paddr, 0);
+	} else {
+		printf("Can't get fdt_addr !!!");
+		return 0;
+	}
+
+	model_path = "/reserved-memory/bpu_model_reserved";
+	prop = "reg";
+	model_nodeoffset = fdt_path_offset(fdt, model_path);
+	if (model_nodeoffset < 0) {
+		/*
+			* Not found or something else bad happened.
+			*/
+		printf("libfdt fdt_path_offset() returned %s\n",
+			fdt_strerror(model_nodeoffset));
+		return 1;
+	}
+	model_ptmp = (char *)fdt_getprop(fdt, model_nodeoffset, prop, &len);
+	if (len > 1024) {
+		printf("prop (%d) doesn't fit in scratchpad!\n",
+				len);
+		return 1;
+	}
+	if (!model_ptmp)
+		return 0;
+
+	fdt_get_reg(fdt, model_ptmp, &model_start, NULL);
+	if (size > 2) {
+		ion_path = "/reserved-memory/ion_reserved";
+		ion_nodeoffset = fdt_path_offset(fdt, ion_path);
+		if (ion_nodeoffset < 0) {
+			/*
+			 * Not found or something else bad happened.
+			 */
+			printf("libfdt fdt_path_offset() returned %s\n",
+				fdt_strerror(ion_nodeoffset));
+			return 1;
+		}
+		ion_ptmp = (char *)fdt_getprop(fdt, ion_nodeoffset, prop, &len);
+		if (len > 1024) {
+			printf("prop (%d) doesn't fit in scratchpad!\n",
+				len);
+			return 1;
+		}
+		if (!ion_ptmp)
+			return 0;
+
+		fdt_get_reg(fdt, ion_ptmp, &ion_start, &old_size);
+		if (ion_start + old_size >= model_start - (size - 2) * 0x100000) {
+			/*change ion size*/
+			new_size = old_size - (size - 2) * 0x100000;
+			len = fdt_pack_reg(fdt, data, ion_start, new_size);
+
+			ret = fdt_setprop(fdt, ion_nodeoffset, prop, data, len);
+			if (ret < 0) {
+				printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+				return 1;
+			}
+			model_start = ion_start + new_size;
+		} else {
+			model_start -= ((size - 2) * 0x100000);
+		}
+	}
+	printf("ion new size:0x%x, model start:0x%x\n", new_size, model_start);
+	len = fdt_pack_reg(fdt, data, model_start, size * 0x100000);
+
+	ret = fdt_setprop(fdt, model_nodeoffset, prop, data, len);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	printf("Change Bpu Reserve Mem Size to %dM\n", size);
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	model_reserved_modify,	2,	0,	do_change_model_reserved_size,
+	"Change BPU Reserved Mem Size(Mbyte)",
+	"-model_modify 100"
+);
+
 static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *path;

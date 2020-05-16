@@ -143,6 +143,10 @@ static void hb_dts_node_modify(void) {
 	snprintf(cmd, sizeof(cmd), "ion_modify ${ion_size}");
 	run_command(cmd, 0);
 
+        /* modify ion mem size */
+	snprintf(cmd, sizeof(cmd), "model_reserved_modify ${model_reserved_size}");
+	run_command(cmd, 0);
+
 	/* modify mem size */
 	snprintf(cmd, sizeof(cmd), "mem_modify ${mem_size}");
 	run_command(cmd, 0);
