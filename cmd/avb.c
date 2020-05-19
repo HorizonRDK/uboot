@@ -13,6 +13,8 @@
 #include <configs/hb_config.h>
 #include <ota.h>
 #include <hb_info.h>
+#include <asm/arch/hb_pmu.h>
+#include <asm/io.h>
 
 extern char boot_partition[64];
 
@@ -417,8 +419,8 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 		bootargs = env_get("bootargs");
 		if (bootargs) {
 			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
-				" rootfstype=ext4 rw rootwait raid=noautodetect",
-				bootargs, system_id);
+				" rootfstype=ext4 rw rootwait raid=noautodetect hobotboot.reson=0x%x",
+				bootargs, system_id, readl(HB_PMU_WAKEUP_STA));
 		}
 		env_set("bootargs", cmd_boot);
 		memset(cmd_boot, 0, sizeof(cmd_boot));
