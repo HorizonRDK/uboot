@@ -29,6 +29,7 @@
 #endif
 #include <asm/arch/hb_sysctrl.h>
 #include <asm/arch/hb_pmu.h>
+#include <asm/arch-x3/hb_pinmux.h>
 #include <asm/arch/hb_share.h>
 #include <configs/hb_config.h>
 #include <hb_info.h>
@@ -1361,6 +1362,28 @@ static void hb_swinfo_boot(void)
 		return;
 	}
 }
+
+static void add_baud_to_bootargs()
+{
+	unsigned int br_sel = hb_pin_get_uart_br();
+	unsigned int rate = (br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600);
+	unsigned int len = 0;
+	char tmp[1024], baudrate_str[32];
+	char *bootargs_tmp = env_get("bootargs");
+	char *bootargs_ptr, *tmp_ptr;
+	tmp_ptr = tmp;
+	bootargs_ptr = bootargs_tmp;
+	snprintf(baudrate_str, sizeof(baudrate_str), ",%u ", rate);
+	bootargs_ptr = strstr(bootargs_ptr, "console=");
+	bootargs_ptr = strstr(bootargs_ptr, " ");
+	len = bootargs_ptr - bootargs_tmp;
+	strncpy(tmp, bootargs_tmp, len);
+	tmp_ptr += len;
+	strncpy(tmp_ptr, baudrate_str, strlen(baudrate_str));
+	strncat(tmp, bootargs_ptr + 1, sizeof(tmp) - strlen(tmp));
+	env_set("bootargs", tmp);
+	return;
+}
 #endif
 
 #if defined(CONFIG_FASTBOOT) || defined(CONFIG_USB_FUNCTION_MASS_STORAGE)
@@ -1529,6 +1552,6 @@ int last_stage_init(void)
 #endif
 
 //	misc();
-
+	add_baud_to_bootargs();
 	return 0;
 }
