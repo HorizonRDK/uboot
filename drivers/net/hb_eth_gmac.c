@@ -725,10 +725,10 @@ static int eqos_start(struct udevice *dev)
     int phy_addr = 0;
 	const char *phy_mode;
 	int fl_node;
- 
+
    debug("%s(dev=%p):\n", __func__, dev);
 
- 
+
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
 
@@ -1164,7 +1164,9 @@ int eqos_recv(struct udevice *dev, int flags, uchar **packetp)
     length = rx_desc->des3 & 0x7fff;
     debug("%s: *packetp=%p, length=%d\n", __func__, *packetp, length);
 
-    eqos_inval_buffer(*packetp, length);
+    /* after loading ethernet data to RAM with DMA, flush all cache
+    to ensure the consistency of RAM and dcache */
+    flush_dcache_all();
 
     return length;
 }
@@ -1337,7 +1339,7 @@ static int eqos_probe(struct udevice *dev)
 	writel(reg_val, GPIO_BASE + 0x28);
 
 
-#if 0    
+#if 0
     /*modify pin voltage to 1.8v*/
     reg_val = 0;
     reg_val = readl(IO_MODE_CTRL);
