@@ -1349,18 +1349,27 @@ static void add_baud_to_bootargs()
 	unsigned int len = 0;
 	char tmp[1024], baudrate_str[32];
 	char *bootargs_tmp = env_get("bootargs");
-	char *bootargs_ptr, *tmp_ptr;
+	char *bootargs_ptr, *tmp_ptr, *check;
+
 	tmp_ptr = tmp;
 	bootargs_ptr = bootargs_tmp;
-	snprintf(baudrate_str, sizeof(baudrate_str), ",%u ", rate);
 	bootargs_ptr = strstr(bootargs_ptr, "console=");
+	check = bootargs_ptr;
+	check = strstr(check, ",");
 	bootargs_ptr = strstr(bootargs_ptr, " ");
+
+	/* Check if baudrate has already be set */
+	if(check && ((int64_t)(bootargs_ptr - check) > 4))
+		return;
+	memset(tmp, 0, sizeof(tmp));
+	memset(baudrate_str, 0, sizeof(baudrate_str));
+	snprintf(baudrate_str, sizeof(baudrate_str), ",%u ", rate);
 	len = bootargs_ptr - bootargs_tmp;
 	strncpy(tmp, bootargs_tmp, len);
-	tmp_ptr += len;
-	strncpy(tmp_ptr, baudrate_str, strlen(baudrate_str));
+	strncat(tmp, baudrate_str, sizeof(tmp) - strlen(tmp));
 	strncat(tmp, bootargs_ptr + 1, sizeof(tmp) - strlen(tmp));
 	env_set("bootargs", tmp);
+
 	return;
 }
 #endif
