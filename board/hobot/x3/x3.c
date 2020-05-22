@@ -70,8 +70,8 @@ void switch_sys_pll(ulong pll_val)
 static struct mm_region x3_mem_map[] = {
 	{
 		/* SDRAM space */
-		.virt = 0x0UL,
-		.phys = 0x0UL,
+		.virt = 0x200000UL,
+		.phys = 0x200000UL,
 		.size = CONFIG_SYS_SDRAM_SIZE,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 			 PTE_BLOCK_INNER_SHARE
@@ -131,7 +131,8 @@ int hb_check_secure(void) {
 			&& ((sec_cfg & SEFUSE_NON_SECURE_CHIP) == 0));
 	ret |= PIN_SECURE_SEL(reg);
 	ret |= (!strcmp(if_secure, "avb"));
-	ret |= (!strcmp(if_secure_env, "true"));
+	if (if_secure_env)
+		ret |= (!strcmp(if_secure_env, "true"));
 	return ret;
 }
 
@@ -162,9 +163,11 @@ int dram_init_banksize(void)
 	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
 	gd->bd->bi_dram[0].size = get_effective_memsize();
 	gd->bd->bi_dram[1].start =
-		gd->ram_size > CONFIG_MAX_MEM_MAPPED ? PHYS_SDRAM_2 : 0;
+		gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
+		 ? PHYS_SDRAM_2 : 0;
 	gd->bd->bi_dram[1].size =
-		gd->ram_size > CONFIG_MAX_MEM_MAPPED ? PHYS_SDRAM_2_SIZE : 0;
+		gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
+		 ? PHYS_SDRAM_2_SIZE : 0;
 #else
 	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
 	gd->bd->bi_dram[0].size = get_effective_memsize();

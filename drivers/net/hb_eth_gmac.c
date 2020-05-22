@@ -688,6 +688,10 @@ static int eqos_write_hwaddr(struct udevice *dev)
      * future-proofing with the expectation the driver will eventually be
      * ported to some system where the expectation above is true.
      */
+
+    if (!plat || !eqos || !eqos->config)
+        return 0;
+
     if (!eqos->config->reg_access_always_ok && !eqos->reg_access_ok)
         return 0;
 
@@ -732,9 +736,9 @@ static int eqos_start(struct udevice *dev)
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
 
-	val = readl(eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
+	val = readl(&eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
 	val |= 0x3;
-	writel(val, eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
+	writel(val, &eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
     ret = eqos_start_clks_tegra186(dev);
     if (ret < 0) {
         pr_err("eqos_start_clks_tegra186() failed: %d", ret);
@@ -1481,10 +1485,14 @@ static const struct eth_ops eqos_ops = {
     .write_hwaddr = eqos_write_hwaddr,
 };
 
+static const struct eqos_config eqos_tegra186_config = {
+    .reg_access_always_ok = false,
+};
 
 static const struct udevice_id eqos_ids[] = {
     {
         .compatible = "hobot,hb-gmac",
+        .data = (ulong)&eqos_tegra186_config
     },
     { }
 };

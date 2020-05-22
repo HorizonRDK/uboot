@@ -654,7 +654,7 @@ static void hb_env_and_boardid_init(void)
 #endif
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
-	if (strcmp(s, "disable") == 0) {
+	if (s && strcmp(s, "disable") == 0) {
 		recovery_sys_enable = false;
 
 		/* config resetreason */
@@ -1180,6 +1180,7 @@ static int hb_swinfo_dump_check(void)
 	char *s = dump;
 	const char *dcmd, *ddev;
 	uint32_t dmmc, dpart, dusb;
+	unsigned int dump_sdram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
 
 	s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
 	if (s_magic == HB_SWINFO_MEM_MAGIC) {
@@ -1205,10 +1206,11 @@ static int hb_swinfo_dump_check(void)
 			dmmc = 0;
 			dpart = get_partition_id("userdata");
 		}
-		printf("swinfo dump ddr 0x%x -> %s:p%d\n", sys_sdram_size, ddev, dpart);
+		printf("swinfo dump ddr 0x%x -> %s:p%d\n", dump_sdram_size, ddev, dpart);
 		s += sprintf(s, "mmc rescan; ");
-		s += sprintf(s, "%s mmc %x:%x 0x0 /dump_ddr_%x.img 0x%x",
-				dcmd, dmmc, dpart, sys_sdram_size, sys_sdram_size);
+		s += sprintf(s, "%s mmc %x:%x 0x%x /dump_ddr_%x.img 0x%x",
+				dcmd, dmmc, dpart, CONFIG_SYS_SDRAM_BASE,
+				dump_sdram_size, dump_sdram_size);
 
 		env_set("dumpcmd", dump);
 	} else if (s_boot == HB_SWINFO_BOOT_UDUMPUSB) {
@@ -1217,11 +1219,12 @@ static int hb_swinfo_dump_check(void)
 		dcmd = "fatwrite";
 		dusb = 0;
 
-		printf("swinfo dump ddr 0x%x -> %s\n", sys_sdram_size, ddev);
+		printf("swinfo dump ddr 0x%x -> %s\n", dump_sdram_size, ddev);
 		s += sprintf(s, "usb start; ");
 		s += sprintf(s, "usb part %d; ", dusb);
-		s += sprintf(s, "%s usb %d 0x0 dump_ddr_%x.img 0x%x; ",
-				dcmd, dusb, sys_sdram_size, sys_sdram_size);
+		s += sprintf(s, "%s usb %d 0x%x dump_ddr_%x.img 0x%x; ",
+				dcmd, dusb, CONFIG_SYS_SDRAM_BASE,
+				dump_sdram_size, dump_sdram_size);
 
 		env_set("dumpcmd", dump);
 	} else if (s_boot == HB_SWINFO_BOOT_UDUMPFASTBOOT) {
@@ -1239,14 +1242,15 @@ static int hb_swinfo_dump_check(void)
 		d_ip[3] = s_dump & 0xff;
 		d_ip[4] = (d_ip[3] == 1) ? 10 : 1;
 		printf("swinfo dump ddr 0x%x %d.%d.%d.%d -> %d\n",
-			   sys_sdram_size, d_ip[0], d_ip[1], d_ip[2],
+			   dump_sdram_size, d_ip[0], d_ip[1], d_ip[2],
 			   d_ip[4], d_ip[3]);
 		s += sprintf(s, "setenv ipaddr %d.%d.%d.%d;",
 					 d_ip[0], d_ip[1], d_ip[2], d_ip[4]);
 		s += sprintf(s, "setenv serverip %d.%d.%d.%d;",
 					 d_ip[0], d_ip[1], d_ip[2], d_ip[3]);
-		s += sprintf(s, "tput 0x0 0x%x dump_ddr_%x.img",
-					 sys_sdram_size, sys_sdram_size);
+		s += sprintf(s, "tput 0x%x 0x%x dump_ddr_%x.img",
+					 CONFIG_SYS_SDRAM_BASE,
+					 dump_sdram_size, dump_sdram_size);
 		env_set("dumpcmd", dump);
 	} else {
 		stored_dumptype = 0;
