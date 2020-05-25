@@ -70,8 +70,8 @@ void switch_sys_pll(ulong pll_val)
 static struct mm_region x3_mem_map[] = {
 	{
 		/* SDRAM space */
-		.virt = 0x200000UL,
-		.phys = 0x200000UL,
+		.virt = CONFIG_SYS_SDRAM_BASE,
+		.phys = CONFIG_SYS_SDRAM_BASE,
 		.size = CONFIG_SYS_SDRAM_SIZE,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 			 PTE_BLOCK_INNER_SHARE
@@ -146,9 +146,9 @@ int dram_init(void)
 		ddr_size = 1;
 
 	sys_sdram_size = ddr_size * 1024 * 1024 * 1024;
-	printf("system DDR size: 0x%llx\n", sys_sdram_size);
+	printf("system DDR size: 0x%llx\n", sys_sdram_size - CONFIG_SYS_SDRAM_BASE);
 
-	gd->ram_size = sys_sdram_size;
+	gd->ram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
 	x3_mem_map[0].size = get_effective_memsize();
 
 	x3_board_id = boardid;
