@@ -211,7 +211,7 @@ static int hb_set_board_id(int offset)
 	}
 
 	/* set boardid */
-	board_id = ((x3_ddr_vender & 0xf) << 28) | (0x1 << 24) | \
+	board_id = ((x3_ddr_vender & 0xf) << 28) | (x3_ddr_type << 24) | \
 		((x3_ddr_freq & 0xf) << 20) | ((x3_ddr_size & 0xf) << 16) | \
 		((x3_som_type & 0xff) << 8) | (x3_base_board_type & 0xff);
 

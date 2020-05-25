@@ -1346,16 +1346,15 @@ static void hb_swinfo_boot(void)
 	}
 }
 
-static void add_baud_to_bootargs()
+static void add_baud_to_bootargs(void)
 {
 	unsigned int br_sel = hb_pin_get_uart_br();
 	unsigned int rate = (br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600);
 	unsigned int len = 0;
 	char tmp[1024], baudrate_str[32];
 	char *bootargs_tmp = env_get("bootargs");
-	char *bootargs_ptr, *tmp_ptr, *check;
+	char *bootargs_ptr, *check;
 
-	tmp_ptr = tmp;
 	bootargs_ptr = bootargs_tmp;
 	bootargs_ptr = strstr(bootargs_ptr, "console=");
 	check = bootargs_ptr;
