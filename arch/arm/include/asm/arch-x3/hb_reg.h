@@ -34,6 +34,8 @@
 
 #define X3_GPIO0_CTRL_REG	0x8
 #define X3_GPIO0_VALUE_REG	0xC
+#define X3_GPIO1_CTRL_REG	0x18
+#define X3_GPIO1_VALUE_REG	0x1c
 #define X3_GPIO6_CTRL_REG	0x68
 #define X3_GPIO6_VALUE_REG	0x6C
 
@@ -41,6 +43,7 @@
 
 #define PIN_BASE_BOARD_SEL(x)	((((x >> 14) & 0x1) << 0x1) | \
 	((x >> 12) & 0x1))
+#define X3_MIPI_RESET_OUT_LOW(x)	(((x) | 0x10000000) & 0xffffefff)
 
 #define X2_SYSCNT_BASE          (0xA6001000)
 #define X2_GPIO_BASE            (0xA6003000)

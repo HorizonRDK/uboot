@@ -435,6 +435,19 @@ uint32_t hb_base_board_type_get(void)
 	return base_id;
 }
 
+static void hb_mipi_panel_reset(void)
+{
+	uint32_t reg = 0;
+	uint32_t base_board_id = hb_base_board_type_get();
+
+	if (base_board_id == BASE_BOARD_X3_DVB) {
+		reg = reg32_read(BIFSPI_CLK_PIN_REG);
+		reg32_write(BIFSPI_CLK_PIN_REG, PIN_CONFIG_GPIO(reg));
+		reg = reg32_read(X2_GPIO_BASE + X3_GPIO1_CTRL_REG);
+		reg32_write(X2_GPIO_BASE + X3_GPIO1_CTRL_REG, X3_MIPI_RESET_OUT_LOW(reg));
+	}
+}
+
 static bool hb_pf5024_device_id_getable(void)
 {
 	uint8_t chip = I2C_PF5024_SLAVE_ADDR;
@@ -1543,6 +1556,9 @@ int last_stage_init(void)
 #endif
 
 //	misc();
+#ifdef CONFIG_TARGET_X3
+	hb_mipi_panel_reset();
+#endif
 	add_baud_to_bootargs();
 	return 0;
 }
