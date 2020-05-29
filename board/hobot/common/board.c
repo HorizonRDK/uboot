@@ -1022,7 +1022,7 @@ static int reboot_notify_to_mcu(void)
 static int nand_write_partition(char *partition, int partition_offset,
 				int partition_size)
 {
-	int ret = 0;
+	int ret = CMD_RET_SUCCESS;
 	char cmd[128];
 	snprintf(cmd, sizeof(cmd), "mtd erase %s", partition);
 	ret = run_command(cmd, 0);
@@ -1042,7 +1042,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 {
 #define MAX_MTD_PART_NUM 16
 #define MAX_MTD_PART_NAME 128
-	int ret, last_part;
+	int ret = CMD_RET_SUCCESS, last_part;
 	int total_part = 0, len = 0, name_len = 0;
 	u32 img_addr, img_size;
 	/*[0] - bl_size; [1] - boot_size; [2] - rootfs_size; [3] - userdata_size*/
@@ -1066,18 +1066,21 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 		s2 = argv[2];
 	}
 #ifndef CONFIG_HB_NAND_BOOT
-	run_command("mtd list", 0);
+	if (run_command("mtd list", 0)) {
+		printf("No NAND Flash found, Abort!\n");
+		return -CMD_RET_FAILURE;
+	}
 #endif
 
 	img_addr = (u32)simple_strtoul(s1, NULL, 16);
 	img_size = (u32)simple_strtoul(s2, NULL, 16);
 	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
 	mtdparts_env = env_get("mtdparts");
-	mtdparts_env = strstr(mtdparts_env, "@");
 	if (!mtdparts_env) {
 		printf("No MTD Partitions found, Abort!\n");
-		return 1;
+		return -CMD_RET_FAILURE;
 	}
+	mtdparts_env = strstr(mtdparts_env, "@");
 	do {
 		mtdparts_env++;
 		name_start = strstr(mtdparts_env, "(");
@@ -1124,7 +1127,7 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 		}
 		if (part_sizes[last_part] < 0) {
 			printf("Image size too small!\n");
-			ret = -1;
+			ret = -CMD_RET_FAILURE;
 		} else {
 			for (int i = 0; i < total_part; i++) {
 				ret = nand_write_partition(part_name[i],
@@ -1144,9 +1147,9 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 U_BOOT_CMD(
 	burn_nand,	4,	0,	burn_nand_flash,
 	"Burn Image at [addr] in DDR with [size] in bytes(hex) to nand flash",
-	"    [partition - optional] <addr> <size> \n"
-	"            Note: partitions need to be defined by mtdparts,"
-	"                  if no partiton is specified, whole flash is programmed"
+	"[partition - optional] <addr_in_mem> <img_size> \n"
+	"Note: partitions need to be defined by mtdparts,\n"
+	"      if no partiton is specified, whole flash is programmed\n"
 );
 
 
