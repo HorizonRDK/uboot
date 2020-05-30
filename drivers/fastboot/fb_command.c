@@ -364,7 +364,7 @@ void fastboot_data_upload(void *fastboot_data,
 {
 #define BYTES_PER_DOT	0x20000
 	u32 pre_dot_num, now_dot_num;
-	void *dram_start_addr = 0;
+	void *dram_start_addr = CONFIG_SYS_SDRAM_BASE;	// 0~2M bl31, not maped
 
 	if (fastboot_data_len == 0 ||
 	    (fastboot_bytes_send + fastboot_data_len) >
