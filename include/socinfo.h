@@ -1,3 +1,8 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2019 Horizon Robotics, Inc.
+ *    All rights reserved.
+*/
 #ifndef SOCINFO_H
 #define SOCINFO_H
 

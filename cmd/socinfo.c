@@ -13,11 +13,12 @@
 #include <x2_fuse_regs.h>
 #include <asm/arch-x3/hb_reg.h>
 #include <asm/arch-x2/ddr.h>
-
-#include "socinfo.h"
+#include <socinfo.h>
 #include <hb_info.h>
+#include <scomp.h>
 
 #define SCRATCHPAD	1024
+#define SOCUID_BANK 2
 
 static uint32_t x3_ddr_vender;
 static uint32_t x3_ddr_size;
@@ -110,13 +111,14 @@ static int socuid_read(u32 word, u32 *val)
 	writel(rv, (void *)X2_SWRST_REG_BASE);
 	return 0;
 }
+#endif
 
 static int get_socuid(char *socuid)
 {
 	char temp[8] = {0};
 	u32 ret, val, word;
 	for(word = 0; word < 4; word++) {
-		ret = socuid_read(word, &val);
+		val = api_efuse_read_data(EFS_S, word + SOCUID_BANK);
 		if(ret)
 			return -1;
 		sprintf(temp, "%.8x", val);
@@ -159,7 +161,6 @@ static int hb_set_socuid(int offset)
 
 	return 0;
 }
-#endif
 
 static int find_fdt(unsigned long fdt_addr)
 {
@@ -371,6 +372,12 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	}
 
 	/* set socuid */
+	ret = hb_set_socuid(nodeoffset);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
 	/* set ddr size, ddr freq, ddr vender and ddr type */
 	ret = hb_set_ddr_property(nodeoffset);
 	if (ret < 0) {
