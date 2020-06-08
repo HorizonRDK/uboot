@@ -10,6 +10,7 @@
 
 #include <asm/armv8/mmu.h>
 #include <asm/arch-x2/hb_reg.h>
+#include <asm/arch/hb_pmu.h>
 #include <asm/arch/hb_sysctrl.h>
 #include <hb_info.h>
 #include <asm/arch-x2/ddr.h>
@@ -134,6 +135,32 @@ int hb_check_secure(void) {
 	if (if_secure_env)
 		ret |= (!strcmp(if_secure_env, "true"));
 	return ret;
+}
+
+char *hb_reset_reason_get()
+{
+	uint32_t value;
+	char *reason = NULL;
+
+	value =  readl(HB_PMU_WAKEUP_STA);
+        switch (value)
+        {
+                case 0:
+                        reason = "POWER_RESET";
+                        break;
+                case 1:
+                        reason = "SYNC_WAKEUP";
+                        break;
+                case 2:
+                        reason = "ASYNC_WAKEUP";
+                        break;
+                case 3:
+                        reason = "WTD_RESET";
+                        break;
+                defualt:
+                        break;
+        }
+        return reason;
 }
 
 int dram_init(void)
