@@ -119,9 +119,7 @@ static int get_socuid(char *socuid)
 	u32 ret, val, word;
 	for(word = 0; word < 4; word++) {
 		val = api_efuse_read_data(EFS_S, word + SOCUID_BANK);
-		if(ret)
-			return -1;
-		sprintf(temp, "%.8x", val);
+		snprintf(temp, sizeof(temp), "%.8x", val);
 		strcat(socuid, temp);
 	}
 	return 0;
