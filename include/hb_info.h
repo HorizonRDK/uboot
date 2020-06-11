@@ -135,6 +135,8 @@ struct hb_image_hdr {
 	unsigned int img_csum;
 };
 
+/* hb_info_hdr: 512 Info defined */
+/* total length of should be less than 512 Bytes */
 struct hb_info_hdr {
 	unsigned int manu_id;		/* Manualfacture identify */
 	unsigned int chip_id;		/* Chip identify */
@@ -187,7 +189,8 @@ struct hb_info_hdr {
 	char secure_cfg[4];	/* avb 2.0 */
 	unsigned int crypt_cfg;	/* spl decrypt and verify flag */
 
-	unsigned int reserved[58];
+	unsigned int reserved[57];
+	/* 512 Info remaining spots pls update when adding new item */
 };
 
 struct hb_dtb_hdr {
