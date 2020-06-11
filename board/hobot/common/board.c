@@ -551,7 +551,7 @@ static void hb_nand_env_init(void)
 {
 	char *bootargs;
 	/* set bootargs */
-	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+	bootargs = "earlycon console=ttyS0 clk_ignore_unused "\
 		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
 	env_set("bootargs", bootargs);
 	if (hb_check_secure()) {
@@ -582,7 +582,7 @@ static void hb_nor_env_init(void)
 	boot_arg[0] = "boot";
 
 	/* set normal boot bootargs */
-	bootargs = "earlycon loglevel=8 console=ttyS0 clk_ignore_unused "\
+	bootargs = "earlycon console=ttyS0 clk_ignore_unused "\
 			 "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
 	env_set("bootargs", bootargs);
 	/* set secure boot bootcmd */
