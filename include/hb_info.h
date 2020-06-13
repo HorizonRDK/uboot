@@ -101,6 +101,7 @@
 #define EFUSE_S_OFF		0x100
 #define SEFUSE_SECURE_CHIP	  (1<<1)
 #define SEFUSE_NON_SECURE_CHIP	  (1<<4)
+#define HB_UNIQUEID_INFO   (0x10000200)
 
 #define X2_BOARD_SVB 0
 #define X2_BOARD_SOM 1
@@ -220,6 +221,14 @@ struct hb_flash_kernel_hdr {
 	unsigned char dtbname[32];
 	unsigned int dtb_addr;
 	unsigned int dtb_size;
+};
+
+/*
+ * magic : 0xFEFEFEFE
+ */
+struct hb_uid_hdr {
+    unsigned int magic;
+    unsigned int bank[4];
 };
 
 int hb_boot_mode_get(void);

@@ -61,6 +61,8 @@ char hb_upmode[32] = "golden";
 char hb_bootreason[32] = "normal";
 char hb_partstatus = 0;
 
+struct hb_uid_hdr hb_unique_id;
+
 #ifdef CONFIG_SYSRESET
 static int print_resetinfo(void)
 {
@@ -470,6 +472,13 @@ static bool hb_pf5024_device_id_getable(void)
 		return true;
 	else
 		return false;
+}
+
+void hb_unique_id_get()
+{
+    struct hb_uid_hdr *p_uid = (struct hb_uid_hdr *)(HB_UNIQUEID_INFO);
+    hb_unique_id = *p_uid;
+    return;
 }
 
 uint32_t hb_board_type_get(void)
@@ -1505,6 +1514,7 @@ static void boot_src_test(void)
 int last_stage_init(void)
 {
 	int boot_mode = hb_boot_mode_get();
+    hb_unique_id_get();
 #ifndef CONFIG_FPGA_HOBOT
 	disable_cnn();
 #endif
