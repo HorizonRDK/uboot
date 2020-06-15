@@ -1088,7 +1088,11 @@ static int burn_nand_flash(cmd_tbl_t *cmdtp, int flag,
 	if (!mtdparts_env) {
 		printf("No MTD Partitions found, Abort!\n");
 		return -CMD_RET_FAILURE;
+	} else if (strstr(mtdparts_env, "nor")) {
+		printf("NOR Flash instead of NAND Flash found, Abort!\n");
+		return -CMD_RET_FAILURE;
 	}
+
 	mtdparts_env = strstr(mtdparts_env, "@");
 	do {
 		mtdparts_env++;
