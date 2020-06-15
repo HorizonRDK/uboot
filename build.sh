@@ -2,14 +2,14 @@
 
 function choose()
 {
-    local tmp="include/configs/.hb_config.h"
-    local target="include/configs/hb_config.h"
-    local conftmp=".config_tmp"
+    local tmp="$cur_dir/include/configs/.hb_config.h"
+    local target="$cur_dir/include/configs/hb_config.h"
+    local conftmp="$cur_dir/.config_tmp"
 
     echo "*********************************************************************"
     echo "boot mode= $bootmode"
     echo "*********************************************************************"
-    cp .config $conftmp
+    cp $cur_dir/.config $conftmp
 
     echo "#ifndef __HB_CONFIG_H__" > $tmp
     echo "#define __HB_CONFIG_H__" >> $tmp
@@ -45,7 +45,7 @@ function choose()
 
 function change_dts_flash_config()
 {
-    local dts_file="arch/arm/dts/hobot-x3-soc.dts"
+    local dts_file="$cur_dir/arch/arm/dts/hobot-x3-soc.dts"
     local key_value="qspi {"
 
     declare -i nline
@@ -63,7 +63,7 @@ function change_dts_flash_config()
     nline=`getlinenum`
 
     if [ x"$bootmode" = x"nor" ] || [ x"$bootmode" = x"nand" ] \
-       || [ "$FLASH_ENABLE" = "nor" ] || [ "$FLASH_ENABLE" = "nand" ];then
+       || [ ! -z "$FLASH_ENABLE" ];then
         sed -i "${nline}s#disabled#okay#g" $dts_file
     else
         sed -i "${nline}s#okay#disabled#g" $dts_file
@@ -72,6 +72,11 @@ function change_dts_flash_config()
 
 function build()
 {
+    # config dts
+    change_dts_flash_config
+
+    set_uboot_config
+
     local uboot_image="u-boot.bin"
     prefix=$TARGET_UBOOT_DIR
     config=$UBOOT_DEFCONFIG
@@ -97,7 +102,7 @@ function build()
 
 function all()
 {
-        build
+    build
 }
 
 function all_32()
@@ -109,29 +114,29 @@ function all_32()
 function set_uboot_config()
 {
     # Defaults
-    sed -i 's/# CONFIG_CMD_MTDPARTS is not set/CONFIG_CMD_MTDPARTS=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_MTDIDS_DEFAULT/d' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_MTDPARTS_DEFAULT/d' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i 's/# CONFIG_ENV_IS_IN_MMC is not set/CONFIG_ENV_IS_IN_MMC=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT=""'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT=""' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+    sed -i 's/# CONFIG_CMD_MTDPARTS is not set/CONFIG_CMD_MTDPARTS=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i '/CONFIG_MTDIDS_DEFAULT/d' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i '/CONFIG_MTDPARTS_DEFAULT/d' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i 's/# CONFIG_ENV_IS_IN_MMC is not set/CONFIG_ENV_IS_IN_MMC=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT=""'  $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT=""' $cur_dir/configs/$UBOOT_DEFCONFIG
 
     if [[ "$bootmode" = "nand" ]] || [[ "$FLASH_ENABLE" = "nand" ]];then
-        sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i 's/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        sed -i 's/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/g' $cur_dir/configs/$UBOOT_DEFCONFIG
         if [[ "$bootmode" = "nand" ]];then
-            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-            sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+            sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
         fi
-        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand"/g'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7864320@0x0(bootloader),20971520@0x780000(boot),62914560@0x1B80000(rootfs),-@0x5780000(userdata)"/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
+        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7864320@0x0(bootloader),20971520@0x780000(boot),62914560@0x1B80000(rootfs),-@0x5780000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     elif [[ "$bootmode" = "nor" ]] || [[ "$FLASH_ENABLE" = "nor" ]];then
-        sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g'
-        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"/g'  $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
-        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"/g' $TOPDIR/uboot/configs/$UBOOT_DEFCONFIG
+        sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
+        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     fi
 }
 
@@ -184,11 +189,7 @@ function clean()
 # include
 . $INCLUDE_FUNCS
 # include end
-
-# config dts
-change_dts_flash_config
-
-set_uboot_config
+cur_dir=${OUT_BUILD_DIR}/uboot
 
 cd $(dirname $0)
 
