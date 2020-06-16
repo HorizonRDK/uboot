@@ -329,15 +329,11 @@ static int x2_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
 	int ret = 0;
 	int i;
 
-	int flags;
-
 	if (msg[0].flags & 0x20) {
 		x2_i2c_cfg(priv, 0, 0);
 	} else {
 		x2_i2c_cfg(priv, 1, 1);
 	}
-
-	flags = I2C_M_RD;
 
 //	printk("%s, nmsgs:%d, flags:0x%x\n", __func__, nmsgs,flags);
 	for (i = 0; i < nmsgs; i++) {
@@ -363,11 +359,11 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 {
 	int err = 0;
 	ulong start = get_timer(0);
-	 union ctl_reg_e ctl_reg;
-        union dcount_reg_e dcount_reg;
-        union sprcpnd_reg_e int_status;
-        union status_reg_e status;
-	union cfg_reg_e cfg;
+	union ctl_reg_e ctl_reg;
+    union dcount_reg_e dcount_reg;
+    union sprcpnd_reg_e int_status;
+    union status_reg_e status;
+	//union cfg_reg_e cfg;
 	int command = 0;
 
 	x2_i2c_mask_int(priv);
@@ -379,7 +375,7 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 	//配置地址
 
 #if 1
-	priv->tx_buf = &command;
+	priv->tx_buf = (u8 *)&command;
 	priv->tx_remaining = 1;
 	priv->rx_remaining = 1;
 	dcount_reg.bit.w_dcount = 1;
@@ -609,7 +605,7 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 		clken_bit = 24;
 		break;
 
-	defaut:
+	default:
 		printf("%s:bus_num:%d error\n", __func__, priv->bus_num);
 		return -1;
 	}
@@ -651,7 +647,7 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 		clken_bit = 14;
 		break;
 
-	defaut:
+	default:
 		printf("%s:bus_num:%d error\n", __func__, priv->bus_num);
 		return -1;
 	}

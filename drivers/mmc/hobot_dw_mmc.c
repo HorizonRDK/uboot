@@ -149,7 +149,7 @@ static void sdio_pin_mux_config(int dev_index)
 #endif
 #endif
 #ifdef CONFIG_TARGET_X3
-	unsigned int i;
+	u64 i;
 	if (dev_index == 0) {
 		for (i = SD0_CLK; i <= SD0_WPROT; i += 4) {
 			reg_val = readl(i);

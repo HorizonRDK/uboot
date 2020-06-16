@@ -392,7 +392,8 @@ int w1_reset_select_slave(struct w1_slave *sl)
             w1_write_8(sl->master, W1_SKIP_ROM);
 	else {
             u8 match[9] = {W1_MATCH_ROM, };
-            u64 rn = *((u64*)&sl->reg_num);
+            u64 *p = (u64 *)(&sl->reg_num);
+            u64 rn = *p;
             memcpy(&match[1], &rn, 8);
             w1_write_block(sl->master, match, 9);
 	}

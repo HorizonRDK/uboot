@@ -361,13 +361,13 @@ static void eqos_flush_desc(void *desc)
 #endif
 }
 
-static void eqos_inval_buffer(void *buf, size_t size)
+/*static void eqos_inval_buffer(void *buf, size_t size)
 {
     unsigned long start = (unsigned long)buf & ~(ARCH_DMA_MINALIGN - 1);
     unsigned long end = ALIGN(start + size, ARCH_DMA_MINALIGN);
 
     invalidate_dcache_range(start, end);
-}
+}*/
 
 static void eqos_flush_buffer(void *buf, size_t size)
 {
@@ -728,10 +728,8 @@ static int eqos_start(struct udevice *dev)
     int node = dev_of_offset(dev);
     int phy_addr = 0;
 	const char *phy_mode;
-	int fl_node;
 
-   debug("%s(dev=%p):\n", __func__, dev);
-
+    debug("%s(dev=%p):\n", __func__, dev);
 
     eqos->tx_desc_idx = 0;
     eqos->rx_desc_idx = 0;
@@ -1301,13 +1299,16 @@ static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, type;
-    unsigned int reg_addr, reg_val;
-    struct hb_info_hdr* boot_info;
+    u64 reg_addr;
+    unsigned int reg_val;
 	unsigned long mclk;
+#if defined(CONFIG_TARGET_X2_FPGA) || defined(CONFIG_TARGET_X2)
+    struct hb_info_hdr* boot_info;
+#endif
 
     debug("%s(dev=%p):\n", __func__, dev);
-	boot_info = (struct hb_info_hdr*) HB_BOOTINFO_ADDR;
 #if defined(CONFIG_TARGET_X2_FPGA) || defined(CONFIG_TARGET_X2)
+	boot_info = (struct hb_info_hdr*) HB_BOOTINFO_ADDR;
     if (boot_info->board_id == X2_MONO_BOARD_ID) {
 		/* GPIO4   7 */
 	reg_val = readl(GPIO4_CFG);

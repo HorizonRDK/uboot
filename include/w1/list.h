@@ -1,3 +1,12 @@
+/*
+ * list.h
+ *
+ * Copyright (C) 2007 Ville Syrjala <syrjala@sci.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation.
+ */
 #ifndef __LIST_H__
 #define __LIST_H__
 //#include <assert.h>
@@ -7,9 +16,9 @@ typedef struct list_head_s {
     struct list_head_s *next;
 } list_h_t;
 
-#define LIST_HEAD_INIT(name) { &(name), &(name) }
-#define LIST_HEAD(name) \
-    list_h_t name = LIST_HEAD_INIT(name)
+#define W1_LIST_HEAD_INIT(name) { &(name), &(name) }
+#define W1_LIST_HEAD(name) \
+    list_h_t name = W1_LIST_HEAD_INIT(name)
 
 //#define DEBUG_LIST
 #ifdef DEBUG_LIST
@@ -19,20 +28,20 @@ typedef struct list_head_s {
 #endif
 
 #if 0
-static void INIT_LIST_HEAD(list_h_t *list)
+static void W1_INIT_LIST_HEAD(list_h_t *list)
 {
     list->next = list;
     list->prev = list;
 }
 #else
-#define INIT_LIST_HEAD(head) { \
+#define W1_INIT_LIST_HEAD(head) { \
     ASSERT_LIST(head); \
     (head)->next = (head); \
     (head)->prev = (head); }
 #endif
 
 #if 0
-static void INIT_LIST_HEAD(list_h_t *list)
+static void W1_INIT_LIST_HEAD(list_h_t *list)
 static void list_add_tail(list_h_t *entry, list_h_t *head)
 {
     entry->next = head;

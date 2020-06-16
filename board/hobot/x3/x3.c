@@ -157,7 +157,7 @@ char *hb_reset_reason_get()
                 case 3:
                         reason = "WTD_RESET";
                         break;
-                defualt:
+                default:
                         break;
         }
         return reason;

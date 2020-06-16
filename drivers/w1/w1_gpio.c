@@ -32,9 +32,9 @@ extern struct w1_master                *master_total;
 
 struct w1_slave sl_satic;
 
-LIST_HEAD(w1_masters);
+W1_LIST_HEAD(w1_masters);
 
-static LIST_HEAD(w1_families);
+static W1_LIST_HEAD(w1_families);
 
 /**
  * w1_register_family() - register a device family driver
@@ -76,7 +76,7 @@ static struct w1_master *w1_alloc_dev(uint32_t id, int slave_count, struct w1_bu
 	/* 1 for w1_process to decrement
 	 * 1 for __w1_remove_master_device to decrement
 	 */
-	INIT_LIST_HEAD(&dev->slist);
+	W1_INIT_LIST_HEAD(&dev->slist);
 	return dev;
 }
 

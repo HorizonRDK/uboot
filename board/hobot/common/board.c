@@ -474,7 +474,7 @@ static bool hb_pf5024_device_id_getable(void)
 		return false;
 }
 
-void hb_unique_id_get()
+static void hb_unique_id_get(void)
 {
     struct hb_uid_hdr *p_uid = (struct hb_uid_hdr *)(HB_UNIQUEID_INFO);
     hb_unique_id = *p_uid;

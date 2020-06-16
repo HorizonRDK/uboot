@@ -760,7 +760,7 @@ int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
 	memcpy(&secure_key[32], real_key, 32);
 
 	/* load the secure key only */
-	ret = w1_master_load_key(master_total, SECURE_IC_ID, secure_key, NULL);
+	ret = w1_master_load_key(master_total, SECURE_IC_ID, (char *)secure_key, NULL);
 	if (ret != 0) {
 		printf("burn_key_w1_master_load_key_error\n");
 		printf("burn_key_failed\n");
@@ -768,7 +768,8 @@ int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	/* load the usr_data */
-	ret = w1_master_auth_write_usr_mem(master_total, SECURE_IC_ID, secure_key);
+	ret = w1_master_auth_write_usr_mem(master_total, SECURE_IC_ID,
+	    (char *)secure_key);
 	if (ret != 0) {
 		printf("burn_key_w1_master_auth_write_usr_mem_error\n");
 		printf("burn_key_failed\n");
@@ -968,7 +969,7 @@ int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,
     }
 
     if (mark_register_cnt)
-        w1_master_get_rom_id(master_total, SECURE_IC_ID, sec_id);
+        w1_master_get_rom_id(master_total, SECURE_IC_ID, (char *)sec_id);
 
     printf("gsid: ");
     for (i=0; i<8; i++) {
@@ -984,7 +985,6 @@ int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,
 int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 										char * const argv[])
 {
-	int i = 0;
 	int ret = 0;
 	unsigned long offset;
 	uint8_t page, encrytion;

@@ -1022,7 +1022,7 @@ static ulong loads_serial(ulong offset, int mode)
     unsigned long h_addr =offset;
 	uint32_t    d_length;
 	uint8_t  package[loads_header_len] = {0};
-	uint32_t *p_pack = package;
+	uint32_t *p_pack = (uint32_t *)package;
 	uint32_t  first_packet =0;
 	size = 0;
 	info.mode = mode;

@@ -24,7 +24,7 @@
 
 //##include <stdint.h>
 #include <linux/types.h>
-#include "w1/list.h"
+#include <w1/list.h>
 #include "w1_gpio.h"
 /**
  * struct w1_reg_num - broken out slave device id
@@ -308,6 +308,14 @@ int w1_ds28e1x_setup_device(struct w1_slave *sl, char *secret_buf, char *binding
 //int w1_master_trigger_authentication(struct w1_master *dev,u8 fid);
 int w1_master_trigger_authentication(char*secret_buf, unsigned int cvalue);
 void udelay_mod(unsigned long usec);
+void w1_ds28e1x_get_rom_id(char* rom_id);
+int w1_master_is_write_auth_mode(struct w1_master *dev, u8 fid, int *yes);
+int w1_master_load_key(struct w1_master *dev, u8 fid, char*w_buf, char *r_buf);
+int w1_master_auth_write_usr_mem(struct w1_master *dev, u8 fid, char* buf);
+int w1_master_auth_write_block_protection(struct w1_master *dev, u8 fid,
+    uint8_t *key);
+int w1_master_set_write_auth_mode(struct w1_master *dev, u8 fid);
+int w1_master_get_rom_id(struct w1_master *dev, u8 fid, char* rom_id);
 
 extern int w1_max_slave_count;
 extern int w1_max_slave_ttl;

@@ -1,3 +1,9 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2020 Horizon Robotics, Inc.
+ *    All rights reserved.
+*/
+
 #include <common.h>
 #include <clk-uclass.h>
 #include <dm.h>
@@ -12,7 +18,7 @@ struct gpio_platdata {
 
 int gpio_clk_enable(struct clk *clk)
 {
-	unsigned int val, status, reg_val;
+	unsigned int val = 0, status = 0, reg_val = 0;
 	struct gpio_platdata *plat = dev_get_platdata(clk->dev);
 
 	val = readl(plat->reg);
@@ -28,7 +34,7 @@ int gpio_clk_enable(struct clk *clk)
 
 int gpio_clk_disable(struct clk *clk)
 {
-	unsigned int val, status, reg_val;
+	unsigned int val = 0, status = 0, reg_val = 0;
 	struct gpio_platdata *plat = dev_get_platdata(clk->dev);
 
 	val = readl(plat->reg);
