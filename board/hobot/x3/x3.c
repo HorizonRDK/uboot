@@ -5,6 +5,7 @@
 #include <sata.h>
 #include <ahci.h>
 #include <scsi.h>
+#include <mmc.h>
 #include <malloc.h>
 #include <asm/io.h>
 
@@ -118,6 +119,20 @@ int hb_fastboot_key_pressed(void) {
 	return PIN_FASTBOOT_SEL(reg);
 }
 
+void hb_set_serial_number(void)
+{
+	char serial_number[32] = {0, };
+	struct mmc *mmc = find_mmc_device(0);
+
+	if(!mmc)
+		return;
+
+	snprintf(serial_number, 32, "0x%04x%04x", mmc->cid[2] & 0xffff,
+				(mmc->cid[3] >> 16) & 0xffff);
+
+	env_set("serial#", serial_number);
+}
+
 int hb_check_secure(void) {
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 	uint32_t reg;
@@ -220,6 +235,8 @@ int board_late_init(void)
 #if 0
 	qspi_flash_init();
 #endif
+
+	hb_set_serial_number();
 
 #ifdef CONFIG_DDR_BOOT
 	env_set("bootmode", "ddrboot");

@@ -176,7 +176,6 @@
 	    "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
 	    "run ddrboot\0" \
 	"cdc_connect_timeout=360\0" \
-	"serial#=xj3000000\0" \
 	"partitions=" PARTS_DEFAULT "\0"
 #endif
 
