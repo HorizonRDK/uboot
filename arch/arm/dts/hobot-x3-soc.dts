@@ -70,8 +70,8 @@
 };
 
 &qspi {
-	status = "disabled";
-	spi-max-frequency = <50000000>;
+	status = "okay";
+	spi-max-frequency = <60000000>;
 	#address-cells = <1>;
 	#size-cells = <1>;
 	spi-tx-bus-width = <4>;

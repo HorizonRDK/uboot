@@ -934,6 +934,53 @@ U_BOOT_CMD(
 	"-ion_modify 100"
 );
 
+static int do_fdt_enable(cmd_tbl_t *cmdtp, int flag, int argc,
+						 char * const argv[])
+{
+	const char *path;
+	int  ret;
+	char *status_val = NULL;
+	char cmd[128];
+	bool enable = false;
+
+	if (argc == 1)
+		return 0;
+	if (!strncmp(argv[1], "enable", 6)) {
+		enable = true;
+		status_val = "okay";
+	} else if (!strncmp(argv[1], "disable", 7)) {
+		status_val = "disabled";
+	} else {
+		printf("Please use \"enable\" or \"disable\"\n");
+		return CMD_RET_USAGE;
+	}
+
+	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
+	ret = run_command(cmd, 0);
+	if (ret)
+		return CMD_RET_FAILURE;
+
+	path = argv[2];
+
+	snprintf(cmd, sizeof(cmd), "fdt set %s status %s", path, status_val);
+	ret = run_command(cmd, 0);
+
+	if (ret != 0) {
+		printf("Set property failed : %d!\n", ret);
+		return CMD_RET_FAILURE;
+	} else {
+		printf("Changed status of %s to %s\n", path, status_val);
+	}
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	fdt_enable,	3,	0,	do_fdt_enable,
+	"Enable/disable the node specified at <path>",
+	"-fdt_enable enable/disable <path>"
+);
+
 static int do_set_tag_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
 {
