@@ -1298,9 +1298,9 @@ static int hb_swinfo_dump_check(void)
 		printf("swinfo dump ddr 0x%x -> %s\n", dump_sdram_size, ddev);
 		s += sprintf(s, "usb start; ");
 		s += sprintf(s, "usb part %d; ", dusb);
-		s += sprintf(s, "%s usb %d 0x%x dump_ddr_%x.img 0x%x; ",
+		s += sprintf(s, "%s usb %d:1 0x%x dump_ddr_%x.img 0x%x;fatls usb %d:1 /",
 				dcmd, dusb, CONFIG_SYS_SDRAM_BASE,
-				dump_sdram_size, dump_sdram_size);
+				dump_sdram_size, dump_sdram_size, dusb);
 
 		env_set("dumpcmd", dump);
 	} else if (s_boot == HB_SWINFO_BOOT_UDUMPFASTBOOT) {
