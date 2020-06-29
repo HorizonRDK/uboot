@@ -57,8 +57,8 @@
 	qspi: qspi@B0000000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hb,qspi";
-		status = "ok";
-		num-cs = <8>;
+		status = "okay";
+		num-cs = <1>;
 		clocks = <&sys_qspi_aclk>;
 		clock-names = "qspi_aclk";
 		reg = <0x0 0xB0000000 0x0 0x1000>;

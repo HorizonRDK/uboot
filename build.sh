@@ -73,7 +73,7 @@ function change_dts_flash_config()
 function build()
 {
     # config dts
-    change_dts_flash_config
+    # change_dts_flash_config
 
     set_uboot_config
 
@@ -98,6 +98,21 @@ function build()
 
     # put binaries to dest directory
     cpfiles "$uboot_image" "$prefix/"
+    if [ "$pack_img" = "true" ];then
+        if [ -d "$prefix/" ];then
+            # encrypt and sign uboot image
+            path="$SRC_BUILD_DIR/tools/key_management_toolkits"
+            cd $path
+            bash pack_uboot_tool.sh || {
+                echo "$SRC_BUILD_DIR/tools/key_management_toolkits/pack_uboot_tool.sh failed"
+                exit 1
+            }
+            cd -
+        fi
+        runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=4096 conv=notrunc,sync"
+        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img conv=notrunc,sync"
+        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=512 seek=2048 conv=notrunc,sync"
+    fi
 }
 
 function all()
@@ -123,6 +138,7 @@ function set_uboot_config()
     sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT=""'  $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT=""' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
 
     if [[ "$bootmode" = "nand" ]] || [[ "$FLASH_ENABLE" = "nand" ]];then
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
@@ -134,7 +150,6 @@ function set_uboot_config()
         sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7864320@0x0(bootloader),20971520@0x780000(boot),62914560@0x1B80000(rootfs),-@0x5780000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     elif [[ "$bootmode" = "nor" ]] || [[ "$FLASH_ENABLE" = "nor" ]];then
-        sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
         sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     fi
@@ -145,14 +160,15 @@ function usage()
     echo "Usage: build.sh [-o emmc|nor|nand|all ] [-u]"    echo "Options:"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
+    echo "  -p  create uboot.img"
     echo "  -h  help info"
     echo "Command:"
     echo "  clean clean all the object files along with the executable"
 }
 
 bootmode=$BOOT_MODE
-
-while getopts "uo:h:" opt
+pack_img="false"
+while getopts "upo:h:" opt
 do
     case $opt in
         o)
@@ -166,6 +182,9 @@ do
             fi
             ;;
 
+        p)
+            pack_img="true"
+            ;;
         h)
             usage
             exit 0
