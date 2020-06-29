@@ -183,11 +183,16 @@ int dram_init(void)
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 	unsigned int boardid = bootinfo->board_id;
 	phys_size_t ddr_size = (boardid >> 16) & 0xf;
+	unsigned int ddr_ecc = ECC_CONFIG_SEL(boardid);
 
 	if (ddr_size == 0)
 		ddr_size = 1;
 
 	sys_sdram_size = ddr_size * 1024 * 1024 * 1024;
+
+	if (ddr_ecc)
+		sys_sdram_size = (sys_sdram_size * 7) / 8;
+
 	printf("system DDR size: 0x%llx\n", sys_sdram_size - CONFIG_SYS_SDRAM_BASE);
 
 	gd->ram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
@@ -200,6 +205,9 @@ int dram_init(void)
 
 int dram_init_banksize(void)
 {
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
+	unsigned int ddr_ecc = ECC_CONFIG_SEL(bootinfo->board_id);
+
 #if defined(CONFIG_NR_DRAM_BANKS) && defined(CONFIG_SYS_SDRAM_BASE)
 #if defined(PHYS_SDRAM_2) && defined(CONFIG_MAX_MEM_MAPPED)
 	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
@@ -207,9 +215,15 @@ int dram_init_banksize(void)
 	gd->bd->bi_dram[1].start =
 		gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
 		 ? PHYS_SDRAM_2 : 0;
-	gd->bd->bi_dram[1].size =
-		gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
-		 ? PHYS_SDRAM_2_SIZE : 0;
+
+	if (ddr_ecc == 1)
+		gd->bd->bi_dram[1].size =
+			gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
+			? (sys_sdram_size - PHYS_SDRAM_2_SIZE) : 0;
+	else
+		gd->bd->bi_dram[1].size =
+			gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
+			 ? PHYS_SDRAM_2_SIZE: 0;
 #else
 	gd->bd->bi_dram[0].start = CONFIG_SYS_SDRAM_BASE;
 	gd->bd->bi_dram[0].size = get_effective_memsize();

@@ -26,6 +26,7 @@
 /* ddr manufacture */
 #define DDR_MANU_HYNIX		0x1
 #define DDR_MANU_MICRON		0x2
+#define DDR_MANU_SAMSUNG	0x3
 #define PIN_DDR_TYPE_SEL(x)	((x) & 0x1)
 
 /* ddr type */
@@ -42,6 +43,9 @@
 #define DDR_FREQC_3200	0x5
 #define DDR_FREQC_3733	0x6
 #define DDR_FREQC_4266	0x7
+#define DDR_FREQC_1866	0x8
+#define DDR_FREQC_2400	0x9
+#define DDR_FREQC_100   0xa
 
 /* ddr capacity */
 #define DDR_CAPACITY_1G		0x1
@@ -51,6 +55,17 @@
 /* som type */
 #define SOM_TYPE_X3		0x1
 #define SOM_TYPE_J3		0x2
+#define SOM_TYPE_X3SDB		0x4
+
+/* ecc config */
+#define ECC_DEFAULT		0x0
+#define ECC_ALL			0x1
+#define ECC_OPTION_1		0x2
+#define ECC_OPTION_2		0x3
+
+/* alternative ddr para */
+#define ALTERNATIVE_DEFAULT	0x0
+#define ALTERNATIVE_ENABLE	0x1
 
 /* base board type */
 #define BASE_BOARD_X3_DVB		0x1
@@ -69,8 +84,10 @@
 #define DDR_TYPE_SEL(x) (((x) >> 24) & 0xf)
 #define DDR_FREQ_SEL(x)  (((x) >> 20) & 0xf)
 #define DDR_CAPACITY_SEL(x)  (((x) >> 16) & 0xf)
-#define SOM_TYPE_SEL(x)  (((x) >> 8) & 0xff)
-#define BASE_BOARD_SEL(x)  ((x) & 0xff)
+#define ECC_CONFIG_SEL(x)  (((x) >> 12) & 0xf)
+#define SOM_TYPE_SEL(x)  (((x) >> 8) & 0xf)
+#define ALTER_CONFIG_SEL(x) (((x) >> 4) & 0xf)
+#define BASE_BOARD_SEL(x)  ((x) & 0xf)
 #define PIN_BASE_BOARD_SEL(x)	((((x >> 14) & 0x1) << 0x1) | \
 	((x >> 12) & 0x1))
 #define PIN_BOARD_SEL(x, y)		((((x) >> 8) & 0x3) << 4)\
