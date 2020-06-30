@@ -48,11 +48,12 @@ U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
 	   "write binary file to gpt partiton",
 	   "<partition name> <ddr addr> <image size> [emmc|nor|nand] \n"
 	   "    - emmc partition name: \n"
-	   "           [all | gpt-main | sbl | ddr | uboot | kernel | system | app | gpt-backup]\n"
+	   "           [all | gpt-main | sbl | ddr | uboot | vbmeta \n"
+	   "            | kernel | system | app | gpt-backup]\n"
 	   "    - nor partition name: \n"
-	   "           [all | uboot | kernel | system | app]\n"
+	   "           [all | uboot | vbmeta | kernel | system | app]\n"
 		"    - nand partition name: \n"
-	   "           [all | bootloader | sys | rootfs]\n"
+	   "           [all | bootloader | sys | rootfs | userdata]\n"
 	   "    - image size: \n"
 	   "           bytes size  [Example: 0x8000]\n"
 	   "    - emmc|nor|nand: \n"
@@ -61,5 +62,5 @@ U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
 	   "    - example:\n"
 	   "          otawrite uboot 0x4000000 0x100000\n"
 	   "    - version: \n"
-	   "          [2020-04]\n"
+	   "          [2020-06]\n"
 );

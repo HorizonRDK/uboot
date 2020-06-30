@@ -1104,49 +1104,41 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	/*[0] - bl_size; [1] - boot_size; [2] - rootfs_size; [3] - userdata_size*/
 	int64_t part_sizes[MAX_MTD_PART_NUM] = { 0 };
 	char part_name[MAX_MTD_PART_NAME][MAX_MTD_PART_NUM] = { "" };
-	char *s1 = NULL, *s2 = NULL, *target_part = NULL;
-	if (argc < 3) {
-		printf("image_addr and img_size must be given, abort\n");
+	char *s1 = NULL, *s2 = NULL, *target_part = NULL, *flash_type = NULL;
+	if (argc < 4) {
+		printf("flash_type image_addr and img_size must be given, abort\n");
 		return CMD_RET_USAGE;
-	} else if (argc == 4) {
-		target_part = argv[1];
+	} else if (argc == 5) {
+		target_part = argv[2];
+		s1 = argv[3];
+		s2 = argv[4];
+	} else {
 		s1 = argv[2];
 		s2 = argv[3];
-	} else {
-		s1 = argv[1];
-		s2 = argv[2];
 	}
-
-#if !defined(CONFIG_HB_NAND_BOOT) || !defined(CONFIG_HB_NOR_BOOT)
+	flash_type = argv[1];
+	/* TODO: Implement CS */
+	img_addr = (u32)simple_strtoul(s1, NULL, 16);
+	img_size = (u32)simple_strtoul(s2, NULL, 16);
+	mtd = __mtd_next_device(0);
 	/* Ensure all devices (and their partitions) are probed */
-	mtd_probe_devices();
-	mtd_for_each_device(mtd) {
-		dev_nb++;
-	}
-	if (!dev_nb) {
-		run_command("sf probe", 0);
+	if (!mtd || list_empty(&(mtd->partitions))) {
 		mtd_probe_devices();
 		mtd_for_each_device(mtd) {
 			dev_nb++;
 		}
 		if (!dev_nb) {
-			printf("No MTD device found, abort\n");
-			return CMD_RET_FAILURE;
+			run_command("sf probe", 0);
+			mtd_probe_devices();
+			mtd_for_each_device(mtd) {
+				dev_nb++;
+			}
+			if (!dev_nb) {
+				printf("No MTD device found, abort\n");
+				return CMD_RET_FAILURE;
+			}
 		}
-	}
-#endif
-	/* TODO: Implement CS */
-	mtd = __mtd_next_device(0);
-	img_addr = (u32)simple_strtoul(s1, NULL, 16);
-	img_size = (u32)simple_strtoul(s2, NULL, 16);
-	printf("Reading image of size 0x%x from address: 0x%x\n", img_size, img_addr);
-	if (mtd->type == MTD_NORFLASH) {
-		printf("NOR Flash found!\n");
-	} else if (mtd->type == MTD_NANDFLASH) {
-		printf("NAND FLash found!\n");
-	} else {
-		printf("MTD Device type not supported, abort!\n");
-		return CMD_RET_FAILURE;
+		mtd = __mtd_next_device(0);
 	}
 
 	list_for_each_entry(part, &mtd->partitions, node) {
@@ -1160,6 +1152,24 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	}
 	last_part = total_part - 1;
 	part_sizes[last_part] = img_size;
+
+	if (!strcmp(flash_type, "nand")) {
+		if (mtd->type != MTD_NANDFLASH) {
+			printf("NAND flash not found, abort!\n");
+			return CMD_RET_FAILURE;
+		}
+	} else if (!strcmp(flash_type, "nor")) {
+		if (mtd->type != MTD_NORFLASH) {
+			printf("NOR flash not found, abort!\n");
+			return CMD_RET_FAILURE;
+		}
+	} else {
+		printf("Flash type %s not supported, abort!\n", flash_type);
+		return CMD_RET_FAILURE;
+	}
+
+	printf("Burning image of size 0x%x from address: 0x%x to %s\n",
+			img_size, img_addr, flash_type);
 	ret = 0;
 #ifdef CONFIG_HB_NAND_BOOT
 	char veeprom[2048] = { 0 };
@@ -1167,7 +1177,7 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	ubi_volume_read("veeprom", veeprom, 2048);
 	run_command("ubi detach", 0);
 #endif
-	if ((argc == 4) && strcmp(target_part, "all")) {
+	if ((argc == 5) && strcmp(target_part, "all")) {
 		for (int i = 0; i < total_part; i++) {
 			if (!strcmp(target_part, part_name[i])) {
 				if (img_size > part_sizes[i]) {
@@ -1193,19 +1203,21 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	}
 
 #ifdef CONFIG_HB_NAND_BOOT
-	ubi_part("boot", NULL);
-	ubi_volume_write("veeprom", veeprom, 2048);
+	if (!strcmp(target_part, "boot")) {
+		ubi_part("boot", NULL);
+		ubi_volume_write("veeprom", veeprom, 2048);
+	}
 #endif
 	printf("Burn Flash Done!\n");
 	return ret;
 }
 
 U_BOOT_CMD(
-	burn_flash,	4,	0,	do_burn_flash,
+	burn_flash,	5,	0,	do_burn_flash,
 	"Burn Image at [addr] in DDR with [size] in bytes(hex) to nand/nor flash",
-	"[partition - optional] <addr_in_mem> <img_size> \n"
-	"Note: partitions need to be defined by mtdparts,\n"
-	"      if no partiton is specified, whole flash is programmed\n"
+	"<flash_type> [partition - optional] <addr_in_mem> <img_size>\n"
+	"  Note: Partitions need to be defined by mtdparts, if no partiton\n"
+	"        is provided, the whole flash is erased and programmed.\n"
 );
 
 #ifndef	CONFIG_FPGA_HOBOT

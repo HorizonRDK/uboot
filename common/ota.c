@@ -31,10 +31,7 @@
 #include <mmc.h>
 #include <veeprom.h>
 #include <ota.h>
-#include <spi_flash.h>
 #include <hb_info.h>
-#include <linux/mtd/mtd.h>
-#include <ubi_uboot.h>
 
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 
@@ -235,60 +232,14 @@ static unsigned int partition_status_flag(char *partition)
 	return flag;
 }
 
-static int ota_nor_update_image(char *name, char *addr, unsigned int bytes)
+static int ota_nor_update_image(char *partition, char *addr, unsigned int bytes)
 {
-	loff_t part_addr, maxsize, part_size;
-	int ret = 0, dev = 0;
-	char *s;
-	void *realaddr;
-	unsigned int sector = (bytes + NOR_SECTOR_SIZE -1)/NOR_SECTOR_SIZE;
-	char *part_arg[2];
-	part_arg[1] = "0x0";
-	part_arg[0] = (strcmp(name, "all")) ? name : "spi-nor1";
+	char command[64];
 
-	if (!flash) {
-		s = "sf probe";
-		ret = run_command_list(s, -1, 0);
-		if (ret < 0) {
-			printf("NOR init failed !\n");
-			return CMD_RET_FAILURE;
-		}
-		s = "mtd list";
-		ret = run_command_list(s, -1, 0);
-		if (ret < 0) {
-			printf("NOR MTD Init Failed!\n");
-			return CMD_RET_FAILURE;
-		}
-	}
+	snprintf(command, sizeof(command), "burn_flash nor %s %s %x",
+										partition, addr, bytes);
 
-	if (mtd_arg_off_size(2, part_arg, &dev, &part_addr, &maxsize,
-						&part_size, 0x0001, flash->size)) {
-		printf("error: partition name %s not found in MTD partitions! \n", name);
-		return CMD_RET_FAILURE;
-	}
-
-	if (bytes > part_size) {
-		printf("Error: image more than partition size %02x \n", (uint)part_size);
-		return CMD_RET_FAILURE;
-	}
-
-	printf("sf erase %02x %02x\n", (uint)part_addr, sector * NOR_SECTOR_SIZE);
-	ret = spi_flash_erase(flash, part_addr, sector * NOR_SECTOR_SIZE);
-	if (ret < 0) {
-		printf(" sf erase error \n");
-		return ret;
-	}
-
-	printf("sf write %s %02x %02x\n", addr, (uint)part_addr,
-		sector * NOR_SECTOR_SIZE);
-	realaddr = (void *)simple_strtoul(addr, NULL, 16);
-	ret = spi_flash_write(flash, part_addr, bytes, realaddr);
-	if (ret < 0) {
-		printf(" sf write error \n");
-		return ret;
-	}
-
-	return ret;
+	return run_command(command, 0);
 }
 
 static int ota_nand_update_image(char *partition,
@@ -297,7 +248,7 @@ static int ota_nand_update_image(char *partition,
 {
 	char command[64];
 
-	snprintf(command, sizeof(command), "burn_nand %s %s %x",
+	snprintf(command, sizeof(command), "burn_flash nand %s %s %x",
 										partition, addr, bytes);
 
 	return run_command(command, 0);
