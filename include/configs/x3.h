@@ -92,7 +92,7 @@
 #else
 #define KERNEL_ADDR			0x280000
 #endif
-#define FDT_ADDR			0xA000000
+#define FDT_ADDR			0x3C00000
 #define GZ_ADDR				0x8000000
 #define LOAD_ADDR			0x6000000
 
