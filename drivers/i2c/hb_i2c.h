@@ -197,7 +197,7 @@ union fifo_ctl_reg_e {
 	struct fifo_ctl_bits_s bit;
 };
 
-struct x2_i2c_regs_s {
+struct hb_i2c_regs_s {
 	union cfg_reg_e cfg;
 	union saddr_reg_e addr;
 	union dcount_reg_e dcount;
@@ -213,9 +213,9 @@ struct x2_i2c_regs_s {
 	union pmu_delay_reg_e pmu_delay;
 	union fifo_ctl_reg_e fifo_ctl;
 };
-struct x2_i2c_bus {
+struct hb_i2c_bus {
 	int bus_num;
-	struct x2_i2c_regs_s *regs;
+	struct hb_i2c_regs_s *regs;
 	unsigned int clk_div;
 	u32 msg_err;
 	u32	clock_freq;
@@ -227,7 +227,7 @@ struct x2_i2c_bus {
 	void __iomem *perisys_clk;	
 	void __iomem *pin_ctl;	
 	
-	void __iomem *x2_reset;
+	void __iomem *hb_reset;
 	int pin_first;
 	u8 i2c_func;
 };

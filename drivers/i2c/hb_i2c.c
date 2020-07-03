@@ -8,7 +8,7 @@
 #include <dm.h>
 #include <fdtdec.h>
 #include <i2c.h>
-#include "x2_i2c.h"
+#include "hb_i2c.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 #define X2_I2C_FIFO_SIZE	16
@@ -27,7 +27,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define X2_PIN_CTL_4	0xA6003040
 #define X3_PIN_SW		0xA6004000
 
-static int x2_i2c_wait_idle(struct x2_i2c_bus *priv)
+static int hb_i2c_wait_idle(struct hb_i2c_bus *priv)
 {
 	int timeout = WAIT_IDLE_TIMEOUT;
 	union status_reg_e status;
@@ -47,7 +47,7 @@ static int x2_i2c_wait_idle(struct x2_i2c_bus *priv)
 
 	return 0;
 }
-static int x2_i2c_cfg(struct x2_i2c_bus *dev, int dir_rd, int timeout_enable)
+static int hb_i2c_cfg(struct hb_i2c_bus *dev, int dir_rd, int timeout_enable)
 {
 	union cfg_reg_e cfg;
 	cfg.all = 0;
@@ -68,9 +68,9 @@ static int x2_i2c_cfg(struct x2_i2c_bus *dev, int dir_rd, int timeout_enable)
 	//printk("%s,and cfg:0x%x\n", __func__, readl(&dev->regs->cfg));
 	return 0;
 }
-int x2_i2c_set_bus_speed(struct udevice *bus, unsigned int speed)
+int hb_i2c_set_bus_speed(struct udevice *bus, unsigned int speed)
 {
-	struct x2_i2c_bus *priv = dev_get_priv(bus);
+	struct hb_i2c_bus *priv = dev_get_priv(bus);
 
 	int div;
 
@@ -81,16 +81,16 @@ int x2_i2c_set_bus_speed(struct udevice *bus, unsigned int speed)
 	priv->clock_freq = speed;
 	div =  DIV_ROUND_UP(24000000, priv->clock_freq) - 1;
 	priv->clk_div = div;
-	x2_i2c_cfg(priv, 0, 0);
+	hb_i2c_cfg(priv, 0, 0);
 	return 0;
 }
 
-static void x2_i2c_mask_int(struct x2_i2c_bus *priv)
+static void hb_i2c_mask_int(struct hb_i2c_bus *priv)
 {
 	writel(0xffffffff, &priv->regs->intsetmask);
 }
 
-static void x2_i2c_unmask_int(struct x2_i2c_bus *priv)
+static void hb_i2c_unmask_int(struct hb_i2c_bus *priv)
 {
 	union intunmask_reg_e unmask_reg;
 
@@ -114,12 +114,12 @@ static void x2_i2c_unmask_int(struct x2_i2c_bus *priv)
 }
 
 
-static void x2_i2c_clear_int_status(struct x2_i2c_bus *priv)
+static void hb_i2c_clear_int_status(struct hb_i2c_bus *priv)
 {
 	writel(0xffffffff, &priv->regs->srcpnd);
 }
 
-static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
+static int hb_i2c_read(struct hb_i2c_bus *priv, struct i2c_msg *msg)
 {
 	uint bytes_remain_len = msg->len;
 	uint bytes_xferred = 0;
@@ -137,10 +137,10 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 	priv->rx_remaining = msg->len;
 
 	priv->msg_err = 0;
-	if (x2_i2c_wait_idle(priv))
+	if (hb_i2c_wait_idle(priv))
 		return -ETIMEDOUT;
 
-        x2_i2c_mask_int(priv);
+        hb_i2c_mask_int(priv);
 
         ctl_reg.all = 0;
         dcount_reg.all = 0;
@@ -151,7 +151,7 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
                 writel(msg->addr << 1, &priv->regs->addr);
         }
 
-        if (x2_i2c_wait_idle(priv))
+        if (hb_i2c_wait_idle(priv))
 		return -ETIMEDOUT;
 
 	dcount_reg.bit.r_dcount = bytes_remain_len;
@@ -168,7 +168,7 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 		else
 			bytes_xferred = bytes_remain_len;
 
-		x2_i2c_unmask_int(priv);
+		hb_i2c_unmask_int(priv);
 
 	    udelay(1000);
     	start = get_timer(0);
@@ -177,7 +177,7 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 			err = int_status.bit.nack | int_status.bit.sterr | int_status.bit.al|
 			int_status.bit.to | int_status.bit.aerr;
 
-			x2_i2c_clear_int_status(priv);
+			hb_i2c_clear_int_status(priv);
 		//	printk("%s, after clear int,and read:0x%x\n",__func__,readl(&priv->regs->srcpnd));
 			if (err) {
 				writel(int_status.all, &priv->regs->srcpnd);
@@ -190,7 +190,7 @@ static int x2_i2c_read(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 				break;
 			}
 			if (get_timer(start) > I2C_TIMEOUT_MS) {
-				printf("%s, x2 i2c read data Timeout\n", __func__);
+				printf("%s, hb i2c read data Timeout\n", __func__);
 				err = -ETIMEDOUT;
 				goto i2c_exit;
 			}
@@ -222,7 +222,7 @@ i2c_exit:
 }
 
 
-static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
+static int hb_i2c_write(struct hb_i2c_bus *priv, struct i2c_msg *msg)
 {
 	uint bytes_remain_len = msg->len;
 	uint bytes_xferred = 0;
@@ -239,12 +239,12 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 
 	priv->msg_err = 0;
 
-	if (x2_i2c_wait_idle(priv))
+	if (hb_i2c_wait_idle(priv))
 		return -ETIMEDOUT;
 
 //	printf("%s, and len:%d\n", __func__, msg->len);
 
-	x2_i2c_mask_int(priv);
+	hb_i2c_mask_int(priv);
 	ctl_reg.all = 0;
 	dcount_reg.all = 0;
 	if (msg->flags & I2C_M_TEN) {
@@ -252,7 +252,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 	} else {
 		writel(msg->addr << 1, &priv->regs->addr);
 	}
-	if (x2_i2c_wait_idle(priv))
+	if (hb_i2c_wait_idle(priv))
 		return -ETIMEDOUT;
 
 	//设置count数量
@@ -284,7 +284,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 			writel(ctl_reg.all, &priv->regs->ctl);
 		}
 
-		x2_i2c_unmask_int(priv);
+		hb_i2c_unmask_int(priv);
 		//开始轮寻
         udelay(1000);
 		start = get_timer(0);
@@ -292,7 +292,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 			int_status.all = readl(&priv->regs->srcpnd);
 			err = int_status.bit.nack | int_status.bit.sterr | int_status.bit.al|
 				int_status.bit.to | int_status.bit.aerr;
-			x2_i2c_clear_int_status(priv);
+			hb_i2c_clear_int_status(priv);
 			if (err) {
 				writel(int_status.all, &priv->regs->srcpnd);
 				err = -EREMOTEIO;
@@ -303,7 +303,7 @@ static int x2_i2c_write(struct x2_i2c_bus *priv, struct i2c_msg *msg)
 			}
 
 			if (get_timer(start) > I2C_TIMEOUT_MS) {
-				printf("%s, x2 i2c write data timeout\n", __func__);
+				printf("%s, hb i2c write data timeout\n", __func__);
 				err = -ETIMEDOUT;
 				goto i2c_exit;
 			}
@@ -323,25 +323,25 @@ i2c_exit:
 
 	return err;
 }
-static int x2_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
+static int hb_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
 {
-	struct x2_i2c_bus *priv = dev_get_priv(bus);
+	struct hb_i2c_bus *priv = dev_get_priv(bus);
 	int ret = 0;
 	int i;
 
 	if (msg[0].flags & 0x20) {
-		x2_i2c_cfg(priv, 0, 0);
+		hb_i2c_cfg(priv, 0, 0);
 	} else {
-		x2_i2c_cfg(priv, 1, 1);
+		hb_i2c_cfg(priv, 1, 1);
 	}
 
 //	printk("%s, nmsgs:%d, flags:0x%x\n", __func__, nmsgs,flags);
 	for (i = 0; i < nmsgs; i++) {
 //		printk("%s, this %d msg, and i2c_m_rd:0x%0x, and msg_flags:0x%x\n", __func__, i,I2C_M_RD, msg[i].flags);
 		if (msg[i].flags & I2C_M_RD)
-			ret = x2_i2c_read(priv, &msg[i]);
+			ret = hb_i2c_read(priv, &msg[i]);
 		else
-			ret = x2_i2c_write(priv, &msg[i]);
+			ret = hb_i2c_write(priv, &msg[i]);
 
 
 		if (ret) {
@@ -355,7 +355,7 @@ static int x2_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
 }
 
 #if 1
-static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], uint data_len)
+static int hb_i2c_transfer(struct hb_i2c_bus *priv, uchar chip, uchar data[], uint data_len)
 {
 	int err = 0;
 	ulong start = get_timer(0);
@@ -366,9 +366,9 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 	//union cfg_reg_e cfg;
 	int command = 0;
 
-	x2_i2c_mask_int(priv);
+	hb_i2c_mask_int(priv);
 
-	x2_i2c_clear_int_status(priv);
+	hb_i2c_clear_int_status(priv);
 	//配置产生ack和nack就可以了.
     ctl_reg.all = 0;
     dcount_reg.all = 0;
@@ -405,8 +405,8 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 	writel(chip << 1, &priv->regs->addr);
          ctl_reg.bit.sta = 1;
                 ctl_reg.bit.sto = 1;
-//	x2_i2c_clear_int_status(priv);
-	x2_i2c_unmask_int(priv);
+//	hb_i2c_clear_int_status(priv);
+	hb_i2c_unmask_int(priv);
 
 
 //	printf("%s, before ctl:0x%x\n", __func__, readl(&priv->regs->ctl));
@@ -427,7 +427,7 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 
 		//	printk("%s, after while: status:0x%x, int_status:0x%x\n", __func__, status.all, int_status.all);
 
-			x2_i2c_clear_int_status(priv);
+			hb_i2c_clear_int_status(priv);
 		//	printf("%s, after clear int srcpnd:0x%x\n", __func__, readl(&priv->regs->srcpnd));
 		//	printk("%s, status:0x%x\n", __func__, status.all);
 
@@ -475,7 +475,7 @@ static int x2_i2c_transfer(struct x2_i2c_bus *priv, uchar chip, uchar data[], ui
 			}
 
                         if (get_timer(start) > I2C_TIMEOUT_MS) {
-                                printf("%s, x2 i2c read data Timeout\n", __func__);
+                                printf("%s, hb i2c read data Timeout\n", __func__);
                                 err = -ETIMEDOUT;
 				goto i2c_exit;
                         }
@@ -488,7 +488,7 @@ i2c_exit:
 
 
 
-        x2_i2c_mask_int(priv);
+        hb_i2c_mask_int(priv);
         ctl_reg.all = 0;
         ctl_reg.bit.rfifo_clr = 1;
         ctl_reg.bit.tfifo_clr = 1;
@@ -500,34 +500,34 @@ i2c_exit:
 
 }
 
-static void x2_i2c_reset(struct x2_i2c_bus *priv)
+static void hb_i2c_reset(struct hb_i2c_bus *priv)
 {
 	uint32_t value = 0;
 
-	value = readl(priv->x2_reset);
+	value = readl(priv->hb_reset);
 	value |= 1 << (priv->bus_num + X2_RESET_CTL_I2C);
-	writel(value, priv->x2_reset);
+	writel(value, priv->hb_reset);
 
 
 	udelay(1000);
 
-	value = readl(priv->x2_reset);
+	value = readl(priv->hb_reset);
 	value &= ~(1 << (priv->bus_num + X2_RESET_CTL_I2C));
-	writel(value, priv->x2_reset);
+	writel(value, priv->hb_reset);
 }
-static int x2_i2c_probe_chip(struct udevice *bus, uint chip, uint chip_flags)
+static int hb_i2c_probe_chip(struct udevice *bus, uint chip, uint chip_flags)
 {
-	struct x2_i2c_bus *priv = dev_get_priv(bus);
+	struct hb_i2c_bus *priv = dev_get_priv(bus);
 	uchar buf[1];
 	int ret;
 
 	//printf("%s,and here\n", __func__);
 	buf[0] = 0;
 
-	x2_i2c_reset(priv);
-	x2_i2c_cfg(priv, 0, 1);
+	hb_i2c_reset(priv);
+	hb_i2c_cfg(priv, 0, 1);
 
-	ret = x2_i2c_transfer(priv, chip, buf, 0);
+	ret = hb_i2c_transfer(priv, chip, buf, 0);
 
 
 	return ret;
@@ -535,24 +535,24 @@ static int x2_i2c_probe_chip(struct udevice *bus, uint chip, uint chip_flags)
 
 #endif
 
-static const struct dm_i2c_ops x2_i2c_ops = {
-	.xfer = x2_i2c_xfer,
-	.set_bus_speed = x2_i2c_set_bus_speed,
-	.probe_chip = x2_i2c_probe_chip,
+static const struct dm_i2c_ops hb_i2c_ops = {
+	.xfer = hb_i2c_xfer,
+	.set_bus_speed = hb_i2c_set_bus_speed,
+	.probe_chip = hb_i2c_probe_chip,
 };
 
 
-static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
+static int hb_i2c_ofdata_to_platdata(struct udevice *dev)
 {
 	const void *blob = gd->fdt_blob;
-	struct x2_i2c_bus *priv = dev_get_priv(dev);
+	struct hb_i2c_bus *priv = dev_get_priv(dev);
 	int node;
 	int value;
 	int bus_nr, clken_bit;
 	int ret = 0;
 
 	node = dev_of_offset(dev);
-	priv->regs = (struct x2_i2c_regs_s *)devfdt_get_addr(dev);
+	priv->regs = (struct hb_i2c_regs_s *)devfdt_get_addr(dev);
 
 	ret = dev_read_alias_seq(dev, &bus_nr);
 	if (ret < 0) {
@@ -664,7 +664,7 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 	value |= (1 << clken_bit);
 	writel(value, priv->perisys_clk);
 
-	priv->x2_reset = (void __iomem *)(X2_RESET_CTL);
+	priv->hb_reset = (void __iomem *)(X2_RESET_CTL);
 
 	priv->clock_freq = fdtdec_get_int(blob, node, "clock-frequency", 100000);
 
@@ -679,16 +679,16 @@ static int x2_i2c_ofdata_to_platdata(struct udevice *dev)
 }
 
 
-static const struct udevice_id x2_i2c_ids[] = {
-	{.compatible = "hobot,x2-i2c"},
+static const struct udevice_id hb_i2c_ids[] = {
+	{.compatible = "hobot,hb-i2c"},
 	{}
 };
-U_BOOT_DRIVER(i2c_x2) = {
-	.name = "i2c_x2",
+U_BOOT_DRIVER(i2c_hb) = {
+	.name = "i2c_hb",
 	.id = UCLASS_I2C,
-	.of_match = x2_i2c_ids,
-	.ofdata_to_platdata = x2_i2c_ofdata_to_platdata,
-	.priv_auto_alloc_size = sizeof(struct x2_i2c_bus),
-	.ops = &x2_i2c_ops,
+	.of_match = hb_i2c_ids,
+	.ofdata_to_platdata = hb_i2c_ofdata_to_platdata,
+	.priv_auto_alloc_size = sizeof(struct hb_i2c_bus),
+	.ops = &hb_i2c_ops,
 
 };
