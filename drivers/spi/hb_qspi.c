@@ -613,8 +613,7 @@ static int hb_qspi_exec_mem_op(struct spi_slave *slave,
 	uint8_t *non_data_buf = NULL, *tmp_ptr;
 #if (QSPI_DEBUG > 1)
 	if (op->cmd.opcode != 0x0f) {
-		printf("qspi_mem_op:");
-		printf("cmd:0x%02x addr_dum_dat_nbytes:%d%d%d bus_widths:%d%d%d%d\n",
+		printf("cmd:0x%02x addr_dum_dat_nbytes:%d %d %d bus_widths:%d%d%d%d\n",
 			op->cmd.opcode,
 			op->addr.nbytes, op->dummy.nbytes, op->data.nbytes,
 			op->cmd.buswidth, op->addr.buswidth,
@@ -622,7 +621,7 @@ static int hb_qspi_exec_mem_op(struct spi_slave *slave,
 	}
 #endif
 	/* First deal with non-data transmits: cmd/addr/dummy */
-	non_data_size = sizeof(op->cmd.opcode) + op->addr.nbytes + op->dummy.nbytes;
+	non_data_size = op->addr.nbytes + op->dummy.nbytes;
 	non_data_buf = (uint8_t *) malloc(non_data_size);
 	memset(non_data_buf, 0x0, non_data_size);
 	tmp_ptr = non_data_buf;
@@ -648,7 +647,14 @@ static int hb_qspi_exec_mem_op(struct spi_slave *slave,
 	hb_qspi_set_wire(hbqspi, 1);
 	hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 1 << slave_plat->cs);
 
-	ret = hb_qspi_wr_byte(hbqspi, non_data_buf, non_data_size);
+	if (op->cmd.opcode) {
+		ret = hb_qspi_wr_byte(hbqspi, non_data_buf, sizeof(op->cmd.opcode));
+	}
+
+	hb_qspi_set_wire(hbqspi, op->addr.buswidth);
+
+	ret += hb_qspi_wr_byte(hbqspi,
+					non_data_buf + sizeof(op->cmd.opcode), non_data_size);
 
 	if(ret) {
 		ret = -1;
@@ -688,8 +694,8 @@ static bool hb_supports_op(struct spi_slave *slave,
 {
 	struct hb_qspi_platdata *slave_plat = dev_get_parent_platdata(slave->dev);
 	if (op->cmd.buswidth > 1
-		|| op->addr.buswidth > 1
-		|| op->dummy.buswidth > 1
+		|| op->addr.buswidth > slave_plat->bus_width
+		|| op->dummy.buswidth > slave_plat->bus_width
 		|| op->data.buswidth > slave_plat->bus_width)
 		return false;
 

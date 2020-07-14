@@ -2125,6 +2125,12 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_1_4],
 					  0, 8, SPINOR_OP_READ_1_1_4,
 					  SNOR_PROTO_1_1_4);
+		if (info->flags & SPI_NOR_QUADIO) {
+			params->hwcaps.mask |= SNOR_HWCAPS_READ_1_4_4;
+			spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_4_4],
+					  0, 6, SPINOR_OP_READ_1_4_4,
+					  SNOR_PROTO_1_4_4);
+		}
 	}
 
 	/* Page Program settings. */
@@ -2136,6 +2142,12 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		params->hwcaps.mask |= SNOR_HWCAPS_PP_1_1_4;
 		spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_1_1_4],
 					SPINOR_OP_PP_1_1_4, SNOR_PROTO_1_1_4);
+		if (info->flags & SPI_NOR_QUADIO) {
+			params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
+			spi_nor_set_read_settings(&params->reads[SNOR_CMD_PP_1_4_4],
+					  0, 6, SPINOR_OP_PP_1_4_4,
+					  SNOR_PROTO_1_4_4);
+		}
 	}
 
 	/* Select the procedure to set the Quad Enable bit. */
