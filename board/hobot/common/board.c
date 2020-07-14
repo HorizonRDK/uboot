@@ -1105,7 +1105,7 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	/*[0] - bl_size; [1] - boot_size; [2] - rootfs_size; [3] - userdata_size*/
 	int64_t part_sizes[MAX_MTD_PART_NUM] = { 0 };
 	char part_name[MAX_MTD_PART_NAME][MAX_MTD_PART_NUM] = { "" };
-	char *s1 = NULL, *s2 = NULL, *target_part = NULL, *flash_type = NULL;
+	char *s1 = NULL, *s2 = NULL, *target_part = "", *flash_type = NULL;
 	if (argc < 4) {
 		printf("flash_type image_addr and img_size must be given, abort\n");
 		return CMD_RET_USAGE;
@@ -1147,7 +1147,7 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 		strncpy(part_name[total_part], part->name, strlen(part->name));
 		total_part++;
 	}
-	if (total_part == 0) {
+	if (total_part == 0 && (strcmp(target_part, "all") && argc == 5)) {
 		printf("No MTD Partition found, abort!\n");
 		return CMD_RET_FAILURE;
 	}
