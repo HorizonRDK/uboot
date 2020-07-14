@@ -34,6 +34,7 @@
 #include <hb_info.h>
 
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
+static void bootinfo_update_uboot(unsigned int uboot_size);
 
 static int curr_device = 0;
 extern struct spi_flash *flash;
@@ -265,6 +266,10 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 	unsigned int part_size;
 	void *realaddr;
 
+	/* align 512byte */
+	if (bytes % 512)
+	memset(addr + bytes, 0, 512 - (bytes % 512));
+
 	if (strcmp(name, "gpt-main") == 0) {
 		printf("in gpt-main\n");
 		if (bytes != 34*512) {
@@ -302,6 +307,8 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 		if (strcmp(name, "sbl") == 0) {
 			realaddr = (void *)simple_strtoul(addr, NULL, 16);
 			bootinfo_update_spl(realaddr, bytes);
+		} else if (strcmp(name, "uboot") == 0) {
+			bootinfo_update_uboot(bytes);
 		}
 	}
 
@@ -658,14 +665,14 @@ static void bootinfo_cs_all(struct hb_info_hdr * pinfo)
 	unsigned int csum;
 
 	pinfo->info_csum = 0;
-	csum = hb_do_cksum((unsigned char *)pinfo, sizeof(*pinfo));
+	csum = hb_do_cksum((unsigned char *)pinfo, BOOT_INFO_CHECK_SIZE);
 	pinfo->info_csum = csum;
 	debug("info_csum: 0x%x\n", csum);
 }
 static void bootinfo_update_spl(char * addr, unsigned int spl_size)
 {
 	struct hb_info_hdr *pinfo;
-	unsigned int max_size = 0x6e00; /* CONFIG_SPL_MAX_SIZE in spl */
+	unsigned int max_size = 0x40000; /* CONFIG_SPL_MAX_SIZE in spl */
 
 	debug("spl_size:%u, 0x%x\n", spl_size, spl_size);
 	pinfo = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
@@ -674,7 +681,24 @@ static void bootinfo_update_spl(char * addr, unsigned int spl_size)
 	else
 		pinfo->boot_size = spl_size;
 
-	bootinfo_cs_spl(addr, spl_size, pinfo);
+	bootinfo_cs_spl(addr, pinfo->boot_size, pinfo);
 	bootinfo_cs_all(pinfo);
 	write_bootinfo();
 }
+
+static void bootinfo_update_uboot(unsigned int uboot_size)
+{
+	struct hb_info_hdr *pinfo;
+	unsigned int max_size = 0x200000; /* CONFIG_SPL_MAX_SIZE in spl */
+
+	debug("spl_size:%u, 0x%x\n", uboot_size, uboot_size);
+	pinfo = (struct hb_info_hdr *) HB_BOOTINFO_ADDR;
+	if (uboot_size >= max_size)
+		pinfo->other_img[0].img_size = max_size;
+	else
+		pinfo->other_img[0].img_size = uboot_size;
+
+	bootinfo_cs_all(pinfo);
+	write_bootinfo();
+}
+

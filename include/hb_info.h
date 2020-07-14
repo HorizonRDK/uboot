@@ -153,6 +153,8 @@ struct hb_image_hdr {
 	unsigned int img_csum;
 };
 
+#define BOOT_INFO_CHECK_SIZE 276
+
 /* hb_info_hdr: 512 Info defined */
 /* total length of should be less than 512 Bytes */
 struct hb_info_hdr {
