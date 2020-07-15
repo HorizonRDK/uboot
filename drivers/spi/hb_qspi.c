@@ -26,15 +26,15 @@ DECLARE_GLOBAL_DATA_PTR;
  * struct hb_qspi_platdata - platform data for Hobot QSPI
  *
  * @regs: Point to the base address of QSPI registers
- * @freq: QSPI input clk frequency
- * @speed_hz: Default BUS sck frequency
+ * @hclk: QSPI input hclk frequency
+ * @sclk: Target BUS sclk frequency
  * @xfer_mode: 0-Byte 1-batch 2-dma, Default work in byte mode
  * @num_cs: The maximum number of cs
  */
 static struct hb_qspi_platdata {
 	void __iomem *regs_base;
-	u32 freq;
-	u32 speed_hz;
+	u32 hclk;
+	u32 sclk;
 	u32 xfer_mode;
 	u32 num_cs;
 	u32 bus_width;
@@ -43,6 +43,8 @@ static struct hb_qspi_platdata {
 static struct hb_qspi_priv {
 	void __iomem *regs_base;
 } *hbqspi;
+
+bool speed_set = false;
 
 #define hb_qspi_rd_reg(dev, reg)	   readl((dev)->regs_base + (reg))
 #define hb_qspi_wr_reg(dev, reg, val)  writel((val), (dev)->regs_base + (reg))
@@ -88,9 +90,11 @@ static inline int hb_qspi_set_speed(struct udevice *bus, uint speed)
 {
 	int confr, prescaler, divisor;
 	unsigned int max_br, min_br, br_div;
+	if (speed_set)
+		return 0;
 
-	max_br = plat->freq / 2;
-	min_br = plat->freq / 1048576;
+	max_br = plat->hclk / 2;
+	min_br = plat->hclk / 1048576;
 	if (speed > max_br) {
 		debug("Warning:speed[%d] > max_br[%d],speed will be set to default br: %d\n",
 				speed, max_br, HB_QSPI_DEF_BR);
@@ -105,10 +109,11 @@ static inline int hb_qspi_set_speed(struct udevice *bus, uint speed)
 	for (prescaler = 15; prescaler >= 0; prescaler--) {
 		for (divisor = 15; divisor >= 0; divisor--) {
 			br_div = (prescaler + 1) * (2 << divisor);
-			if ((plat->freq / br_div) >= speed) {
+			if ((plat->hclk / br_div) >= speed) {
 				confr = (prescaler | (divisor << 4)) & 0xFF;
 
 				hb_qspi_wr_reg(hbqspi, HB_QSPI_BDR_REG, confr);
+				speed_set = true;
 				return 0;
 			}
 		}
@@ -716,7 +721,7 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 	u32 tmp_bus_width;
 
 	plat->regs_base = (u32 *)fdtdec_get_addr(blob, node, "reg");
-	plat->speed_hz = fdtdec_get_uint(blob, node,
+	plat->sclk = fdtdec_get_uint(blob, node,
 									"spi-max-frequency", HB_QSPI_DEF_BR);
 	/* obtain bus width from dts */
 	plat->bus_width = fdtdec_get_uint(blob, node, "spi-tx-bus-width", 1);
@@ -726,11 +731,11 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 
 	ret = clk_get_by_index(bus, 0, &hbqspi_clk);
 	if (!(ret < 0)) {
-		plat->freq = clk_get_rate(&hbqspi_clk);
+		plat->hclk = clk_get_rate(&hbqspi_clk);
 	}
-	if ((ret < 0) || (plat->freq <= 0)) {
+	if ((ret < 0) || (plat->hclk <= 0)) {
 		printf("Failed to get clk!\n");
-		plat->freq = fdtdec_get_int(blob, node,
+		plat->hclk = fdtdec_get_int(blob, node,
 									"spi-max-frequency", HB_QSPI_DEF_BR);
 	}
 	// TODO: Chip Select Define
