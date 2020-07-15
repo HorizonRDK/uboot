@@ -393,7 +393,7 @@ static int eqos_mdio_read(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 
     ret = eqos_mdio_wait_idle(eqos);
     if (ret) {
-        pr_err("MDIO not idle at entry");
+        pr_err("MDIO not idle at entry\n");
         return ret;
     }
 
@@ -413,7 +413,7 @@ static int eqos_mdio_read(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 
     ret = eqos_mdio_wait_idle(eqos);
     if (ret) {
-        pr_err("MDIO read didn't complete");
+        pr_err("MDIO read didn't complete\n");
         return ret;
     }
 
@@ -437,7 +437,7 @@ static int eqos_mdio_write(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 
     ret = eqos_mdio_wait_idle(eqos);
     if (ret) {
-        pr_err("MDIO not idle at entry");
+        pr_err("MDIO not idle at entry\n");
         return ret;
     }
 
@@ -459,7 +459,7 @@ static int eqos_mdio_write(struct mii_dev *bus, int mdio_addr, int mdio_devad,
 
     ret = eqos_mdio_wait_idle(eqos);
     if (ret) {
-        pr_err("MDIO read didn't complete");
+        pr_err("MDIO read didn't complete\n");
         return ret;
     }
 
@@ -510,7 +510,7 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
 
     ret = reset_assert(&eqos->reset_ctl);
     if (ret < 0) {
-        pr_err("reset_assert() failed: %d", ret);
+        pr_err("reset_assert() failed: %d\n", ret);
         return ret;
     }
 
@@ -518,7 +518,7 @@ static int eqos_start_resets_tegra186(struct udevice *dev)
 
     ret = reset_deassert(&eqos->reset_ctl);
     if (ret < 0) {
-        pr_err("reset_deassert() failed: %d", ret);
+        pr_err("reset_deassert() failed: %d\n", ret);
         return ret;
     }
     debug("%s: OK\n", __func__);
@@ -622,7 +622,7 @@ static int eqos_adjust_link(struct udevice *dev)
     else
         ret = eqos_set_half_duplex(dev);
     if (ret < 0) {
-        pr_err("eqos_set_*_duplex() failed: %d", ret);
+        pr_err("eqos_set_*_duplex() failed: %d\n", ret);
         return ret;
     }
 
@@ -643,17 +643,17 @@ static int eqos_adjust_link(struct udevice *dev)
         ret = eqos_set_mii_speed_10(dev);
         break;
     default:
-        pr_err("invalid speed %d", speed);
+        pr_err("invalid speed %d\n", speed);
         return -EINVAL;
     }
     if (ret < 0) {
-        pr_err("eqos_set_*mii_speed*() failed: %d", ret);
+        pr_err("eqos_set_*mii_speed*() failed: %d\n", ret);
         return ret;
     }
 
     ret = eqos_set_tx_clk_speed_tegra186(dev);
     if (ret < 0) {
-        pr_err("eqos_set_tx_clk_speed_tegra186() failed: %d", ret);
+        pr_err("eqos_set_tx_clk_speed_tegra186() failed: %d\n", ret);
         return ret;
     }
 
@@ -739,13 +739,13 @@ static int eqos_start(struct udevice *dev)
 	writel(val, &eqos->mac_regs->unused_0e0[(0xf8 - 0x0e0) / 4]);
     ret = eqos_start_clks_tegra186(dev);
     if (ret < 0) {
-        pr_err("eqos_start_clks_tegra186() failed: %d", ret);
+        pr_err("eqos_start_clks_tegra186() failed: %d\n", ret);
         goto err;
     }
 
     ret = eqos_start_resets_tegra186(dev);
     if (ret < 0) {
-        pr_err("eqos_start_resets_tegra186() failed: %d", ret);
+        pr_err("eqos_start_resets_tegra186() failed: %d\n", ret);
         goto err_stop_clks;
     }
 
@@ -756,7 +756,7 @@ static int eqos_start(struct udevice *dev)
     ret = wait_for_bit_le32(&eqos->dma_regs->mode,
                        EQOS_DMA_MODE_SWR, false, 10, false);
     if (ret) {
-        pr_err("EQOS_DMA_MODE_SWR stuck");
+        pr_err("EQOS_DMA_MODE_SWR stuck\n");
         goto err_stop_resets;
     }
 #endif
@@ -804,17 +804,17 @@ static int eqos_start(struct udevice *dev)
 
 			ret = phy_config(eqos->phy);
 			if (ret < 0) {
-				pr_err("phy_config() failed: %d", ret);
+				pr_err("phy_config() failed: %d\n", ret);
 				goto err_shutdown_phy;
 			}
 			ret = phy_startup(eqos->phy);
 			if (ret < 0) {
-				pr_err("phy_startup() failed: %d", ret);
+				pr_err("phy_startup() failed: %d\n", ret);
 				goto err_shutdown_phy;
 			}
 
 			if (!eqos->phy->link) {
-				pr_err("No link");
+				pr_err("No link\n");
 				goto err_shutdown_phy;
 			}
 		}
@@ -822,7 +822,7 @@ static int eqos_start(struct udevice *dev)
 
     ret = eqos_adjust_link(dev);
     if (ret < 0) {
-        pr_err("eqos_adjust_link() failed: %d", ret);
+        pr_err("eqos_adjust_link() failed: %d\n", ret);
         goto err_shutdown_phy;
     }
 
@@ -1047,7 +1047,7 @@ err_stop_resets:
 err_stop_clks:
     eqos_stop_clks_tegra186(dev);
 err:
-    pr_err("FAILED: %d", ret);
+    pr_err("FAILED: %d\n", ret);
     return ret;
 }
 
@@ -1366,7 +1366,7 @@ static int eqos_probe(struct udevice *dev)
 
     eqos->regs = devfdt_get_addr(dev);
     if (eqos->regs == FDT_ADDR_T_NONE) {
-        pr_err("dev_get_addr() failed");
+        pr_err("dev_get_addr() failed\n");
         return -ENODEV;
     }
     eqos->mac_regs = (void *)(eqos->regs + EQOS_MAC_REGS_BASE);
@@ -1375,41 +1375,41 @@ static int eqos_probe(struct udevice *dev)
 
 	ret = clk_get_by_name(dev, "mac_pre_div_clk", &eqos->clk_master_bus);
 	if (ret) {
-		pr_err("clk_get_by_name(%s) failed", "mac_pre_div_clk");
+		pr_err("clk_get_by_name(%s) failed\n", "mac_pre_div_clk");
 		return -ENODEV;
 	}
 	ret = clk_get_by_name(dev, "mac_div_clk", &eqos->clk_tx);
 	if (ret) {
-		pr_err("clk_get_by_name(%s) failed", "mac_div_clk");
+		pr_err("clk_get_by_name(%s) failed\n", "mac_div_clk");
 		return -ENODEV;
 	}
 	ret = clk_get_by_name(dev, "phy_ref_clk", &eqos->clk_ptp_ref);
 	if (ret) {
-		pr_err("clk_get_by_name(%s) failed", "phy_ref_clk");
+		pr_err("clk_get_by_name(%s) failed\n", "phy_ref_clk");
 		return -ENODEV;
 	}
 #if 1
 	clk_set_rate(&eqos->clk_master_bus, 125 * 1000000UL);
 	mclk = clk_get_rate(&eqos->clk_master_bus);
 	if (mclk != 125 * 1000000UL)
-		pr_warn("warnning: mac_pre_div_clk = %lu", mclk);
+		pr_warn("warnning: mac_pre_div_clk = %lu\n", mclk);
 #endif
 
     ret = eqos_probe_resources_core(dev);
     if (ret < 0) {
-        pr_err("eqos_probe_resources_core() failed: %d", ret);
+        pr_err("eqos_probe_resources_core() failed: %d\n", ret);
         return ret;
     }
 
     ret = eqos_probe_resources_tegra186(dev);
     if (ret < 0) {
-        pr_err("eqos_probe_resources_tegra186() failed: %d", ret);
+        pr_err("eqos_probe_resources_tegra186() failed: %d\n", ret);
         goto err_remove_resources_core;
     }
 
     eqos->mii = mdio_alloc();
     if (!eqos->mii) {
-        pr_err("mdio_alloc() failed");
+        pr_err("mdio_alloc() failed\n");
         goto err_remove_resources_tegra;
     }
     eqos->mii->read = eqos_mdio_read;
@@ -1419,7 +1419,7 @@ static int eqos_probe(struct udevice *dev)
 
     ret = mdio_register(eqos->mii);
     if (ret < 0) {
-        pr_err("mdio_register() failed: %d", ret);
+        pr_err("mdio_register() failed: %d\n", ret);
         goto err_free_mdio;
     }
 
