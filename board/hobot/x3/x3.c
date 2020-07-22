@@ -122,6 +122,7 @@ int hb_fastboot_key_pressed(void) {
 void hb_set_serial_number(void)
 {
 	char serial_number[32] = {0, };
+	char *env_serial = env_get("serial#");;
 	struct mmc *mmc = find_mmc_device(0);
 
 	if(!mmc)
@@ -129,6 +130,11 @@ void hb_set_serial_number(void)
 
 	snprintf(serial_number, 32, "0x%04x%04x", mmc->cid[2] & 0xffff,
 				(mmc->cid[3] >> 16) & 0xffff);
+	if (env_serial) {
+		if(!strcmp(serial_number, env_serial))
+			return;
+		run_command("env delete -f serial#", 0);
+	}
 
 	env_set("serial#", serial_number);
 }
