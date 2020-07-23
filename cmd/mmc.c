@@ -302,11 +302,15 @@ static int do_mmc_read(cmd_tbl_t *cmdtp, int flag,
 	if (!mmc)
 		return CMD_RET_FAILURE;
 
+#if !(UBOOT_LOG_OPTIMIZE)
 	printf("\nMMC read: dev # %d, block # %d, count %d ... ",
 	       curr_device, blk, cnt);
-
+#endif
 	n = blk_dread(mmc_get_blk_desc(mmc), blk, cnt, addr);
+
+#if !(UBOOT_LOG_OPTIMIZE)
 	printf("%d blocks read: %s\n", n, (n == cnt) ? "OK" : "ERROR");
+#endif
 
 	return (n == cnt) ? CMD_RET_SUCCESS : CMD_RET_FAILURE;
 }

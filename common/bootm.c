@@ -313,10 +313,12 @@ static void print_decomp_msg(int comp_type, int type, bool is_xip)
 {
 	const char *name = genimg_get_type_name(type);
 
+#if !(UBOOT_LOG_OPTIMIZE)
 	if (comp_type == IH_COMP_NONE)
 		printf("   %s %s ... ", is_xip ? "XIP" : "Loading", name);
 	else
 		printf("   Uncompressing %s ... ", name);
+#endif
 }
 
 /**
@@ -436,7 +438,9 @@ int bootm_decomp_image(int comp, ulong load, ulong image_start, int type,
 		return handle_decomp_error(comp, image_len, unc_len, ret);
 	*load_end = load + image_len;
 
+#if !(UBOOT_LOG_OPTIMIZE)
 	puts("OK\n");
+#endif
 
 	return 0;
 }
@@ -473,7 +477,9 @@ static int bootm_load_os(bootm_headers_t *images, int boot_progress)
 
 	flush_cache(flush_start, ALIGN(flush_len, ARCH_DMA_MINALIGN));
 
+#if !(UBOOT_LOG_OPTIMIZE)
 	printf("   kernel loaded to 0x%08lx, end = 0x%08lx\n", load, load_end);
+#endif
 	bootstage_mark(BOOTSTAGE_ID_KERNEL_LOADED);
 
 	no_overlap = (os.comp == IH_COMP_NONE && load == image_start);
@@ -897,7 +903,9 @@ static const void *boot_get_kernel(cmd_tbl_t *cmdtp, int flag, int argc,
 #endif
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 	case IMAGE_FORMAT_ANDROID:
+#if !(UBOOT_LOG_OPTIMIZE)
 		printf("## Booting Android Image at 0x%08lx ...\n", img_addr);
+#endif
 		if (android_image_get_kernel(buf, images->verify,
 					     os_data, os_len))
 			return NULL;

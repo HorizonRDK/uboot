@@ -244,16 +244,20 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 	} else {
 		debug("## device tree at %p ... %p (len=%ld [0x%lX])\n",
 		      fdt_blob, fdt_blob + *of_size - 1, of_len, of_len);
-
+#if !(UBOOT_LOG_OPTIMIZE)
 		printf("   Loading Device Tree to %p, end %p ... ",
 		       of_start, of_start + of_len - 1);
+#endif
 
 		err = fdt_open_into(fdt_blob, of_start, of_len);
 		if (err != 0) {
 			fdt_error("fdt move failed");
 			goto error;
 		}
+
+#if !(UBOOT_LOG_OPTIMIZE)
 		puts("OK\n");
+#endif
 
 		hb_dts_node_modify();
 	}

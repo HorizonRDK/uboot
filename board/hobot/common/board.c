@@ -178,7 +178,7 @@ static int  disable_cnn(void)
 	writel(0x3, HB_SYSC_CNNSYS_SW_RSTEN);
 	udelay(5);
 
-	printf("Disable cnn cores ..\n");
+	DEBUG_LOG("Disable cnn cores ..\n");
 	return 0;
 }
 #endif
@@ -497,7 +497,7 @@ uint32_t hb_board_type_get(void)
 	x3_som_type = som_id;
 
 	board_type = (base_board_id & 0x7) | ((som_id & 0x7) << 8);
-	printf("board_type = %02x\n", board_type);
+	DEBUG_LOG("board_type = %02x\n", board_type);
 
 	return board_type;
 }
@@ -513,7 +513,7 @@ static void hb_mmc_env_init(void)
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
 		if (strcmp(hb_bootreason, "normal") == 0) {
 			/* boot_reason is 'normal', normal boot */
-			printf("uboot: normal boot \n");
+			DEBUG_LOG("uboot: normal boot \n");
 
 			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
 				VEEPROM_COUNT_SIZE);
@@ -668,11 +668,11 @@ static void hb_env_and_boardid_init(void)
 	char boot_reason[64] = { 0 };
 	unsigned int boot_mode = hb_boot_mode_get();
 
-	printf("board_id = %02x\n", x3_board_id);
+	DEBUG_LOG("board_id = %02x\n", x3_board_id);
 #ifdef CONFIG_HB_NAND_BOOT
 	run_command("mtd list", 0);
 	if (ubi_part("boot", NULL)) {
-		printf("system ubi image load failed!\n");
+		DEBUG_LOG("system ubi image load failed!\n");
 	}
 #endif
 	/* init env recovery_sys_enable */
@@ -770,7 +770,7 @@ static int do_change_model_reserved_size(cmd_tbl_t *cmdtp, int flag,
 	char *s = NULL;
 	int ret;
 
-	printf("Orign(MAX) bpu model Reserve Mem Size to 64M!!\n");
+	DEBUG_LOG("Orign(MAX) bpu model Reserve Mem Size to 64M!!\n");
 	if (argc > 1)
 		s = argv[1];
 
@@ -871,7 +871,7 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 
 	if (argc > 1)
 		s = argv[1];
-	printf("Orign(MAX) Ion Reserve Mem Size to 1024M\n");
+	DEBUG_LOG("Orign(MAX) Ion Reserve Mem Size to 1024M\n");
 
 	if (s) {
 		size = (u32)simple_strtoul(s, NULL, 10);
@@ -924,7 +924,7 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 		return 1;
 	}
 
-	printf("Change Ion Reserve Mem Size to %dM\n", size);
+	DEBUG_LOG("Change Ion Reserve Mem Size to %dM\n", size);
 
 	return 0;
 }
@@ -1531,19 +1531,19 @@ static void base_board_gpio_test(void)
 
 	switch (base_board_id) {
 	case BASE_BOARD_X3_DVB:
-		printf("base board type: X3 DVB\n");
+		DEBUG_LOG("base board type: X3 DVB\n");
 		break;
 	case BASE_BOARD_J3_DVB:
-		printf("base board type: J3 DVB\n");
+		DEBUG_LOG("base board type: J3 DVB\n");
 		break;
 	case BASE_BOARD_CVB:
-		printf("base board type: CVB\n");
+		DEBUG_LOG("base board type: CVB\n");
 		break;
 	case BASE_BOARD_CUSTOMER_BOARD:
-		printf("base board type: customer board\n");
+		DEBUG_LOG("base board type: customer board\n");
 		break;
 	default:
-		printf("base board type not support\n");
+		DEBUG_LOG("base board type not support\n");
 		break;
 	}
 
@@ -1555,26 +1555,26 @@ static void boot_src_test(void)
 
 	switch (boot_src) {
 	case PIN_2ND_EMMC:
-		printf("bootmode: EMMC\n");
+		DEBUG_LOG("bootmode: EMMC\n");
 		break;
 	case PIN_2ND_NAND:
-		printf("bootmode: NAND\n");
+		DEBUG_LOG("bootmode: NAND\n");
 		break;
 	case PIN_2ND_AP:
-		printf("bootmode: AP\n");
+		DEBUG_LOG("bootmode: AP\n");
 		break;
 	case PIN_2ND_USB:
 	case PIN_2ND_USB_BURN:
-		printf("bootmode: USB\n");
+		DEBUG_LOG("bootmode: USB\n");
 		break;
 	case PIN_2ND_NOR:
-		printf("bootmode: NOR\n");
+		DEBUG_LOG("bootmode: NOR\n");
 		break;
 	case PIN_2ND_UART:
-		printf("bootmode: UART\n");
+		DEBUG_LOG("bootmode: UART\n");
 		break;
 	default:
-		printf("bootmode not support\n");
+		DEBUG_LOG("bootmode not support\n");
 		break;
 }
 }

@@ -7,6 +7,20 @@
 #ifndef __HB_INFO_H__
 #define __HB_INFO_H__
 
+#define PRINT_UBOOT_LOG  1
+
+#if defined(UBOOT_LOG_OPTIMIZE)
+#undef PRINT_UBOOT_LOG
+#define PRINT_UBOOT_LOG 0
+#endif
+
+#if (PRINT_UBOOT_LOG)
+#define DEBUG_LOG(fmt, ...) \
+    printf(fmt, ##__VA_ARGS__)
+#else
+#define DEBUG_LOG(fmt, ...)
+#endif
+
 #define HB_SWINFO_MEM_ADDR		0x020ff000
 #define HB_SWINFO_MEM_MAGIC		0x57534248
 #define HB_SWINFO_BOOT_OFFSET		0x4

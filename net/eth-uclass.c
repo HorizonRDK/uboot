@@ -12,6 +12,7 @@
 #include <dm/device-internal.h>
 #include <dm/uclass-internal.h>
 #include "eth_internal.h"
+#include <hb_info.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -418,7 +419,7 @@ int eth_initialize(void)
 			if (num_devices)
 				printf(", ");
 
-			printf("eth%d: %s", dev->seq, dev->name);
+			DEBUG_LOG("eth%d: %s", dev->seq, dev->name);
 
 			if (ethprime && dev == prime_dev)
 				printf(" [PRIME]");
@@ -429,7 +430,7 @@ int eth_initialize(void)
 			num_devices++;
 		} while (dev);
 
-		putc('\n');
+		DEBUG_LOG("\n");
 	}
 
 	return num_devices;
@@ -517,7 +518,7 @@ static int eth_post_probe(struct udevice *dev)
 		   !is_valid_ethaddr(pdata->enetaddr)) {
 #ifdef CONFIG_NET_RANDOM_ETHADDR
 		net_random_ethaddr(pdata->enetaddr);
-		printf("\nWarning: %s (eth%d) using random MAC address - %pM\n",
+		DEBUG_LOG("\nWarning: %s (eth%d) using random MAC address - %pM\n",
 		       dev->name, dev->seq, pdata->enetaddr);
 #else
 		printf("\nError: %s address not set.\n",

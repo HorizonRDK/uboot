@@ -142,7 +142,9 @@ static int display_text_info(void)
 
 static int announce_dram_init(void)
 {
+#if !(UBOOT_LOG_OPTIMIZE)
 	puts("DRAM:  ");
+#endif
 	return 0;
 }
 
@@ -167,10 +169,13 @@ static int show_dram_config(void)
 	size = gd->ram_size;
 #endif
 
+#if !(UBOOT_LOG_OPTIMIZE)
 	print_size(size, "");
+#endif
 	board_add_ram_info(0);
+#if !(UBOOT_LOG_OPTIMIZE)
 	putc('\n');
-
+#endif
 	return 0;
 }
 

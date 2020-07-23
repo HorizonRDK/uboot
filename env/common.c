@@ -67,8 +67,10 @@ void set_default_env(const char *s, int flags)
 
 	if (s) {
 		if ((flags & H_INTERACTIVE) == 0) {
+#if !(UBOOT_LOG_OPTIMIZE)
 			printf("*** Warning - %s, "
 				"using default environment\n\n", s);
+#endif
 		} else {
 			puts(s);
 		}

@@ -22,7 +22,9 @@ int __weak show_board_info(void)
 	model = fdt_getprop(gd->fdt_blob, 0, "model", NULL);
 
 	if (model)
+#if !(UBOOT_LOG_OPTIMIZE)
 		printf("Model: %s\n", model);
+#endif
 #endif
 
 	return checkboard();

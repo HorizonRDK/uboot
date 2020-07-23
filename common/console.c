@@ -925,7 +925,9 @@ int console_init_r(void)
 	}
 
 #ifndef CONFIG_SYS_CONSOLE_INFO_QUIET
+#if !(UBOOT_LOG_OPTIMIZE)
 	stdio_print_current_devices();
+#endif
 #endif /* CONFIG_SYS_CONSOLE_INFO_QUIET */
 
 	/* Setting environment variables */

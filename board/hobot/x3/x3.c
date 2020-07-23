@@ -199,7 +199,7 @@ int dram_init(void)
 	if (ddr_ecc)
 		sys_sdram_size = (sys_sdram_size * 7) / 8;
 
-	printf("system DDR size: 0x%llx\n", sys_sdram_size - CONFIG_SYS_SDRAM_BASE);
+	DEBUG_LOG("system DDR size: 0x%llx\n", sys_sdram_size - CONFIG_SYS_SDRAM_BASE);
 
 	gd->ram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
 	x3_mem_map[0].size = get_effective_memsize();

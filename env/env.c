@@ -185,7 +185,9 @@ int env_load(void)
 		if (!env_has_inited(drv->location))
 			continue;
 
+#if !(UBOOT_LOG_OPTIMIZE)
 		printf("Loading Environment from %s... ", drv->name);
+#endif
 		/*
 		 * In error case, the error message must be printed during
 		 * drv->load() in some underlying API, and it must be exactly
@@ -195,7 +197,9 @@ int env_load(void)
 		if (ret) {
 			debug("Failed (%d)\n", ret);
 		} else {
+#if !(UBOOT_LOG_OPTIMIZE)
 			printf("OK\n");
+#endif
 			return 0;
 		}
 	}

@@ -49,6 +49,7 @@
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <efi_loader.h>
+#include <hb_info.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -420,7 +421,7 @@ static int initr_onenand(void)
 #ifdef CONFIG_MMC
 static int initr_mmc(void)
 {
-	puts("MMC:   ");
+	DEBUG_LOG("MMC:   ");
 	mmc_initialize(gd->bd);
 	return 0;
 }
@@ -572,7 +573,7 @@ static int initr_bbmii(void)
 #ifdef CONFIG_CMD_NET
 static int initr_net(void)
 {
-	puts("Net:   ");
+	DEBUG_LOG("Net:   ");
 	eth_initialize();
 #if defined(CONFIG_RESET_PHY_R)
 	debug("Reset Ethernet PHY\n");

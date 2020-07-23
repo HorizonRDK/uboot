@@ -61,9 +61,9 @@ int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 	strncpy(andr_tmp_str, hdr->name, ANDR_BOOT_NAME_SIZE);
 	andr_tmp_str[ANDR_BOOT_NAME_SIZE] = '\0';
 	if (strlen(andr_tmp_str))
-		printf("Android's image name: %s\n", andr_tmp_str);
+		DEBUG_LOG("Android's image name: %s\n", andr_tmp_str);
 
-	printf("Kernel load addr 0x%08x size %u KiB\n",
+	DEBUG_LOG("Kernel load addr 0x%08x size %u KiB\n",
 	       kernel_addr, DIV_ROUND_UP(hdr->kernel_size, 1024));
 
 	int len = 0;
@@ -200,8 +200,7 @@ int android_image_get_second(const struct andr_img_hdr *hdr,
 	/* search file dtb depend on board_id */
 	name = x3_image_get_dtb(board_type,
 		(struct hb_kernel_hdr *)second_addr, second_data, second_len);
-
-	printf("dtb_name = %s\n", name);
+	DEBUG_LOG("dtb_name = %s\n", name);
 
 	return 0;
 }

@@ -2819,7 +2819,9 @@ int mmc_initialize(bd_t *bis)
 		return ret;
 
 #ifndef CONFIG_SPL_BUILD
+#if !(UBOOT_LOG_OPTIMIZE)
 	print_mmc_devices(',');
+#endif
 #endif
 
 	mmc_do_preinit();

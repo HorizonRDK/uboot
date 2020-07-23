@@ -82,6 +82,10 @@ function build()
     config=$UBOOT_DEFCONFIG
     echo "uboot config: $config"
 
+    if [ x"$OPTIMIZE_BOOT_LOG" = x"true" ];then
+        OPTIMIZE_LOG="-DUBOOT_LOG_OPTIMIZE"
+    fi
+
     # real build
     ARCH=$ARCH_KERNEL
     make $config || {
@@ -91,13 +95,21 @@ function build()
 
     choose
 
-    make -j${N} || {
+    make KCFLAGS="$OPTIMIZE_LOG" -j${N} || {
         echo "make failed"
         exit 1
     }
 
     # put binaries to dest directory
-    cpfiles "$uboot_image" "$prefix/"
+    if [ x"$OPTIMIZE_BOOT_LOG" = x"true" ];then
+        cp -rf $uboot_image $prefix/u-boot-optimize.bin
+        if [ ! -f $prefix/$uboot_image ];then
+            cpfiles "$uboot_image" "$prefix/"
+        fi
+    else
+        cpfiles "$uboot_image" "$prefix/"
+    fi
+
     if [ "$pack_img" = "true" ];then
         if [ -d "$prefix/" ];then
             # encrypt and sign uboot image
@@ -157,10 +169,11 @@ function set_uboot_config()
 
 function usage()
 {
-    echo "Usage: build.sh [-o emmc|nor|nand|all ] [-u]"    echo "Options:"
+    echo "Usage: build.sh [-o emmc|nor|nand|all ] [-u] [-p] [-l]"    echo "Options:"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
     echo "  -p  create uboot.img"
+    echo "  -l  gets the minimum boot log image"
     echo "  -h  help info"
     echo "Command:"
     echo "  clean clean all the object files along with the executable"
@@ -168,7 +181,7 @@ function usage()
 
 bootmode=$BOOT_MODE
 pack_img="false"
-while getopts "upo:h:" opt
+while getopts "upo:lh:" opt
 do
     case $opt in
         o)
@@ -184,6 +197,9 @@ do
 
         p)
             pack_img="true"
+            ;;
+        l)
+            OPTIMIZE_BOOT_LOG="true"
             ;;
         h)
             usage

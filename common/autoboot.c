@@ -213,10 +213,12 @@ static int __abortboot(int bootdelay)
 	int abort = 0;
 	unsigned long ts;
 
+#if !(UBOOT_LOG_OPTIMIZE)
 #ifdef CONFIG_MENUPROMPT
 	printf(CONFIG_MENUPROMPT);
 #else
 	printf("Hit any key to stop autoboot: %2d ", bootdelay);
+#endif
 #endif
 
 	/*
@@ -224,7 +226,11 @@ static int __abortboot(int bootdelay)
 	 */
 	if (tstc()) {	/* we got a key press	*/
 		(void) getc();  /* consume input	*/
+#if !(UBOOT_LOG_OPTIMIZE)
 		puts("\b\b\b 0");
+#else
+		printf("Loading kernel...\n");
+#endif
 		abort = 1;	/* don't auto boot	*/
 	}
 
@@ -245,11 +251,17 @@ static int __abortboot(int bootdelay)
 			}
 			udelay(10000);
 		} while (!abort && get_timer(ts) < 1000);
-
+#if !(UBOOT_LOG_OPTIMIZE)
 		printf("\b\b\b%2d ", bootdelay);
+#endif
 	}
 
+
+#if !(UBOOT_LOG_OPTIMIZE)
 	putc('\n');
+#else
+	printf("\nLoading kernel...\n");
+#endif
 
 	return abort;
 }

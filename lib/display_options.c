@@ -42,7 +42,11 @@ int display_options(void)
 	char buf[DISPLAY_OPTIONS_BANNER_LENGTH];
 
 	display_options_get_banner(true, buf, sizeof(buf));
+#if !(UBOOT_LOG_OPTIMIZE)
 	printf("%s", buf);
+#else
+	printf("\n\nUBoot\n");
+#endif
 
 	return 0;
 }
