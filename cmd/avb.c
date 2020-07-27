@@ -418,7 +418,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 		bootargs = env_get("bootargs");
 		if (bootargs) {
 			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
-				" rootfstype=ext4 rw rootwait raid=noautodetect hobotboot.reson=%s",
+				" rootfstype=ext4 ro rootwait raid=noautodetect hobotboot.reson=%s",
 				bootargs, system_id, hb_reset_reason_get());
 		}
 		env_set("bootargs", cmd_boot);
