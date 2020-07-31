@@ -980,6 +980,42 @@ U_BOOT_CMD(
 	"-fdt_enable enable/disable <path>"
 );
 
+static int do_fix_mmc_buswidth(cmd_tbl_t *cmdtp, int flag, int argc,
+						 char * const argv[])
+{
+	int  ret;
+	char *mmc_buswidth = "4";
+	char cmd[128];
+
+	if (argc == 2)
+		mmc_buswidth = argv[1];
+
+	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
+	ret = run_command(cmd, 0);
+	if (ret)
+		return CMD_RET_FAILURE;
+	/*  TODO: add efuse judgement for 8/4 line */
+	snprintf(cmd, sizeof(cmd), "fdt set /soc/dwmmc@A5010000 bus-width <%s>",
+			 (!strcmp(mmc_buswidth, "1") ? "1" :
+			 (!strcmp(mmc_buswidth, "8") ? "8" : "4")));
+	ret = run_command(cmd, 0);
+
+	if (ret != 0) {
+		printf("Set property failed : %d!\n", ret);
+		return CMD_RET_FAILURE;
+	} else {
+		printf("Set mmc buswidth to %s\n", mmc_buswidth);
+	}
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	fix_mmc_buswidth,	2,	0,	do_fix_mmc_buswidth,
+	"fix_mmc_buswidth <mmc_buswidth>",
+	"fix mmc buswidth for older SOMs"
+);
+
 static int do_set_tag_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])
 {

@@ -143,6 +143,10 @@ static void hb_dts_node_modify(void) {
 	snprintf(cmd, sizeof(cmd), "fdt_enable ${change_node}");
 	run_command(cmd, 0);
 
+	/* fix mmc bus-width */
+	snprintf(cmd, sizeof(cmd), "fix_mmc_buswidth ${mmc_buswidth}");
+	run_command(cmd, 0);
+
 	/* modify ion mem size */
 	snprintf(cmd, sizeof(cmd), "ion_modify ${ion_size}");
 	run_command(cmd, 0);
