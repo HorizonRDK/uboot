@@ -126,7 +126,7 @@
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,hb-dw-mshc";
 		status = "disabled";
-		bus-width = <4>;
+		bus-width = <8>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;

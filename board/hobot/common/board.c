@@ -1623,6 +1623,8 @@ int last_stage_init(void)
 	disable_cnn();
 #endif
 #ifdef CONFIG_MMC
+	/* for determining mmc bus-width from environment */
+	run_command("mmc rescan", 0);
 	veeprom_init();
 #endif
 	bif_recover_reset_func();

@@ -1508,8 +1508,11 @@ int mmc_set_clock(struct mmc *mmc, uint clock, bool disable)
 
 static int mmc_set_bus_width(struct mmc *mmc, uint width)
 {
-	mmc->bus_width = width;
-
+	/* TODO: add efuse judgement, default to 4 bits*/
+	char *mmc_buswidth = env_get("mmc_buswidth");
+	mmc_buswidth = (mmc_buswidth == NULL ? "4" : mmc_buswidth);
+	mmc->bus_width = (width == 1 ? 1 :
+					 (!strcmp(mmc_buswidth, "8") ? 8 : 4));
 	return mmc_set_ios(mmc);
 }
 
@@ -1906,6 +1909,11 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 
 	/* Restrict card's capabilities by what the host can do */
 	card_caps &= mmc->host_caps;
+
+	/* TODO: add efuse judgement, default to 4 bits */
+	char *mmc_buswidth = env_get("mmc_buswidth");
+	mmc_buswidth = (mmc_buswidth == NULL ? "4" : mmc_buswidth);
+	card_caps |= (!strcmp(mmc_buswidth, "8") ? MMC_MODE_8BIT : MMC_MODE_4BIT);
 
 	/* Only version 4 of MMC supports wider bus widths */
 	if (mmc->version < MMC_VERSION_4)
