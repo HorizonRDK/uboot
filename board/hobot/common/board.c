@@ -1454,6 +1454,8 @@ static void hb_swinfo_boot(void)
 	if(hb_swinfo_boot_uboot_check()) {
 		env_set("ubootwait", "wait");
 		return;
+	} else {
+		env_set("ubootwait", NULL);
 	}
 #endif
 	if (stored_bootdelay == 0 && s) {
