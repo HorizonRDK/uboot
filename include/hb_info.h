@@ -94,7 +94,8 @@
 #define PIN_FASTBOOT_SEL(x)		(((x) >> 16) & 0x1)
 /* Boot strap Bit14 is the force secure pin */
 #define PIN_SECURE_SEL(x) (((x) >> 14) & 0x1)
-#define DDR_MANUF_SEL(x)  (((x) >> 28) & 0xf)
+#define DDR_AUTO_DETECT(x)  (((x) >> 31) & 0x1)
+#define DDR_MANUF_SEL(x)  (((x) >> 28) & 0x7)
 #define DDR_TYPE_SEL(x) (((x) >> 24) & 0xf)
 #define DDR_FREQ_SEL(x)  (((x) >> 20) & 0xf)
 #define DDR_CAPACITY_SEL(x)  (((x) >> 16) & 0xf)
