@@ -58,6 +58,7 @@ static int stored_dumptype;
 extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
 uint32_t x3_som_type = SOM_TYPE_X3;
+int32_t x3_base_board_type = -1;
 char hb_upmode[32] = "golden";
 char hb_bootreason[32] = "normal";
 char hb_partstatus = 0;
@@ -431,9 +432,27 @@ static void wait_start(void)
 uint32_t hb_base_board_type_get(void)
 {
 	uint32_t reg, base_id;
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
+	if (x3_base_board_type < 0) {
+		base_id = BASE_BOARD_SEL(bootinfo->board_id);
 
-	reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
-	base_id = PIN_BASE_BOARD_SEL(reg) + 1;
+		switch (base_id) {
+		case AUTO_DETECTION:
+			reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
+			base_id = PIN_BASE_BOARD_SEL(reg) + 1;
+			break;
+		case BASE_BOARD_X3_DVB:
+		case BASE_BOARD_J3_DVB:
+		case BASE_BOARD_CVB:
+		case BASE_BOARD_CUSTOMER_BOARD:
+			break;
+		default:
+			break;
+		}
+		x3_base_board_type = base_id;
+	} else {
+		return x3_base_board_type;
+	}
 
 	return base_id;
 }
