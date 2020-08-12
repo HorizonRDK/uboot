@@ -86,7 +86,7 @@ void trace_transfer(const void * buf, u32 len, bool dir)
 }
 #endif
 
-static inline int hb_qspi_set_speed(struct udevice *bus, uint speed)
+static inline int set_speed(uint speed)
 {
 	int confr, prescaler, divisor;
 	unsigned int max_br, min_br, br_div;
@@ -114,12 +114,17 @@ static inline int hb_qspi_set_speed(struct udevice *bus, uint speed)
 
 				hb_qspi_wr_reg(hbqspi, HB_QSPI_BDR_REG, confr);
 				speed_set = true;
+				plat->sclk = plat->hclk / br_div;
 				return 0;
 			}
 		}
 	}
-
 	return 0;
+}
+
+static inline int hb_qspi_set_speed(struct udevice *bus, uint speed)
+{
+	return set_speed(speed);
 }
 
 static inline int hb_qspi_set_mode(struct udevice *bus, uint mode)
@@ -557,6 +562,8 @@ static inline int hb_qspi_xfer(struct udevice *dev, unsigned int bitlen,
 static void hb_qspi_hw_init(struct hb_qspi_priv *hbqspi)
 {
 	uint32_t val;
+	/* set qspi clk div */
+	set_speed(plat->sclk);
 
 	/* disable batch operation and reset fifo */
 	val = hb_qspi_rd_reg(hbqspi, HB_QSPI_CTL3_REG);
