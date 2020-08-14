@@ -69,6 +69,7 @@
 #define	 GPIO_RGMII_TXD2 (PIN_MUX_BASE +0xC8)
 #define GPIO_RGMII_TXD3 (PIN_MUX_BASE +0xCC)
 #define GPIO_RGMII_TX_EN (PIN_MUX_BASE +0xD0)
+#define GPIO1_DIR (X2_GPIO_BASE + 0x18)
 #endif
 /* Core registers */
 
@@ -136,7 +137,7 @@ struct eqos_mac_regs {
 #define EQOS_MAC_MDIO_ADDRESS_PA_SHIFT			21
 #define EQOS_MAC_MDIO_ADDRESS_RDA_SHIFT			16
 #define EQOS_MAC_MDIO_ADDRESS_CR_SHIFT			8
-#define EQOS_MAC_MDIO_ADDRESS_CR_20_35			2
+#define EQOS_MAC_MDIO_ADDRESS_CR_20_35			5
 #define EQOS_MAC_MDIO_ADDRESS_SKAP			BIT(4)
 #define EQOS_MAC_MDIO_ADDRESS_GOC_SHIFT			2
 #define EQOS_MAC_MDIO_ADDRESS_GOC_READ			3
@@ -766,6 +767,12 @@ static int eqos_start(struct udevice *dev)
     writel(val, &eqos->mac_regs->us_tic_counter);
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
+
+    // if baseboard is customer board, set phy addr to 0x0
+    if (hb_base_board_type_get() == BASE_BOARD_CUSTOMER_BOARD) {
+        debug("customer board\n");
+        phy_addr = 0x0;
+    }
 #if defined CONFIG_TARGET_X3 || defined CONFIG_TARGET_X3_FPGA
 
 	phy_mode = fdt_getprop(blob, node, "phy-mode", NULL);
@@ -1334,15 +1341,50 @@ static int eqos_probe(struct udevice *dev)
 		reg_val &= ~(0x03);
 		writel(reg_val, reg_addr);
 	}
-	/* reset phy: GPIO_EPHY_CLK(GPIO2[6]) */
-	reg_val = readl(GPIO_BASE + 0x28);
-	reg_val |= (1<<22);
-	reg_val &= ~(1<<6);
-	writel(reg_val, GPIO_BASE + 0x28);
-	mdelay(10);
-	reg_val |= (1<<6);
-	writel(reg_val, GPIO_BASE + 0x28);
 
+    if (hb_base_board_type_get() == BASE_BOARD_CUSTOMER_BOARD) {
+        // reset
+        reg_val = readl(PIN_MUX_BASE + (1*16 + 8)*4);
+        reg_val |= 0x03;
+        writel(reg_val, PIN_MUX_BASE + (1*16 + 8)*4);
+
+        // intb
+        reg_val = readl(PIN_MUX_BASE + (1*16 + 9)*4);
+        reg_val |= 0x03;
+        writel(reg_val, PIN_MUX_BASE + (1*16 + 9)*4);
+
+        //reg_val = readl(GPIO1_CFG);
+        //reg_val |= 0x00030000;
+        //writel(reg_val, GPIO1_CFG);
+
+        reg_val = readl(GPIO1_DIR);
+        reg_val |= 0x01000000;
+        reg_val &= 0xfdfffeff; // 1.8 output, 1.9 input
+        writel(reg_val, GPIO1_DIR);
+
+        mdelay(100);
+
+        reg_val |= 0x01000100;
+
+        writel(reg_val, GPIO1_DIR);
+        mdelay(200);
+        reg_val = readl(GPIO1_DIR);
+
+        reg_val |= 0x01000000;
+        reg_val &= 0xfffffeff;
+
+        writel(reg_val, GPIO1_DIR);
+        mdelay(500);
+    } else {
+        /* reset phy: GPIO_EPHY_CLK(GPIO2[6]) */
+        reg_val = readl(GPIO_BASE + 0x28);
+        reg_val |= (1<<22);
+        reg_val &= ~(1<<6);
+        writel(reg_val, GPIO_BASE + 0x28);
+        mdelay(10);
+        reg_val |= (1<<6);
+        writel(reg_val, GPIO_BASE + 0x28);
+    }
 
 #if 0
     /*modify pin voltage to 1.8v*/

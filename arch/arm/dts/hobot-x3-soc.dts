@@ -101,7 +101,7 @@
         phyaddr = <0xe>; //for dvb
         #phyaddr = <0x0>; //for cvb
 
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	phy0: ethernet-phy@0 {
 		compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
