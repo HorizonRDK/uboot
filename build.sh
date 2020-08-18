@@ -5,7 +5,9 @@ function choose()
     local tmp="$cur_dir/include/configs/.hb_config.h"
     local target="$cur_dir/include/configs/hb_config.h"
     local conftmp="$cur_dir/.config_tmp"
-
+    local line=`sed -n '/system/p; /system/q' ${GPT_CONFIG}`
+    local arr=(${line//:/ })
+    local fs_type=${arr[2]}
     echo "*********************************************************************"
     echo "boot mode= $bootmode"
     echo "*********************************************************************"
@@ -36,7 +38,11 @@ function choose()
         echo "Unknown BOOT_MODE value: $bootmode"
         exit 1
     fi
-
+    if ! inList "$fs_type" "ext4 squashfs" ;then
+        echo "#define ROOTFS_TYPE \"ext4\"" >> $tmp
+    else
+        echo "#define ROOTFS_TYPE \"$fs_type\"" >> $tmp
+    fi
     echo "#endif /* __HB_CONFIG_H__ */" >> $tmp
 
     mv $tmp $target
