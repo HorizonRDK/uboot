@@ -39,6 +39,7 @@ static void bootinfo_update_uboot(unsigned int uboot_size);
 static int curr_device = 0;
 extern struct spi_flash *flash;
 extern bool recovery_sys_enable;
+extern char net_boot_file_name[1024];
 
 char boot_partition[64] = "boot";
 char system_partition[64] = "system";
@@ -233,6 +234,52 @@ static unsigned int partition_status_flag(char *partition)
 	return flag;
 }
 
+int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
+				char *const argv[])
+{
+	char *partition_name = NULL;
+	char *file_name = NULL;
+	char cmd[256] = { 0 };
+
+	if (argc != 2) {
+		printf("error: dw cmd need parameter ! \n");
+		return CMD_RET_USAGE;
+	}
+
+	if (strcmp(argv[1], "ubootbin") == 0) {
+		partition_name = "uboot";
+		file_name = "u-boot.bin";
+	} else if (strcmp(argv[1], "uboot") == 0) {
+		partition_name = "uboot";
+		file_name = "uboot.img";
+	} else if (strcmp(argv[1], "boot") == 0) {
+		partition_name = "boot";
+		file_name = "boot.img";
+	} else if (strcmp(argv[1], "disk") == 0) {
+		partition_name = "all";
+		file_name = "disk.img";
+	} else {
+		printf("error: parameter %s not support! \n", argv[1]);
+		return CMD_RET_USAGE;
+	}
+
+	/* tftp load image */
+	snprintf(cmd, sizeof(cmd), "tftp 0x21000000 %s", file_name);
+	if (run_command(cmd, 0) != 0) {
+		printf("tftp load %s failed\n", file_name);
+		return CMD_RET_FAILURE;
+	}
+
+	/* write image to partition */
+	snprintf(cmd, sizeof(cmd), "otawrite %s ${fileaddr} ${filesize}",
+		partition_name);
+	if (run_command(cmd, 0) != 0) {
+		return CMD_RET_FAILURE;
+	}
+
+	return 0;
+}
+
 static int ota_nor_update_image(char *partition, char *addr, unsigned int bytes)
 {
 	char command[64];
@@ -328,17 +375,18 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 						char *const argv[])
 {
-	char *partition_name;
-	unsigned int bytes;
+	char *file_name = NULL, *filesize = NULL, *fileaddr = NULL;
+	char *ep = NULL, *ptr = NULL;
+	char partition_name[256] = { 0 };
 	int ret;
-	char *ep;
-	unsigned int boot_mode;
+	unsigned int boot_mode, bytes;
 
-	if ((argc != 4) && (argc != 5)) {
+	if ((argc != 1) && (argc != 4) && (argc != 5)) {
 		printf("error: parameter number %d not support! \n", argc);
 		return CMD_RET_USAGE;
 	}
 
+	/* get bootmode */
 	if (argc == 5) {
 		if (strcmp(argv[4], "emmc") == 0) {
 			boot_mode = PIN_2ND_EMMC;
@@ -353,19 +401,48 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	} else {
 		boot_mode = hb_boot_mode_get();
 	}
-	partition_name = argv[1];
 
-	bytes = simple_strtoul(argv[3], &ep, 16);
-	if (ep == argv[3] || *ep != '\0')
+	/* get partition name, file size and file addr */
+	if (argc == 1) {
+		file_name = net_boot_file_name;
+		printf("file_name: %s\n", net_boot_file_name);
+
+		if (strcmp(file_name, "u-boot.bin") == 0) {
+			snprintf(partition_name, sizeof(partition_name), "uboot");
+		} else if (strcmp(file_name, "disk.img") == 0) {
+			snprintf(partition_name, sizeof(partition_name), "all");
+		} else {
+			ptr = strchr(file_name, '.');
+			if (ptr != NULL) {
+				strncpy(partition_name, file_name, ptr - file_name);
+				printf("partition_name : %s\n", partition_name);
+			} else {
+				printf("error: image name %s not support ! \n",
+					file_name);
+				return CMD_RET_FAILURE;
+			}
+		}
+
+		filesize = env_get("filesize");
+		fileaddr = env_get("fileaddr");
+
+		bytes = simple_strtoul(filesize, &ep, 16);
+	} else {
+		snprintf(partition_name, sizeof(partition_name), "%s", argv[1]);
+
+		fileaddr = argv[2];
+		bytes = simple_strtoul(argv[3], &ep, 16);
+		if (ep == argv[3] || *ep != '\0')
 			return CMD_RET_USAGE;
+	}
 
 	/* update image */
 	if (boot_mode == PIN_2ND_NOR)
-		ret = ota_nor_update_image(partition_name, argv[2], bytes);
+		ret = ota_nor_update_image(partition_name, fileaddr, bytes);
 	else if (boot_mode == PIN_2ND_NAND)
-		ret = ota_nand_update_image(partition_name, argv[2], bytes);
+		ret = ota_nand_update_image(partition_name, fileaddr, bytes);
 	else
-		ret = ota_mmc_update_image(partition_name, argv[2], bytes);
+		ret = ota_mmc_update_image(partition_name, fileaddr, bytes);
 
 	if (ret == 0)
 		printf("ota update image success!\n");

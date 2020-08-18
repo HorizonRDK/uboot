@@ -38,6 +38,31 @@
 #include <fs.h>
 #include <ota.h>
 
+
+int do_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
+						char *const argv[])
+{
+	return ota_download_and_upimage(cmdtp, flag, argc, argv);
+}
+
+U_BOOT_CMD(dw, 2, 0, do_download_and_upimage,
+	   "download and write binary file to gpt partition",
+	   "<target name>\n"
+	   "    - ubootbin: \n"
+	   "           update uboot partition, using image u-boot.bin \n"
+	   "           cmd: tftp 0x21000000 u-boot.bin;otawrite\n"
+	   "    - uboot\n"
+	   "           update uboot partition, using image uboot.img\n"
+	   "           cmd: tftp 0x21000000 uboot.img;otawrite\n"
+	   "    - boot\n"
+	   "           update boot partition, using image boot.img\n"
+	   "           cmd: tftp 0x21000000 boot.img;otawrite\n"
+	   "    - disk\n"
+	   "           update all partitions\n"
+	   "           cmd: tftp 0x21000000 disk.img;otawrite\n"
+	   "          [2020-08]\n"
+);
+
 int do_ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 						char *const argv[])
 {
@@ -45,7 +70,7 @@ int do_ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 }
 
 U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
-	   "write binary file to gpt partiton",
+	   "write binary file to gpt partition",
 	   "<partition name> <ddr addr> <image size> [emmc|nor|nand] \n"
 	   "    - emmc partition name: \n"
 	   "           [all | gpt-main | sbl | ddr | uboot | vbmeta \n"

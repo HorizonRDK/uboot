@@ -35,6 +35,9 @@ unsigned int ota_check_update_success_flag(void);
 
 void ota_upgrade_flag_check(char *up_mode, char *boot_reason);
 
+int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
+				char *const argv[]);
+
 // bool hb_nor_ota_upflag_check(void);
 
 #endif
