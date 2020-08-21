@@ -1008,6 +1008,8 @@ static int do_fix_mmc_buswidth(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	if (argc == 2)
 		mmc_buswidth = argv[1];
+	else if (((api_efuse_read_data(EFS_NS, 28) >> 20) & 0xF) != 1)
+		return 0;
 
 	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
 	ret = run_command(cmd, 0);
