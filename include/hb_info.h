@@ -271,5 +271,6 @@ int hb_check_secure(void);
 uint32_t hb_board_type_get(void);
 uint32_t hb_base_board_type_get(void);
 char *hb_reset_reason_get(void);
+int init_io_vol(void);
 
 #endif /* __HB_INFO_H__ */

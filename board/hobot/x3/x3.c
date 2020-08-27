@@ -298,3 +298,13 @@ ulong board_get_usable_ram_top(ulong total_size)
 	return X3_USABLE_RAM_TOP;
 }
 #endif
+
+int init_io_vol(void)
+{
+	/* work around solution for xj3 bring up ethernet,
+	 * all io to v1.8 except bt1120
+	 */
+	writel(0xF0F, GPIO_BASE + 0x174);
+	writel(0xF, GPIO_BASE + 0x170);
+	return 0;
+}

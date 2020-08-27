@@ -1573,6 +1573,9 @@ int board_early_init_r(void)
 
 int board_early_init_f(void)
 {
+#ifdef CONFIG_TARGET_X3
+	init_io_vol();
+#endif
 	bif_change_reset2gpio();
 	writel(0xFED10000, BIF_SHARE_REG_BASE);
 #ifdef HB_AUTOBOOT
