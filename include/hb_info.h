@@ -85,7 +85,7 @@
 #define BASE_BOARD_X3_DVB		0x1
 #define BASE_BOARD_J3_DVB		0x2
 #define BASE_BOARD_CVB			0x3
-#define BASE_BOARD_CUSTOMER_BOARD	0x4
+#define BASE_BOARD_X3_SDB		0x4
 
 /* Boot strap Bit0 is reserved */
 #define PIN_1STBOOT_SEL(x)		((x) & 0x1)

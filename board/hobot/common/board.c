@@ -444,7 +444,7 @@ uint32_t hb_base_board_type_get(void)
 		case BASE_BOARD_X3_DVB:
 		case BASE_BOARD_J3_DVB:
 		case BASE_BOARD_CVB:
-		case BASE_BOARD_CUSTOMER_BOARD:
+		case BASE_BOARD_X3_SDB:
 			break;
 		default:
 			break;
@@ -1601,8 +1601,8 @@ static void base_board_gpio_test(void)
 	case BASE_BOARD_CVB:
 		DEBUG_LOG("base board type: CVB\n");
 		break;
-	case BASE_BOARD_CUSTOMER_BOARD:
-		DEBUG_LOG("base board type: customer board\n");
+	case BASE_BOARD_X3_SDB:
+		DEBUG_LOG("base board type: X3 SDB\n");
 		break;
 	default:
 		DEBUG_LOG("base board type not support\n");

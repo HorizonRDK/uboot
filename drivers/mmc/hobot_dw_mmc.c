@@ -94,8 +94,8 @@ static void sdio_power(int dev_index)
         case BASE_BOARD_CVB:
                 debug("%s base board type: CVB\n", __func__);
                 break;
-        case BASE_BOARD_CUSTOMER_BOARD:
-                debug("%s base board type: customer board\n", __func__);
+        case BASE_BOARD_X3_SDB:
+                debug("%s base board type: X3 SDB\n", __func__);
                 break;
         default:
                 debug("%s base board type not support\n", __func__);

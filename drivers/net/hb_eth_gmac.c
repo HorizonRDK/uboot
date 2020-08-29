@@ -769,7 +769,7 @@ static int eqos_start(struct udevice *dev)
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
 
     // if baseboard is customer board, set phy addr to 0x0
-    if (hb_base_board_type_get() == BASE_BOARD_CUSTOMER_BOARD) {
+    if (hb_base_board_type_get() == BASE_BOARD_X3_SDB) {
         debug("customer board\n");
         phy_addr = 0x0;
     }
@@ -1342,7 +1342,7 @@ static int eqos_probe(struct udevice *dev)
 		writel(reg_val, reg_addr);
 	}
 
-    if (hb_base_board_type_get() == BASE_BOARD_CUSTOMER_BOARD) {
+    if (hb_base_board_type_get() == BASE_BOARD_X3_SDB) {
         // reset
         reg_val = readl(PIN_MUX_BASE + (1*16 + 8)*4);
         reg_val |= 0x03;
