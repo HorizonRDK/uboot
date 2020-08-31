@@ -771,6 +771,34 @@ static int fdt_pack_reg(const void *fdt, void *buf, u64 address, u64 size)
 	return p - (char *)buf;
 }
 
+static int fdt_get_size(const void *fdt, void *buf, u64 *size)
+{
+	int size_cells = fdt_size_cells(fdt, 0);
+	char *p = buf;
+
+	if (size_cells == 2)
+		*size = fdt64_to_cpu(*(fdt64_t *)p);
+	else
+		*size = fdt32_to_cpu(*(fdt32_t *)p);
+	p += 4 * size_cells;
+
+	return 0;
+}
+
+static int fdt_pack_size(const void *fdt, void *buf, u64 size)
+{
+	int size_cells = fdt_size_cells(fdt, 0);
+	char *p = buf;
+
+	if (size_cells == 2)
+		*(fdt64_t *)p = cpu_to_fdt64(size);
+	else
+		*(fdt32_t *)p = cpu_to_fdt32(size);
+	p += 4 * size_cells;
+
+	return p - (char *)buf;
+}
+
 static int do_change_model_reserved_size(cmd_tbl_t *cmdtp, int flag,
 					 int argc, char * const argv[])
 {
@@ -931,18 +959,31 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 	void *fdt;
 	phys_addr_t fdt_paddr;
 	u64 ion_start, old_size;
-	u32 size;
+	u32 tmp_val, size = 0;
+	u16 ion_type = 1;
 	char *s = NULL;
 	int ret;
 
-	if (argc > 1)
+	if (argc > 1) {
 		s = argv[1];
-	DEBUG_LOG("Orign(MAX) Ion Reserve Mem Size to 1024M\n");
+		DEBUG_LOG("MAX Ion Reserve/CMA Mem Size to 1024M\n");
+		if (s) {
+			tmp_val = (u32)simple_strtoul(s, NULL, 10);
+			if ((tmp_val == 0) || (tmp_val == 1)) {
+				ion_type = tmp_val;
+			} else {
+				size = tmp_val;
+			}
+		} else {
+			return 0;
+		}
+	}
 
-	if (s) {
-		size = (u32)simple_strtoul(s, NULL, 10);
-	} else {
-		return 0;
+	if (argc > 2) {
+		s = argv[2];
+		if (s) {
+			ion_type = (u16)simple_strtoul(s, NULL, 10);
+		}
 	}
 
 	s = env_get("fdt_addr");
@@ -954,54 +995,112 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 		return 0;
 	}
 
+	change_ion_cma_status(fdt, ion_type);
+	DEBUG_LOG("Ion Heap type %s Mem\n",
+			ion_cma_status ? "CMA" : "Reserved");
+
 	if (size == 0 || size > 1024) {
-		change_ion_cma_status(fdt, 1);
 		return 0;
-	} else {
-		change_ion_cma_status(fdt, 0);
 	}
 
 	if (size < 64)
 		size = 64;
 
-	path = "/reserved-memory/ion_reserved";
-	prop = "reg";
+	if (ion_type == 0) {
+		path = "/reserved-memory/ion_reserved";
+		prop = "reg";
 
-	nodeoffset = fdt_path_offset (fdt, path);
-	if (nodeoffset < 0) {
-		/*
-			* Not found or something else bad happened.
-			*/
-		printf ("libfdt fdt_path_offset() returned %s\n",
-			fdt_strerror(nodeoffset));
-		return 1;
+		nodeoffset = fdt_path_offset (fdt, path);
+		if (nodeoffset < 0) {
+			/*
+			 * Not found or something else bad happened.
+			 */
+			printf ("libfdt fdt_path_offset() returned %s\n",
+					fdt_strerror(nodeoffset));
+			return 1;
+		}
+		ptmp = (char *)fdt_getprop(fdt, nodeoffset, prop, &len);
+		if (len > 1024) {
+			printf("prop (%d) doesn't fit in scratchpad!\n",
+					len);
+			return 1;
+		}
+		if (!ptmp)
+			return 0;
+
+		fdt_get_reg(fdt, ptmp, &ion_start, &old_size);
+		DEBUG_LOG("Orign Ion Reserve Mem Size is %dM\n",
+				(int)(old_size / 0x100000));
+
+		len = fdt_pack_reg(fdt, data, ion_start, size * 0x100000);
+
+		ret = fdt_setprop(fdt, nodeoffset, prop, data, len);
+		if (ret < 0) {
+			printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+			return 1;
+		}
+
+		DEBUG_LOG("Change Ion Reserve Mem Size to %dM\n", size);
+	} else {
+		path = "/reserved-memory/ion_cma";
+
+		nodeoffset = fdt_path_offset (fdt, path);
+		if (nodeoffset < 0) {
+			/*
+			 * Not found or something else bad happened.
+			 */
+			printf ("libfdt fdt_path_offset() returned %s\n",
+					fdt_strerror(nodeoffset));
+			return 1;
+		}
+		ptmp = (char *)fdt_getprop(fdt, nodeoffset, "alloc-ranges", &len);
+		if (len > 1024) {
+			printf("prop (%d) doesn't fit in scratchpad!\n",
+					len);
+			return 1;
+		}
+		if (!ptmp)
+			return 0;
+
+		fdt_get_reg(fdt, ptmp, &ion_start, &old_size);
+
+		len = fdt_pack_reg(fdt, data, ion_start, size * 0x100000);
+
+		ret = fdt_setprop(fdt, nodeoffset, "alloc-ranges", data, len);
+		if (ret < 0) {
+			printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+			return 1;
+		}
+
+		ptmp = (char *)fdt_getprop(fdt, nodeoffset, "size", &len);
+		if (len > 1024) {
+			printf("prop (%d) doesn't fit in scratchpad!\n",
+					len);
+			return 1;
+		}
+		if (!ptmp)
+			return 0;
+
+		fdt_get_size(fdt, ptmp, &old_size);
+		DEBUG_LOG("Orign Ion CMA Mem Size is %dM\n",
+				(int)(old_size / 0x100000));
+
+		len = fdt_pack_size(fdt, data, size * 0x100000);
+
+		ret = fdt_setprop(fdt, nodeoffset, "size", data, len);
+		if (ret < 0) {
+			printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+			return 1;
+		}
+
+		DEBUG_LOG("Change Ion CMA Reserve Mem Size to %dM\n", size);
 	}
-	ptmp = (char *)fdt_getprop(fdt, nodeoffset, prop, &len);
-	if (len > 1024) {
-		printf("prop (%d) doesn't fit in scratchpad!\n",
-				len);
-		return 1;
-	}
-	if (!ptmp)
-		return 0;
-
-	fdt_get_reg(fdt, ptmp, &ion_start, &old_size);
-
-	len = fdt_pack_reg(fdt, data, ion_start, size * 0x100000);
-
-	ret = fdt_setprop(fdt, nodeoffset, prop, data, len);
-	if (ret < 0) {
-		printf ("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
-		return 1;
-	}
-
-	DEBUG_LOG("Change Ion Reserve Mem Size to %dM\n", size);
 
 	return 0;
 }
 
 U_BOOT_CMD(
-	ion_modify,	2,	0,	do_change_ion_size,
+	ion_modify,	3,	0,	do_change_ion_size,
 	"Change ION Reserved Mem Size(Mbyte)",
 	"-ion_modify 100"
 );
