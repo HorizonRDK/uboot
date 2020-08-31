@@ -62,6 +62,7 @@ int32_t x3_base_board_type = -1;
 char hb_upmode[32] = "golden";
 char hb_bootreason[32] = "normal";
 char hb_partstatus = 0;
+uint16_t ion_cma_status = 1;
 
 struct hb_uid_hdr hb_unique_id;
 
@@ -873,6 +874,52 @@ U_BOOT_CMD(
 	"-model_modify 100"
 );
 
+static void change_ion_cma_status(void *fdt, uint16_t status)
+{
+	const char *cma_path = "/reserved-memory/ion_cma";
+	const char *reserved_path = "/reserved-memory/ion_reserved";
+	const char *prop = "status";
+	char *cma_status;
+	char *reserved_status;
+	int cma_nodeoffset, reserved_nodeoffset;
+	int ret;
+
+	if (status == ion_cma_status) {
+		return;
+	}
+	if (status > 0) {
+		cma_status = "okay";
+		reserved_status = "disabled";
+	} else {
+		cma_status = "disabled";
+		reserved_status = "okay";
+	}
+
+	cma_nodeoffset = fdt_path_offset(fdt, cma_path);
+	reserved_nodeoffset = fdt_path_offset(fdt, reserved_path);
+	if ((cma_nodeoffset < 0) || (reserved_nodeoffset < 0)) {
+		return;
+	}
+
+	ret = fdt_setprop(fdt, cma_nodeoffset, prop,
+			cma_status, strlen(cma_status));
+	if (ret < 0) {
+		DEBUG_LOG("ion cma set status fdt_setprop(): %s\n",
+				fdt_strerror(ret));
+		return;
+	}
+
+	ret = fdt_setprop(fdt, reserved_nodeoffset, prop,
+			reserved_status, strlen(reserved_status));
+	if (ret < 0) {
+		DEBUG_LOG("ion reserved set status fdt_setprop(): %s\n",
+				fdt_strerror(ret));
+		return;
+	}
+
+	ion_cma_status = status;
+}
+
 static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *path;
@@ -894,11 +941,6 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 
 	if (s) {
 		size = (u32)simple_strtoul(s, NULL, 10);
-		if (size == 0 || size > 1024)
-			return 0;
-
-		if (size < 64)
-			size = 64;
 	} else {
 		return 0;
 	}
@@ -911,6 +953,16 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 		printf("Can't get fdt_addr !!!");
 		return 0;
 	}
+
+	if (size == 0 || size > 1024) {
+		change_ion_cma_status(fdt, 1);
+		return 0;
+	} else {
+		change_ion_cma_status(fdt, 0);
+	}
+
+	if (size < 64)
+		size = 64;
 
 	path = "/reserved-memory/ion_reserved";
 	prop = "reg";
