@@ -1166,7 +1166,7 @@ static int do_fix_mmc_buswidth(cmd_tbl_t *cmdtp, int flag, int argc,
 	ret = run_command(cmd, 0);
 	if (ret)
 		return CMD_RET_FAILURE;
-	/*  TODO: add efuse judgement for 8/4 line */
+
 	snprintf(cmd, sizeof(cmd), "fdt set /soc/dwmmc@A5010000 bus-width <%s>",
 			 (!strcmp(mmc_buswidth, "1") ? "1" :
 			 (!strcmp(mmc_buswidth, "8") ? "8" : "4")));

@@ -19,6 +19,7 @@
 #include <memalign.h>
 #include <linux/list.h>
 #include <div64.h>
+#include <scomp.h>
 #include "mmc_private.h"
 
 static int mmc_set_signal_voltage(struct mmc *mmc, uint signal_voltage);
@@ -1508,11 +1509,8 @@ int mmc_set_clock(struct mmc *mmc, uint clock, bool disable)
 
 static int mmc_set_bus_width(struct mmc *mmc, uint width)
 {
-	/* TODO: add efuse judgement, default to 4 bits*/
-	char *mmc_buswidth = env_get("mmc_buswidth");
-	mmc_buswidth = (mmc_buswidth == NULL ? "4" : mmc_buswidth);
-	mmc->bus_width = (width == 1 ? 1 :
-					 (!strcmp(mmc_buswidth, "8") ? 8 : 4));
+	mmc->bus_width = width;
+
 	return mmc_set_ios(mmc);
 }
 
@@ -1902,6 +1900,20 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 	const struct mode_width_tuning *mwt;
 	const struct ext_csd_bus_width *ecbw;
 
+	if (((api_efuse_read_data(EFS_NS, 28) >> 20) & 0xF) == 1) {
+		mmc->host_caps &= (~MMC_MODE_8BIT);
+		mmc->host_caps |= MMC_MODE_4BIT;
+	}
+	char *mmc_buswidth = env_get("mmc_buswidth");
+	if (mmc_buswidth != NULL) {
+		if (!strcmp(mmc_buswidth, "4")) {
+			mmc->host_caps &= (~MMC_MODE_8BIT);
+			mmc->host_caps |= MMC_MODE_4BIT;
+		} else if (!strcmp(mmc_buswidth, "8")) {
+			mmc->host_caps |= MMC_MODE_8BIT;
+		}
+	}
+
 #ifdef DEBUG
 	mmc_dump_capabilities("mmc", card_caps);
 	mmc_dump_capabilities("host", mmc->host_caps);
@@ -1909,11 +1921,6 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 
 	/* Restrict card's capabilities by what the host can do */
 	card_caps &= mmc->host_caps;
-
-	/* TODO: add efuse judgement, default to 4 bits */
-	char *mmc_buswidth = env_get("mmc_buswidth");
-	mmc_buswidth = (mmc_buswidth == NULL ? "4" : mmc_buswidth);
-	card_caps |= (!strcmp(mmc_buswidth, "8") ? MMC_MODE_8BIT : MMC_MODE_4BIT);
 
 	/* Only version 4 of MMC supports wider bus widths */
 	if (mmc->version < MMC_VERSION_4)
