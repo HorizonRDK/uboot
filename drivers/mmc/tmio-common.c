@@ -616,7 +616,7 @@ static void tmio_sd_set_pins(struct udevice *dev)
 #ifdef CONFIG_PINCTRL
 	switch (mmc->selected_mode) {
 	case MMC_LEGACY:
-	case SD_LEGACY:
+	case MMC_LEGACY:
 	case MMC_HS:
 	case SD_HS:
 	case MMC_HS_52:

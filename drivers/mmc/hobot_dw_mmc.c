@@ -7,6 +7,7 @@
 #include <common.h>
 #include <clk.h>
 #include <dm.h>
+#include <dm/of_access.h>
 #include <dt-structs.h>
 #include <dwmmc.h>
 #include <errno.h>
@@ -20,11 +21,33 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#define SDIO0_EMMC_1ST_DIV_CLOCK_HZ 500000000
-#define SDIO0_EMMC_2ND_DIV_CLOCK_HZ 62500000
+#define HOBOT_SYSCTRL_REG		(0xA1000000)
+#define HOBOT_MMC_CLK_REG(ctrl_id) \
+				(u64)(HOBOT_SYSCTRL_REG + 0x320 + ctrl_id * 0x10)
 
-#define SDIO1_EMMC_1ST_DIV_CLOCK_HZ 400000000
-#define SDIO1_EMMC_2ND_DIV_CLOCK_HZ 22500000
+#define DWMMC_MMC_ID			(0)
+#define DWMMC_SD1_ID			(1)
+#define DWMMC_SD2_ID			(2)
+#define HO
+#define HOBOT_DW_MCI_FREQ_MAX		(200000000)
+
+#define HOBOT_MMC_CLK_DIS		(HOBOT_SYSCTRL_REG + 0x158)
+#define HOBOT_MMC_CLK_EN			(HOBOT_SYSCTRL_REG + 0x154)
+#define HOBOT_SD0_CLK_SHIFT	BIT(15)
+#define HOBOT_SD1_CLK_SHIFT	BIT(16)
+#define HOBOT_SD2_CLK_SHIFT	BIT(25)
+
+#define HOBOT_CLKOFF_STA		(0x258)
+#define HOBOT_SD0_CLKOFF_STA_SHIFT	(1<<1)
+#define HOBOT_SD1_CLKOFF_STA_SHIFT	(1<<2)
+#define HOBOT_SD2_CLKOFF_STA_SHIFT	(1<<3)
+
+/*#define HOBOT_MMC_DEGREE_MASK			(0xF)*/
+#define HOBOT_MMC_SAMPLE_DEGREE_SHIFT	(12)
+#define HOBOT_MMC_DRV_DEGREE_SHIFT	(8)
+#define SDCARD_RD_THRESHOLD		(512)
+#define NUM_PHASES			(16)
+#define TUNING_ITERATION_TO_PHASE(i)	(i)
 
 struct hobot_mmc_plat {
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
@@ -35,12 +58,13 @@ struct hobot_mmc_plat {
 };
 
 struct hobot_dwmmc_priv {
-	struct clk div1_clk;
-	struct clk div2_clk;
 	struct clk clk;
 	struct dwmci_host host;
+	int ctrl_id;
 	int fifo_depth;
 	bool fifo_mode;
+	unsigned int current_sample_phase;
+	unsigned int default_sample_phase;
 	u32 minmax[2];
 };
 
@@ -177,15 +201,194 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
+	unsigned int reg_val = 0, mmc_shift;
+	int tmp = 0;
 
+	/* decide which ctrl we are configuring */
+	mmc_shift = (priv->ctrl_id == 0 ? HOBOT_SD0_CLK_SHIFT :
+			   (priv->ctrl_id == 1 ? HOBOT_SD1_CLK_SHIFT :
+									 HOBOT_SD2_CLK_SHIFT));
+	/* Disable clk */
+	writel(mmc_shift, HOBOT_MMC_CLK_DIS);
+	udelay(500);
+	/* Configure 1st div to 8 */
+	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	reg_val &= 0xFFFFFF00;
+	reg_val |= 0x70;
+	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	/* Configure 2nd div */
+	tmp = clk_get_rate(&priv->clk) / freq;
+	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	reg_val |= (tmp & 0xF);
+	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	/* Enable clk */
+	writel(mmc_shift, HOBOT_MMC_CLK_EN);
+	udelay(500);
+	clk_set_rate(&priv->clk, freq);
 	freq = clk_get_rate(&priv->clk);
-
 #else
 	freq = 50000000;
 #endif
-
+	pr_debug("%s: actual freq: %u\n", host->name, freq);
 	return freq;
 }
+
+#ifdef MMC_SUPPORTS_TUNING
+static int hb_mmc_set_sample_phase(struct hobot_dwmmc_priv *priv,
+				   int degrees)
+{
+	u32 reg_value;
+
+	priv->current_sample_phase = degrees;
+	reg_value = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	reg_value &= 0xFFFF0FFF;
+	reg_value |= degrees << HOBOT_MMC_SAMPLE_DEGREE_SHIFT;
+	writel(reg_value, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+
+	/* We should delay 1us wait for timing setting finished. */
+	udelay(1);
+	return 0;
+}
+
+static int hb_mmc_set_drv_phase(struct hobot_dwmmc_priv *priv,
+				   int degrees)
+{
+	u32 reg_value;
+
+	reg_value = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	reg_value &= 0xFFFFF0FF;
+	reg_value |= degrees << HOBOT_MMC_DRV_DEGREE_SHIFT;
+	writel(reg_value, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+
+	/* We should delay 1us wait for timing setting finished. */
+	udelay(1);
+	return 0;
+}
+
+static int dw_mci_hb_sample_tuning(struct dwmci_host *host, u32 opcode)
+{
+	struct udevice *dev = host->priv;
+	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
+	struct mmc *mmc = host->mmc;
+	int ret = 0;
+	int i;
+	bool v, prev_v = 0, first_v;
+	struct range_t {
+		int start;
+		int end;	/* inclusive */
+	};
+	struct range_t *ranges;
+	unsigned int range_count = 0;
+	int longest_range_len = -1;
+	int longest_range = -1;
+	int middle_phase;
+
+	ranges = calloc(sizeof(*ranges), NUM_PHASES / 2 + 1);
+	if (!ranges)
+		return -ENOMEM;
+
+	/* Try each phase and extract good ranges */
+	for (i = 0; i < NUM_PHASES;) {
+		hb_mmc_set_sample_phase(priv, TUNING_ITERATION_TO_PHASE(i));
+
+		v = !mmc_send_tuning(mmc, opcode, NULL);
+
+		if (i == 0)
+			first_v = v;
+
+		if ((!prev_v) && v) {
+			range_count++;
+			ranges[range_count - 1].start = i;
+		}
+
+		if (v) {
+			ranges[range_count - 1].end = i;
+			i++;
+		} else if (i == NUM_PHASES - 1) {
+			/* No extra skipping rules if we're at the end */
+			i++;
+		} else {
+			/*
+			 * No need to check too close to an invalid
+			 * one since testing bad phases is slow.  Skip
+			 * 20 degrees.
+			 */
+			i += 1;
+
+			/* Always test the last one */
+			if (i >= NUM_PHASES)
+				i = NUM_PHASES - 1;
+		}
+
+		prev_v = v;
+	}
+
+	if (range_count == 0) {
+		debug("All sample phases bad!");
+		ret = -EIO;
+		goto free;
+	}
+
+	/* wrap around case, merge the end points */
+	if ((range_count > 1) && first_v && v) {
+		ranges[0].start = ranges[range_count - 1].start;
+		range_count--;
+	}
+
+	if (ranges[0].start == 0 && ranges[0].end == NUM_PHASES - 1) {
+		hb_mmc_set_sample_phase(priv, priv->default_sample_phase);
+		debug("All sample phases work, using default phase %d.",
+			priv->default_sample_phase);
+		goto free;
+	}
+
+	/* Find the longest range */
+	for (i = 0; i < range_count; i++) {
+		int len = (ranges[i].end - ranges[i].start + 1);
+
+		if (len < 0)
+			len += NUM_PHASES;
+
+		if (longest_range_len < len) {
+			longest_range_len = len;
+			longest_range = i;
+		}
+
+		debug(
+			"Good sample phase range %d-%d (%d len)\n",
+			TUNING_ITERATION_TO_PHASE(ranges[i].start),
+			TUNING_ITERATION_TO_PHASE(ranges[i].end), len);
+	}
+
+	debug(
+		"Best sample phase range %d-%d (%d len)\n",
+		TUNING_ITERATION_TO_PHASE(ranges[longest_range].start),
+		TUNING_ITERATION_TO_PHASE(ranges[longest_range].end),
+		longest_range_len);
+
+	middle_phase = ranges[longest_range].start + longest_range_len / 2;
+	middle_phase %= NUM_PHASES;
+
+	hb_mmc_set_sample_phase(priv, TUNING_ITERATION_TO_PHASE(middle_phase));
+
+free:
+	free(ranges);
+	return ret;
+}
+
+static int dw_mci_hb_execute_tuning(struct dwmci_host *host, u32 opcode)
+{
+	int ret = -EIO;
+	struct udevice *dev = host->priv;
+	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
+
+	ret = dw_mci_hb_sample_tuning(host, opcode);
+
+	/* uboot default drv_phase is 0 */
+	hb_mmc_set_drv_phase(priv, 0);
+	return ret;
+}
+#endif
 
 static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 {
@@ -204,11 +407,15 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	} else {
 		host->dev_index = devnum;
 	}
+	priv->ctrl_id = devnum;
 	debug("%s ret=%d devnum=%d host->dev_index=%d\n",
 		__func__, ret, devnum, host->dev_index);
 	sdio_reset(host->dev_index);
 	sdio_pin_mux_config(host->dev_index);
 	sdio_power(host->dev_index);
+
+	if (fdtdec_get_bool(gd->fdt_blob, dev_of_offset(dev), "mmc-hs200-1_8v"))
+		host->caps = MMC_CAP(MMC_HS_200);
 
 	host->name = dev->name;
 	host->ioaddr = (void *)devfdt_get_addr(dev);
@@ -222,7 +429,9 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	if (priv->fifo_depth < 0)
 		return -EINVAL;
 	priv->fifo_mode = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
-                                     "fifo-mode",0);
+                                     "fifo-mode", 0);
+	host->bus_hz = fdtdec_get_int(gd->fdt_blob, dev_of_offset(dev),
+                                     "clock-frequency", 0);
 	if (fdtdec_get_int_array(gd->fdt_blob, dev_of_offset(dev),
 				 "clock-freq-min-max", priv->minmax, 2))
 		return -EINVAL;
@@ -260,54 +469,12 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 
 #else
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
-
-	ret = clk_get_by_index(dev, 0, &priv->div1_clk);
-	if (ret < 0) {
-		debug("failed to get 1st div clk.\n");
-		return ret;
-	}
-
-	if (host->dev_index == 0) {
-		ret = clk_set_rate(&priv->div1_clk, SDIO0_EMMC_1ST_DIV_CLOCK_HZ);
-		if(ret < 0){
-			debug("failed to set 1st div rate.\n");
-			return ret;
-		}
-	} else {
-		ret = clk_set_rate(&priv->div1_clk, SDIO1_EMMC_1ST_DIV_CLOCK_HZ);
-		if(ret < 0){
-			debug("failed to set 1st div rate.\n");
-			return ret;
-		}
-	}
-
-	ret = clk_get_by_index(dev, 1, &priv->div2_clk);
-	if (ret < 0) {
-		debug("failed to get 2nd div clk.\n");
-		return ret;
-	}
-
-	if (host->dev_index == 0) {
-		ret = clk_set_rate(&priv->div2_clk, SDIO0_EMMC_2ND_DIV_CLOCK_HZ);
-		if(ret < 0){
-			debug("failed to set 2nd div rate.\n");
-			return ret;
-		}
-	} else {
-		ret = clk_set_rate(&priv->div2_clk, SDIO1_EMMC_2ND_DIV_CLOCK_HZ);
-		if(ret < 0){
-			debug("failed to set 2nd div rate.\n");
-			return ret;
-		}
-	}
-
-	ret = clk_get_by_index(dev, 2, &priv->clk);
+	ret = clk_get_by_index(dev, 0, &priv->clk);
 	if (ret < 0) {
 		debug("failed to get gate clk.\n");
 		return ret;
 	}
-
-	clock = clk_get_rate(&priv->clk);
+	clock = hobot_dwmmc_get_mmc_clk(host, host->bus_hz);
 	if(IS_ERR_VALUE(clock)) {
 		debug("failed to get clk rate.\n");
 		return clock;
@@ -323,7 +490,10 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		TX_WMARK(priv->fifo_depth / 2);
 
 	host->fifo_mode = priv->fifo_mode;
-
+#ifdef MMC_SUPPORTS_TUNING
+	host->execute_tuning = dw_mci_hb_execute_tuning;
+#endif
+	priv->default_sample_phase = 0;
 #ifdef CONFIG_PWRSEQ
 	/* Enable power if needed */
 	ret = uclass_get_device_by_phandle(UCLASS_PWRSEQ, dev, "mmc-pwrseq",
@@ -342,11 +512,11 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 
 	ret = dwmci_probe(dev);
 	if (ret)
-		printf("dwmci_probe fail\n");
+		debug("dwmci_probe fail\n");
 
 	ret = mmc_init(host->mmc);
 	if (ret)
-		pr_debug("mmc_init fail\n");
+		debug("mmc_init fail\n");
 
 	mmc_set_rst_n_function(host->mmc, 0x01);
 
