@@ -111,7 +111,7 @@
 /* boot mode select */
 #define CONFIG_DDR_BOOT
 
-#define CONFIG_BOOTARGS "earlycon console=ttyS0 clk_ignore_unused "\
+#define CONFIG_BOOTARGS "earlycon console=ttyS0 "\
 	"kgdboc=ttyS0 "
 /*
  * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
