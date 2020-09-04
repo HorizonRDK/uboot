@@ -260,6 +260,10 @@ static uint64_t sf_write(struct spi_flash *flash, struct sf_part *part,
 	int ret = 0, bytes_written = 0, tmp_len = 0;
 	u8 *tmp_buf;
 	tmp_buf = (u8 *) malloc(sizeof(u8) * len);
+	if (tmp_buf == NULL) {
+		printf("avb sf malloc %u Bytes failed!\n", sizeof(u8) * len);
+		return -1;
+	}
 	if ((start + len) > (part->start + part->size)) {
 		len = part->start + part->size - start;
 		printf("%s: len aligned to nor partition bounds (%ld)\n",
@@ -374,11 +378,8 @@ static uint64_t nand_read_and_flush(struct ubi_volume *part,
 {
 	lbaint_t total_len = len;
 	uint64_t ret = 0;
-	void *tmp_buf;
 
-	tmp_buf = (void *) malloc(len * sizeof(char));
-	memset(tmp_buf, 0, sizeof(tmp_buf));
-	ret = ubi_volume_read(part->name, tmp_buf, 0);
+	ret = ubi_volume_read(part->name, buffer, 0);
 	if (ret) {
 		printf("UBI read %s failed!", part->name);
 		return ret;
@@ -387,7 +388,7 @@ static uint64_t nand_read_and_flush(struct ubi_volume *part,
 		debug("Attempting to read beyond boundary, stop at boundary\n");
 		len = part->used_bytes - start;
 	}
-	memcpy(buffer, tmp_buf + start, len);
+	memmove(buffer, buffer + start, len);
 	return total_len;
 }
 
@@ -398,6 +399,10 @@ static uint64_t nand_write(struct ubi_volume *part, lbaint_t start,
 	void *tmp_buf;
 
 	tmp_buf = (void *) malloc(part->used_bytes * sizeof(char));
+	if (tmp_buf == NULL) {
+		printf("avb nand malloc %u Bytes failed!\n", part->used_bytes * sizeof(char));
+		return -1;
+	}
 	ret = ubi_volume_read(part->name, tmp_buf, 0);
 	if (ret) {
 		printf("UBI Volume %s access failed!\n", part->name);
