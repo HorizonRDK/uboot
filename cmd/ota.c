@@ -74,7 +74,7 @@ U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
 	   "<partition name> <ddr addr> <image size> [emmc|nor|nand] \n"
 	   "    - emmc partition name: \n"
 	   "           [all | gpt-main | sbl | ddr | uboot | vbmeta \n"
-	   "            | kernel | system | app | gpt-backup]\n"
+	   "            | boot | kernel(vbmeta+boot) | system | app | gpt-backup]\n"
 	   "    - nor partition name: \n"
 	   "           [all | uboot | vbmeta | kernel | system | app]\n"
 		"    - nand partition name: \n"
@@ -87,5 +87,5 @@ U_BOOT_CMD(otawrite, 5, 0, do_ota_write,
 	   "    - example:\n"
 	   "          otawrite uboot 0x4000000 0x100000\n"
 	   "    - version: \n"
-	   "          [2020-06]\n"
+	   "          [2020-09]\n"
 );

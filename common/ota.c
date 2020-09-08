@@ -252,9 +252,9 @@ int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
 	} else if (strcmp(argv[1], "uboot") == 0) {
 		partition_name = "uboot";
 		file_name = "uboot.img";
-	} else if (strcmp(argv[1], "boot") == 0) {
-		partition_name = "boot";
-		file_name = "boot.img";
+	} else if (strcmp(argv[1], "kernel") == 0) {
+		partition_name = "kernel";
+		file_name = "kernel.img";
 	} else if (strcmp(argv[1], "disk") == 0) {
 		partition_name = "all";
 		file_name = "disk.img";
@@ -304,7 +304,7 @@ static int ota_nand_update_image(char *partition,
 
 static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 {
-	unsigned int start_lba = 0, end_lba = 0;
+	unsigned int start_lba = 0, end_lba = 0, kernel_end = 0;
 	char command[256] = "mmc write ";
 	char lba_size[64] = { 0 };
 	char *s;
@@ -320,36 +320,63 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 	if (strcmp(name, "gpt-main") == 0) {
 		printf("in gpt-main\n");
 		if (bytes != 34*512) {
-			printf("Error: gpt-main size(%x) is not equal to 0x%x\n", bytes, 34*512);
+			printf("Error: gpt-main size(%x) is not equal to 0x%x\n",
+					bytes, 34*512);
 			return CMD_RET_FAILURE;
 		}
-		sprintf(command, "%s %s 0 %x", command, addr, 34);
+		snprintf(command, sizeof(command), "%s %s 0 %x",
+				 command, addr, 34);
 	} else if (strcmp(name, "gpt-backup") == 0) {
 		printf("in gpt-backup\n");
 		if (bytes != 33*512) {
-			printf("Error: gpt-backup size(%x) is not equal to 0x%x\n", bytes, 33*512);
+			printf("Error: gpt-backup size(%x) is not equal to 0x%x\n",
+					bytes, 33*512);
 			return CMD_RET_FAILURE;
 		}
 		get_patition_lba("userdata", &start_lba, &end_lba);
 		uint32_to_char(end_lba+1, lba_size);
-		sprintf(command, "%s %s %s %x", command, addr, lba_size, 33);
-	} else if (strcmp(name, "all") == 0){
+		snprintf(command, sizeof(command), "%s %s %s %x",
+				 command, addr, lba_size, 33);
+	} else if (strcmp(name, "all") == 0) {
 		printf("in all\n");
 
-		sprintf(command, "%s %s 0 %x", command, addr, sector);
-	} else {
-		get_patition_lba(name, &start_lba, &end_lba);
-		part_size = end_lba - start_lba + 1;
-		if (start_lba == end_lba) {
+		snprintf(command, sizeof(command), "%s %s 0 %x",
+				 command, addr, sector);
+	} else if (strcmp(name, "kernel") == 0) {
+		get_patition_lba("vbmeta", &start_lba, &end_lba);
+		get_patition_lba("boot", &end_lba, &kernel_end);
+		part_size = kernel_end - start_lba + 1;
+		if (start_lba == kernel_end) {
+			printf("Error: partition start_lba: %d, end_lba:%d!\n",
+			       start_lba, kernel_end);
 			return CMD_RET_FAILURE;
 		}
 
 		if (sector > part_size) {
-			printf("Error: image more than partiton size %02x \n", part_size * 512);
+			printf("Error: image more than partiton size %02x \n",
+					part_size * 512);
 			return CMD_RET_FAILURE;
 		}
 
-		sprintf(command, "%s %s %x %x", command, addr, start_lba, sector);
+		snprintf(command, sizeof(command), "%s %s %x %x",
+				 command, addr, start_lba, sector);
+	} else {
+		get_patition_lba(name, &start_lba, &end_lba);
+		part_size = end_lba - start_lba + 1;
+		if (start_lba == end_lba) {
+			printf("Error: partition start_lba: %d, end_lba:%d!\n",
+			       start_lba, end_lba);
+			return CMD_RET_FAILURE;
+		}
+
+		if (sector > part_size) {
+			printf("Error: image more than partiton size %02x \n",
+				    part_size * 512);
+			return CMD_RET_FAILURE;
+		}
+
+		snprintf(command, sizeof(command), "%s %s %x %x",
+				 command, addr, start_lba, sector);
 
 		if (strcmp(name, "sbl") == 0) {
 			realaddr = (void *)simple_strtoul(addr, NULL, 16);
@@ -719,7 +746,7 @@ static void write_bootinfo(void)
 	int ret;
 	char cmd[256] = {0};
 
-	sprintf(cmd, "mmc write 0x%x 0 0x1", HB_BOOTINFO_ADDR);
+	snprintf(cmd, sizeof(cmd), "mmc write 0x%x 0 0x1", HB_BOOTINFO_ADDR);
 	ret = run_command_list(cmd, -1, 0);
 	debug("cmd:%s, ret:%d\n", cmd, ret);
 
@@ -778,4 +805,3 @@ static void bootinfo_update_uboot(unsigned int uboot_size)
 	bootinfo_cs_all(pinfo);
 	write_bootinfo();
 }
-
