@@ -400,7 +400,8 @@ static uint64_t nand_write(struct ubi_volume *part, lbaint_t start,
 
 	tmp_buf = (void *) malloc(part->used_bytes * sizeof(char));
 	if (tmp_buf == NULL) {
-		printf("avb nand malloc %u Bytes failed!\n", part->used_bytes * sizeof(char));
+		printf("avb nand malloc %llu Bytes failed!\n",
+				part->used_bytes * sizeof(char));
 		return -1;
 	}
 	ret = ubi_volume_read(part->name, tmp_buf, 0);

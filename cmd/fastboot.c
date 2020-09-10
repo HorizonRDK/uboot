@@ -97,6 +97,7 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	uintptr_t buf_addr = (uintptr_t)NULL;
 	size_t buf_size = 0;
+	fb_flash_type flash_type = FLASH_TYPE_UNKNOWN;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -119,6 +120,26 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 				buf_size = simple_strtoul(*++argv, NULL, 16);
 				goto NXTARG;
 
+			case 't':
+				if (--argc <= 0)
+					return CMD_RET_USAGE;
+				++argv;
+				if (!strcmp(argv[0], "emmc")) {
+					printf("fastboot user select emmc\n");
+					flash_type = FLASH_TYPE_EMMC;
+				} else if (!strcmp(argv[0], "nand")) {
+					printf("fastboot user select nand\n");
+					flash_type = FLASH_TYPE_NAND;
+				} else if (!strcmp(argv[0], "spinand")) {
+					printf("fastboot user select spinand\n");
+					flash_type = FLASH_TYPE_SPINAND;
+				} else {
+					pr_err("Error: Incorrect flash type, "
+						"please choose emmc, nand or spinand\n");
+					return CMD_RET_USAGE;
+				}
+				goto NXTARG;
+
 			default:
 				return CMD_RET_USAGE;
 			}
@@ -133,7 +154,7 @@ NXTARG:
 		return CMD_RET_USAGE;
 	}
 
-	fastboot_init((void *)buf_addr, buf_size);
+	fastboot_init((void *)buf_addr, buf_size, flash_type);
 
 	if (!strcmp(argv[1], "udp"))
 		return do_fastboot_udp(argc, argv, buf_addr, buf_size);
@@ -148,11 +169,12 @@ NXTARG:
 
 #ifdef CONFIG_SYS_LONGHELP
 static char fastboot_help_text[] =
-	"[-l addr] [-s size] usb <controller> | udp\n"
+	"[-l addr] [-s size] [-t flash_type] usb <controller> | udp\n"
 	"\taddr - address of buffer used during data transfers ("
 	__stringify(CONFIG_FASTBOOT_BUF_ADDR) ")\n"
 	"\tsize - size of buffer used during data transfers ("
-	__stringify(CONFIG_FASTBOOT_BUF_SIZE) ")"
+	__stringify(CONFIG_FASTBOOT_BUF_SIZE) ")\n"
+	"\tflash_type - choose target flash type (emmc/nand/spinand)\n"
 	;
 #endif
 

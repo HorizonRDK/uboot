@@ -46,6 +46,17 @@ enum {
 };
 
 /**
+ * flash type enums
+ */
+typedef enum {
+	FLASH_TYPE_UNKNOWN = -1,
+	FLASH_TYPE_EMMC = 0,
+	FLASH_TYPE_NAND,
+	FLASH_TYPE_SPINAND,
+	FLASH_TYPE_COUNT
+}fb_flash_type;
+
+/**
  * fastboot_response() - Writes a response of the form "$tag$reason".
  *
  * @tag: The first part of the response
@@ -93,6 +104,16 @@ void fastboot_none_resp(char *response);
 int fastboot_set_reboot_flag(void);
 
 /**
+ * fastboot_get_flash_type() - get user selected flash type
+ *
+ * Fastboot could support many flash types, such as mmc, nand and spinand.
+ * This function is used to get user selected flash type.
+ *
+ * Which means fastboot could indicate flash to which kind of flash.
+ */
+int fastboot_get_flash_type(void);
+
+/**
  * fastboot_set_progress_callback() - set progress callback
  *
  * @progress: Pointer to progress callback
@@ -109,8 +130,9 @@ void fastboot_set_progress_callback(void (*progress)(const char *msg));
  *
  * @buf_addr: Pointer to download buffer, or NULL for default
  * @buf_size: Size of download buffer, or zero for default
+ * @flash_type: User selected flash type, eg. mmc/nand/spinand
  */
-void fastboot_init(void *buf_addr, u32 buf_size);
+void fastboot_init(void *buf_addr, u32 buf_size, fb_flash_type flash_type);
 
 /**
  * fastboot_boot() - Execute fastboot boot command

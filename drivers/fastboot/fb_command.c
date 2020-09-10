@@ -312,16 +312,21 @@ void fastboot_upload_complete(char *response)
 static void flash(char *cmd_parameter, char *response)
 {
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
-	fastboot_mmc_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
-				 response);
+	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
+			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
+		fastboot_mmc_flash_write(cmd_parameter, fastboot_buf_addr,
+				image_size, response);
+	}
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
-	fastboot_nand_flash_write(cmd_parameter, fastboot_buf_addr, image_size,
-				  response);
+	if (fastboot_get_flash_type() == FLASH_TYPE_NAND)
+		fastboot_nand_flash_write(cmd_parameter, fastboot_buf_addr,
+				image_size, response);
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_SPINAND)
-	fastboot_spinand_flash_write(cmd_parameter, fastboot_buf_addr,
-			image_size, response);
+	if (fastboot_get_flash_type() == FLASH_TYPE_SPINAND)
+		fastboot_spinand_flash_write(cmd_parameter, fastboot_buf_addr,
+				image_size, response);
 #endif
 }
 
@@ -337,13 +342,19 @@ static void flash(char *cmd_parameter, char *response)
 static void erase(char *cmd_parameter, char *response)
 {
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
-	fastboot_mmc_erase(cmd_parameter, response);
+	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
+			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
+		fastboot_mmc_erase(cmd_parameter, response);
+	}
+
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
-	fastboot_nand_erase(cmd_parameter, response);
+	if (fastboot_get_flash_type() == FLASH_TYPE_NAND)
+		fastboot_nand_erase(cmd_parameter, response);
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_SPINAND)
-	fastboot_spinand_erase(cmd_parameter, response);
+	if (fastboot_get_flash_type() == FLASH_TYPE_SPINAND)
+		fastboot_spinand_erase(cmd_parameter, response);
 #endif
 }
 #endif

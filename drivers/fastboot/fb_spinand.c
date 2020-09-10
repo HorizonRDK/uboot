@@ -87,7 +87,7 @@ static int fb_spinand_lookup(const char *partname,
 
 	ret = find_dev_and_part(partname, &dev, &pnum, part);
 	if (ret) {
-		pr_err("cannot find partition: '%s'", partname);
+		pr_err("cannot find partition: '%s'\n", partname);
 		fastboot_fail("cannot find partition", response);
 		return ret;
 	}
@@ -421,7 +421,7 @@ void fastboot_spinand_flash_write(const char *cmd, void *download_buffer,
 			ret = _fb_spinand_write(mtd, NULL, download_buffer, start_addr,
 					     download_bytes, NULL);
 
-			printf("........ wrote %u bytes to '0x%llx'\n",
+			printf("........ wrote %u bytes to '0x%lx'\n",
 			       download_bytes, start_addr);
 		}
 	}

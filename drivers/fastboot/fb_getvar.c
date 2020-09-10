@@ -145,6 +145,13 @@ static void getvar_partition_type(char *part_name, char *response)
 	struct blk_desc *dev_desc;
 	disk_partition_t part_info;
 
+	if (fastboot_get_flash_type() != FLASH_TYPE_UNKNOWN &&
+			fastboot_get_flash_type() != FLASH_TYPE_EMMC) {
+		fastboot_fail("not emmc flash, couldn't get partition type",
+				response);
+		return;
+	}
+
 	r = fastboot_mmc_get_part_info(part_name, &dev_desc, &part_info,
 				       response);
 	if (r >= 0) {
@@ -160,31 +167,38 @@ static void getvar_partition_type(char *part_name, char *response)
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
 static void getvar_partition_size(char *part_name, char *response)
 {
-	int r;
-	size_t size;
+	int r = -1;
+	size_t size = 0;
 
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
-	struct blk_desc *dev_desc;
-	disk_partition_t part_info;
+	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
+			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
+		struct blk_desc *dev_desc;
+		disk_partition_t part_info;
 
-	r = fastboot_mmc_get_part_info(part_name, &dev_desc, &part_info,
-				       response);
-	if (r >= 0)
-		size = part_info.size;
+		r = fastboot_mmc_get_part_info(part_name, &dev_desc, &part_info,
+					       response);
+		if (r >= 0)
+			size = part_info.size;
+	}
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
-	struct part_info *part_info;
+	if (fastboot_get_flash_type() == FLASH_TYPE_NAND) {
+		struct part_info *part_info;
 
-	r = fastboot_nand_get_part_info(part_name, &part_info, response);
-	if (r >= 0)
-		size = part_info->size;
+		r = fastboot_nand_get_part_info(part_name, &part_info, response);
+		if (r >= 0)
+			size = part_info->size;
+	}
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_SPINAND)
-	struct part_info *part_info;
+	if (fastboot_get_flash_type() == FLASH_TYPE_SPINAND) {
+		struct part_info *part_info;
 
-	r = fastboot_spinand_get_part_info(part_name, &part_info, response);
-	if (r >= 0)
-		size = part_info->size;
+		r = fastboot_spinand_get_part_info(part_name, &part_info, response);
+		if (r >= 0)
+			size = part_info->size;
+	}
 #endif
 	if (r >= 0)
 		fastboot_response("OKAY", response, "0x%016zx", size);

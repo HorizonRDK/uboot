@@ -1698,12 +1698,21 @@ int setup_boot_action(int boot_mode)
 
 	switch (boot_action) {
 	case BOOT_FASTBOOT:
-		printf("%s: enter fastboot!\n", __func__);
-		env_set("preboot", "setenv preboot; fastboot usb 0");
+		/* currently only nand boot to flash nand, others all flash emmc */
+		if (boot_mode == PIN_2ND_NAND) {
+			env_set("preboot", "setenv preboot; fastboot -t spinand usb 0");
+			printf("%s: enter spinand fastboot!\n", __func__);
+		} else {
+			env_set("preboot", "setenv preboot; fastboot -t emmc usb 0");
+			printf("%s: enter emmc fastboot!\n", __func__);
+		}
+
 		break;
 	case BOOT_UMS:
-		printf("%s: enter UMS!\n", __func__);
-		env_set("preboot", "setenv preboot; ums mmc 0");
+		printf("%s: enter emmc UMS!\n", __func__);
+
+		/* ums currently only support emmc */
+		env_set("preboot", "setenv preboot; ums 0 mmc 0");
 		break;
 	}
 
@@ -1795,7 +1804,8 @@ static void boot_src_test(void)
 int last_stage_init(void)
 {
 	int boot_mode = hb_boot_mode_get();
-    hb_unique_id_get();
+
+	hb_unique_id_get();
 #ifndef CONFIG_FPGA_HOBOT
 	disable_cnn();
 #endif

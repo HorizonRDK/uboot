@@ -70,8 +70,7 @@ config FASTBOOT_FLASH
 	  the downloaded image to a non-volatile storage device. Define
 	  this to enable the "fastboot flash" command.
 
-choice
-	prompt "Flash provider for FASTBOOT"
+menu "Flash provider for FASTBOOT"
 	depends on FASTBOOT_FLASH
 
 config FASTBOOT_FLASH_MMC
@@ -86,7 +85,7 @@ config FASTBOOT_FLASH_SPINAND
 	bool "FASTBOOT on SPI NAND"
 	depends on MTD_SPI_NAND && CMD_MTDPARTS
 
-endchoice
+endmenu
 
 config FASTBOOT_FLASH_MMC_DEV
 	int "Define FASTBOOT MMC FLASH default device"
