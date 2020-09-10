@@ -208,6 +208,42 @@ static int _fb_spinand_erase_offset(struct mtd_info *mtd,
 	return 0;
 }
 
+/* Logic taken from fs/ubifs/recovery.c:is_empty() */
+static bool mtd_oob_write_is_empty(struct mtd_oob_ops *op)
+{
+	int i;
+
+	for (i = 0; i < op->len; i++)
+		if (op->datbuf[i] != 0xff)
+			return false;
+
+	for (i = 0; i < op->ooblen; i++)
+		if (op->oobbuf[i] != 0xff)
+			return false;
+
+	return true;
+}
+
+static int mtd_special_write_oob(struct mtd_info *mtd, u64 off,
+				 struct mtd_oob_ops *io_op,
+				 bool write_empty_pages, bool woob)
+{
+	int ret = 0;
+
+	/*
+	 * By default, do not write an empty page.
+	 * Skip it by simulating a successful write.
+	 */
+	if (!write_empty_pages && mtd_oob_write_is_empty(io_op)) {
+		io_op->retlen = mtd->writesize;
+		io_op->oobretlen = woob ? mtd->oobsize : 0;
+	} else {
+		ret = mtd_write_oob(mtd, off, io_op);
+	}
+
+	return ret;
+}
+
 static int _fb_spinand_write(struct mtd_info *mtd, struct part_info *part,
 			  void *buffer, u32 offset,
 			  size_t length, size_t *written)
@@ -229,6 +265,7 @@ static int _fb_spinand_write(struct mtd_info *mtd, struct part_info *part,
 
 	bool has_pages = mtd->type == MTD_NANDFLASH ||
 			mtd->type == MTD_MLCNANDFLASH;
+	bool write_empty_pages = !has_pages;
 	struct mtd_oob_ops io_op = {};
 
 	printf("begin to erase spinand partition\n");
@@ -266,7 +303,8 @@ static int _fb_spinand_write(struct mtd_info *mtd, struct part_info *part,
 			continue;
 		}
 
-		ret = mtd_write_oob(mtd, off, &io_op);
+		ret = mtd_special_write_oob(mtd, off, &io_op,
+				write_empty_pages, 0);
 		if (ret) {
 			printf("Failure while writing at offset 0x%llx, error(%d)\n",
 					off, ret);
