@@ -233,7 +233,7 @@ void fastboot_nand_flash_write(const char *cmd, void *download_buffer,
  * @cmd: Named device to erase
  * @response: Pointer to fastboot response buffer
  */
-void fastboot_nand_erase(const char *cmd, char *response)
+void fastboot_spinand_erase(const char *cmd, char *response)
 {
 	struct part_info *part;
 	struct mtd_info *mtd = NULL;
