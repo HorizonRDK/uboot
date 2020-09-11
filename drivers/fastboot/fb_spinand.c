@@ -115,14 +115,14 @@ static int _fb_spinand_erase_part(struct mtd_info *mtd, struct part_info *part)
 	len = part->size;
 
 	if (!mtd_is_aligned_with_block_size(mtd, off)) {
-		printf("Offset not aligned with a block (0x%x)\n",
-				mtd->erasesize);
+		printf("%s(%d)Offset(0x%llx) not aligned with a block (0x%x)\n",
+				__func__, __LINE__, off, mtd->erasesize);
 		return -EINVAL;
 	}
 
 	if (!mtd_is_aligned_with_block_size(mtd, len)) {
-		printf("Size not a multiple of a block (0x%x)\n",
-				mtd->erasesize);
+		printf("%s(%d)Size(0x%llx) not a multiple of a block (0x%x)\n",
+				__func__, __LINE__, len, mtd->erasesize);
 		return -EINVAL;
 	}
 
@@ -167,14 +167,14 @@ static int _fb_spinand_erase_offset(struct mtd_info *mtd,
 	len = length;
 
 	if (!mtd_is_aligned_with_block_size(mtd, off)) {
-		printf("Offset not aligned with a block (0x%x)\n",
-				mtd->erasesize);
+		printf("%s(%d) Offset(0x%llx) not aligned with a block (0x%x)\n",
+				__func__, __LINE__, off, mtd->erasesize);
 		return -EINVAL;
 	}
 
 	if (!mtd_is_aligned_with_block_size(mtd, len)) {
-		printf("Size not a multiple of a block (0x%x)\n",
-				mtd->erasesize);
+		printf("%s(%d)Size(0x%llx) not a multiple of a block (0x%x)\n",
+				__func__, __LINE__, len, mtd->erasesize);
 		return -EINVAL;
 	}
 
@@ -251,9 +251,11 @@ static int _fb_spinand_write(struct mtd_info *mtd, struct part_info *part,
 	u64 remaining, off;
 	int ret;
 
+	pr_debug("%s, mtd(%p), part(%p), buffer(%p), offset(%u), length(%ld)\n",
+			__func__, mtd, part, buffer, offset, length);
 	if (!mtd_is_aligned_with_min_io_size(mtd, offset)) {
-		printf("Offset not aligned with a page(0x%x)\n",
-				mtd->writesize);
+		printf("Offset(0x%x) not aligned with a page(0x%x)\n",
+				offset, mtd->writesize);
 		return -EINVAL;
 	}
 
@@ -268,16 +270,6 @@ static int _fb_spinand_write(struct mtd_info *mtd, struct part_info *part,
 	bool write_empty_pages = !has_pages;
 	struct mtd_oob_ops io_op = {};
 
-	printf("begin to erase spinand partition\n");
-	/* nand flash need erase first, then write */
-	if (part)
-		ret = _fb_spinand_erase_part(mtd, part);
-	else
-		ret = _fb_spinand_erase_offset(mtd, offset, length);
-
-	if (ret)
-		return ret;
-
 	/* Below is actually spinand write operation with mtd_write_oob */
 	remaining = length;
 
@@ -291,8 +283,6 @@ static int _fb_spinand_write(struct mtd_info *mtd, struct part_info *part,
 	off = offset;
 	while (mtd_block_isbad(mtd, off))
 		off += mtd->erasesize;
-
-	printf("begin to write data to spinand flash\n");
 
 	/* Loop over the pages to do the actual write */
 	while (remaining) {
@@ -394,9 +384,11 @@ void fastboot_spinand_flash_write(const char *cmd, void *download_buffer,
 			       u32 download_bytes, char *response)
 {
 	struct part_info *part;
-	struct mtd_info *mtd = NULL;
+	static struct part_info *saved_part = NULL;	/* Only erase same part once */
 	long start_addr = -1;
-	int ret;
+	static long saved_addr = -1;			/* Only erase same place once */
+	struct mtd_info *mtd = NULL;
+	int ret = 0;
 
 	ret = fb_spinand_lookup(cmd, &mtd, &part, response);
 	if (ret) {
@@ -404,8 +396,10 @@ void fastboot_spinand_flash_write(const char *cmd, void *download_buffer,
 			return;
 
 		/* fallback on using the 'partition name' as a number */
-		if (strict_strtoul(cmd, 16, (unsigned long *)&start_addr) < 0)
+		if (strict_strtoul(cmd, 16, (unsigned long *)&start_addr) < 0) {
+			printf("cmd(%s) strict_strtoul failed\n", cmd);
 			return;
+		}
 
 		printf("fastboot spinand flash start_addr: 0x%lx\n", start_addr);
 	}
@@ -416,6 +410,37 @@ void fastboot_spinand_flash_write(const char *cmd, void *download_buffer,
 			return;
 	}
 
+	/* nand flash need erase first, then write */
+	if (start_addr == -1 && part) {
+		/* same part only erase once  */
+		if (saved_part != part) {
+			printf("erase part (%s) from 0x%llx to 0x%llx\n",
+					part->name, part->offset, part->size);
+			ret = _fb_spinand_erase_part(mtd, part);
+			saved_part = part;
+
+			if (ret) {
+				pr_err("erase spinand partition failed, ret(%d)\n", ret);
+				fastboot_fail("erase spinand partition failed", response);
+				return;
+			}
+		}
+	} else if (saved_addr != start_addr) {
+		/* same start_addr, only erase once */
+		printf("erase from 0x%lx to %llx\n", start_addr,
+				mtd->size - start_addr);
+		ret = _fb_spinand_erase_offset(mtd, start_addr,
+				mtd->size - start_addr);
+		saved_addr = start_addr;
+
+		if (ret) {
+			pr_err("erase spinand partition failed, ret(%d)\n", ret);
+			fastboot_fail("erase spinand partition failed", response);
+			return;
+		}
+	}
+
+	printf("begin to write data to spinand flash\n");
 	if (is_sparse_image(download_buffer)) {
 		struct fb_spinand_sparse sparse_priv;
 		struct sparse_storage sparse;
@@ -494,7 +519,7 @@ void fastboot_spinand_erase(const char *cmd, char *response)
 
 	ret = _fb_spinand_erase_part(mtd, part);
 	if (ret) {
-		pr_err("failed erasing from device %s", mtd->name);
+		pr_err("failed erasing from device %s\n", mtd->name);
 		fastboot_fail("failed erasing from device", response);
 		return;
 	}

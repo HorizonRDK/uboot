@@ -50,11 +50,11 @@ enum {
  */
 typedef enum {
 	FLASH_TYPE_UNKNOWN = -1,
-	FLASH_TYPE_EMMC = 0,
+	FLASH_TYPE_EMMC,
 	FLASH_TYPE_NAND,
 	FLASH_TYPE_SPINAND,
 	FLASH_TYPE_COUNT
-}fb_flash_type;
+} fb_flash_type;
 
 /**
  * fastboot_response() - Writes a response of the form "$tag$reason".
