@@ -1699,19 +1699,12 @@ int setup_boot_action(int boot_mode)
 	switch (boot_action) {
 	case BOOT_FASTBOOT:
 		/* currently only nand boot to flash nand, others all flash emmc */
-		if (boot_mode == PIN_2ND_NAND) {
-			env_set("preboot", "setenv preboot; fastboot -t spinand usb 0");
-			printf("%s: enter spinand fastboot!\n", __func__);
-		} else {
-			env_set("preboot", "setenv preboot; fastboot -t emmc usb 0");
-			printf("%s: enter emmc fastboot!\n", __func__);
-		}
-
+		printf("%s: enter fastboot!\n", __func__);
+		env_set("preboot", "setenv preboot; fastboot usb 0");
 		break;
 	case BOOT_UMS:
-		printf("%s: enter emmc UMS!\n", __func__);
-
 		/* ums currently only support emmc */
+		printf("%s: enter emmc UMS!\n", __func__);
 		env_set("preboot", "setenv preboot; ums 0 mmc 0");
 		break;
 	}

@@ -14,6 +14,7 @@
 #include <net.h>
 #include <usb.h>
 #include <watchdog.h>
+#include <hb_info.h>
 
 static int do_fastboot_udp(int argc, char *const argv[],
 			   uintptr_t buf_addr, size_t buf_size)
@@ -93,11 +94,57 @@ exit:
 #endif
 }
 
+static fb_flash_type get_boot_flash_type(void)
+{
+	unsigned int boot_mode = hb_boot_mode_get();
+	fb_flash_type flash_type = FLASH_TYPE_UNKNOWN;
+
+	switch (boot_mode) {
+	case PIN_2ND_NAND:
+		/* currently only nand boot to flash nand, others all flash emmc */
+		flash_type = FLASH_TYPE_SPINAND;
+		break;
+	case PIN_2ND_EMMC:
+	default:
+		flash_type = FLASH_TYPE_EMMC;
+		break;
+	}
+
+	return flash_type;
+}
+
+static const char *flash_type_to_string(fb_flash_type flash_type)
+{
+	const char *strings = NULL;
+
+	switch (flash_type) {
+	case FLASH_TYPE_UNKNOWN:
+		strings = "unknwon";
+		break;
+	case FLASH_TYPE_EMMC:
+		strings = "emmc";
+		break;
+	case FLASH_TYPE_NAND:
+		strings = "nand";
+		break;
+	case FLASH_TYPE_SPINAND:
+		strings = "spinand";
+		break;
+	default:
+		strings = "unknwon";
+		break;
+	}
+
+	return strings;
+}
+
 static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 {
 	uintptr_t buf_addr = (uintptr_t)NULL;
 	size_t buf_size = 0;
-	fb_flash_type flash_type = FLASH_TYPE_UNKNOWN;
+	fb_flash_type flash_type;
+
+	flash_type = get_boot_flash_type();	/* use boot flash type as default */
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -153,6 +200,8 @@ NXTARG:
 		pr_err("Error: Incorrect USB controller index\n");
 		return CMD_RET_USAGE;
 	}
+
+	printf("select %s as flash type\n", flash_type_to_string(flash_type));
 
 	fastboot_init((void *)buf_addr, buf_size, flash_type);
 

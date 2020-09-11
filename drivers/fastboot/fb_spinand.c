@@ -150,7 +150,7 @@ static int _fb_spinand_erase_part(struct mtd_info *mtd, struct part_info *part)
 			return ret;
 	}
 
-	printf("........ erased 0x%llx bytes from '%s', offset '%llx'\n",
+	printf("........ erased 0x%llx bytes from '%s', offset '0x%llx'\n",
 		part->size, part->name, part->offset);
 
 	return 0;
@@ -202,7 +202,7 @@ static int _fb_spinand_erase_offset(struct mtd_info *mtd,
 			return ret;
 	}
 
-	printf("........ erased 0x%llx bytes from '%s', offset '%llx'\n",
+	printf("........ erased 0x%llx bytes from '%s', offset '0x%llx'\n",
 		len, mtd->name, off);
 
 	return 0;
