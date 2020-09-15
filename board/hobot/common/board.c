@@ -1109,43 +1109,53 @@ static int do_fdt_enable(cmd_tbl_t *cmdtp, int flag, int argc,
 						 char * const argv[])
 {
 	const char *path;
-	int  ret;
+	int  ret, i;
 	char *status_val = NULL;
 	char cmd[128];
 
 	if (argc == 1)
 		return 0;
-	if (!strncmp(argv[1], "enable", 6)) {
-		status_val = "okay";
-	} else if (!strncmp(argv[1], "disable", 7)) {
-		status_val = "disabled";
-	} else {
-		printf("Please use \"enable\" or \"disable\"\n");
+
+	if (argc < 3 || argc % 2 == 0) {
+		printf("invalid param\n");
 		return CMD_RET_USAGE;
 	}
 
+	memset(cmd, 0, sizeof(cmd));
 	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
 	ret = run_command(cmd, 0);
-	if (ret)
-		return CMD_RET_FAILURE;
-
-	path = argv[2];
-
-	snprintf(cmd, sizeof(cmd), "fdt set %s status %s", path, status_val);
-	ret = run_command(cmd, 0);
-
 	if (ret != 0) {
-		printf("Set property failed : %d!\n", ret);
+		printf("fdt addr ${fdt_addr}\n", ret);
 		return CMD_RET_FAILURE;
-	} else {
-		printf("Changed status of %s to %s\n", path, status_val);
 	}
+
+	for (int i = 1; i < argc; i += 2) {
+		if (!strncmp(argv[i], "enable", strlen("enable"))) {
+			status_val = "okay";
+		} else if (!strncmp(argv[i], "disable", strlen("disable"))) {
+			status_val = "disabled";
+		} else {
+			printf("Please use \"enable\" or \"disable\"\n");
+			return CMD_RET_USAGE;
+		}
+
+		path = argv[i + 1];
+		memset(cmd, 0, sizeof(cmd));
+		snprintf(cmd, sizeof(cmd), "fdt set %s status %s", path, status_val);
+		ret = run_command(cmd, 0);
+		if (ret != 0) {
+			printf("Set property failed : %d!, path: %s\n", ret, path);
+			return CMD_RET_FAILURE;
+		}
+	}
+
+	DEBUG_LOG("Changed status Done\n");
 
 	return 0;
 }
 
 U_BOOT_CMD(
-	fdt_enable,	3,	0,	do_fdt_enable,
+	fdt_enable,	1 + 8 * 2,	0,	do_fdt_enable,
 	"Enable/disable the node specified at <path>",
 	"-fdt_enable enable/disable <path>"
 );
