@@ -320,6 +320,29 @@ static int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 		/* Some Micron need WREN command; all will accept it */
 		need_wren = true;
 	case SNOR_MFR_MACRONIX:
+	case SNOR_MFR_GIGADEVICE:
+		if (nor->spi) {
+			struct spi_mem_op op =
+				SPI_MEM_OP(SPI_MEM_OP_CMD(enable ?
+							SPINOR_OP_EN4B :
+							SPINOR_OP_EX4B,
+							1),
+					SPI_MEM_OP_NO_ADDR,
+					SPI_MEM_OP_NO_DUMMY,
+					SPI_MEM_OP_NO_DATA);
+
+			status = spi_mem_exec_op(nor->spi, &op);
+		} else {
+			write_enable(nor);
+			status = nor->write_reg(nor,
+								enable ? SPINOR_OP_EN4B :
+									SPINOR_OP_EX4B,
+								NULL, 0);
+			write_disable(nor);
+		}
+		if (status)
+			dev_warn(nor->dev, "error %d setting 4-byte mode\n", status);
+		return status;
 	case SNOR_MFR_WINBOND:
 		if (need_wren)
 			write_enable(nor);
