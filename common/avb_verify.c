@@ -261,7 +261,7 @@ static uint64_t sf_write(struct spi_flash *flash, struct sf_part *part,
 	u8 *tmp_buf;
 	tmp_buf = (u8 *) malloc(sizeof(u8) * len);
 	if (tmp_buf == NULL) {
-		printf("avb sf malloc %u Bytes failed!\n", sizeof(u8) * len);
+		printf("avb sf malloc %lu Bytes failed!\n", sizeof(u8) * len);
 		return -1;
 	}
 	if ((start + len) > (part->start + part->size)) {

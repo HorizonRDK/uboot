@@ -78,7 +78,7 @@
 		u-boot,dm-pre-reloc;
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
-		spi-max-frequency = <60000000>;
+		spi-max-frequency = <62500000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 	};
@@ -87,7 +87,7 @@
 		u-boot,dm-pre-reloc;
 		compatible = "spi-nand";
 		reg = <0x0>;
-		spi-max-frequency = <60000000>;
+		spi-max-frequency = <62500000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 	};

@@ -67,6 +67,12 @@
 #define CONFIG_ENV_UBI_VOLUME_REDUND "ubootenvbak"
 #endif
 
+#ifdef CONFIG_ENV_IS_IN_SPI_FLASH
+/* if nor xip is enabled, CONFIG_ENV_OFFSET should be moved */
+#define CONFIG_ENV_OFFSET 0x10000
+#define CONFIG_ENV_SECT_SIZE 256
+#endif /* CONFIG_ENV_IS_IN_SPI_FLASH */
+
 /* Monitor Command Prompt */
 #define CONFIG_SYS_CBSIZE	1024	/* Console I/O Buffer Size */
 #define CONFIG_SYS_PBSIZE	(CONFIG_SYS_CBSIZE + sizeof(CONFIG_SYS_PROMPT) + 16)

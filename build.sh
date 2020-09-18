@@ -26,6 +26,7 @@ function choose()
         echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
+        echo "#define NAND_PAGE_SIZE ${PAGE_SIZE}" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
     elif [ "$bootmode" = "emmc" ];then
@@ -151,6 +152,7 @@ function set_uboot_config()
     sed -i '/CONFIG_MTDIDS_DEFAULT/d' $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i '/CONFIG_MTDPARTS_DEFAULT/d' $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+    sed -i 's/CONFIG_ENV_IS_IN_SPI_FLASH=y/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i 's/# CONFIG_ENV_IS_IN_MMC is not set/CONFIG_ENV_IS_IN_MMC=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
@@ -165,11 +167,20 @@ function set_uboot_config()
             sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
             sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
         fi
-        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
-        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand:7864320@0x0(bootloader),20971520@0x780000(boot),62914560@0x1B80000(rootfs),-@0x5780000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand.0"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
+        # TODO: change to read from conf and generate automatically
+        if [[ "$PAGE_SIZE" = "4096" ]];then
+            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9699328@0x0(bootloader),22544384@0x940000(boot),62914560@0x1EC0000(rootfs),-@0x5AC0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        else
+            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9568256@0x0(bootloader),22544384@0x920000(boot),62914560@0x1EA0000(rootfs),-@0x5AA0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        fi
     elif [[ "$bootmode" = "nor" ]] || [[ "$FLASH_ENABLE" = "nor" ]];then
-        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
-        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        if [[ "$bootmode" = "nor" ]];then
+            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+            sed -i 's/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/CONFIG_ENV_IS_IN_SPI_FLASH=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+        fi
+        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor.0"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
+        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor.0:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
     fi
 }
 

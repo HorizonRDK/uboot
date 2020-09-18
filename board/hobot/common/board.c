@@ -579,10 +579,13 @@ static void hb_mmc_env_init(void)
 
 static void hb_nand_env_init(void)
 {
-	char *bootargs;
+#ifdef CONFIG_HB_NAND_BOOT
+	char bootargs[2048];
 	/* set bootargs */
-	bootargs = "earlycon console=ttyS0 clk_ignore_unused "\
-		"root=ubi0:rootfs ubi.mtd=2,2048 rootfstype=ubifs rw rootwait";
+	snprintf(bootargs, sizeof(bootargs),
+		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=2,%d "\
+		"rootfstype=ubifs rw rootwait %s",
+		NAND_PAGE_SIZE, env_get("mtdparts"));
 	env_set("bootargs", bootargs);
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm 0x10000000");
@@ -590,12 +593,14 @@ static void hb_nand_env_init(void)
 		env_set("bootcmd", "bootm 0x10000000");
 	}
 	ubi_volume_read("boot", (void *) 0x10000000, 0);
+#endif
 }
 
 static void hb_nor_env_init(void)
 {
-	char *bootargs, *s;
+	char *s;
 	char *boot_arg[2];
+	char bootargs[2048];
 	loff_t offset, size, maxsize;
 	int dev = 0, ret = 0;
 
@@ -611,11 +616,6 @@ static void hb_nor_env_init(void)
 	boot_arg[1] = "0x0";
 	boot_arg[0] = "boot";
 
-	/* set normal boot bootargs */
-	bootargs = "earlycon console=ttyS0 clk_ignore_unused "\
-			 "root=ubi0:rootfs ubi.mtd=0 rootfstype=ubifs rw rootwait";
-	env_set("bootargs", bootargs);
-	/* set secure boot bootcmd */
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm 0x10000000");
 	} else {
@@ -625,6 +625,14 @@ static void hb_nor_env_init(void)
 						&size, 0x0001, flash->size)) {
 		return;
 	}
+
+	/* set bootargs (moved down since @line 618 env is not initialized) */
+	snprintf(bootargs, sizeof(bootargs),
+		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=7 "\
+		"rootfstype=ubifs rw rootwait %s",
+		env_get("mtdparts"));
+	env_set("bootargs", bootargs);
+	/* set secure boot bootcmd */
 	spi_flash_read(flash, offset, size, (void *) 0x10000000);
 }
 #endif
@@ -1109,7 +1117,7 @@ static int do_fdt_enable(cmd_tbl_t *cmdtp, int flag, int argc,
 						 char * const argv[])
 {
 	const char *path;
-	int  ret, i;
+	int  ret;
 	char *status_val = NULL;
 	char cmd[128];
 
@@ -1125,7 +1133,7 @@ static int do_fdt_enable(cmd_tbl_t *cmdtp, int flag, int argc,
 	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
 	ret = run_command(cmd, 0);
 	if (ret != 0) {
-		printf("fdt addr ${fdt_addr}\n", ret);
+		printf("fdt addr ${fdt_addr} failed:%d\n", ret);
 		return CMD_RET_FAILURE;
 	}
 
