@@ -35,6 +35,10 @@
 
 #define HB_VIOSYS_CLKEN_SET			(SYSCTRL_BASE + 0x144)
 
+#define HB_VIOPLL2_FREQ_CTRL                   (SYSCTRL_BASE + 0x0B0)
+#define HB_VIOPLL2_PD_CTRL                     (SYSCTRL_BASE + 0x0B4)
+#define HB_VIOPLL2_STATUS                      (SYSCTRL_BASE + 0x0B8)
+
 #define HB_CNNSYS_CLKOFF_STA		(SYSCTRL_BASE + 0x228)
 
 #define HB_DDRSYS_CLK_DIV_SEL		(SYSCTRL_BASE + 0x230)

@@ -308,3 +308,12 @@ int init_io_vol(void)
 	writel(0xF, GPIO_BASE + 0x170);
 	return 0;
 }
+
+void disable_pll(void)
+{
+	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
+			HB_CNNPLL_PD_CTRL);
+	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
+			HB_VIOPLL2_PD_CTRL);
+}
+

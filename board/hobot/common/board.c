@@ -1867,6 +1867,7 @@ int last_stage_init(void)
 //	misc();
 #ifdef CONFIG_TARGET_X3
 	hb_mipi_panel_reset();
+	disable_pll();
 #endif
 	add_baud_to_bootargs();
 	return 0;
