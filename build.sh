@@ -170,9 +170,9 @@ function set_uboot_config()
         sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand.0"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
         # TODO: change to read from conf and generate automatically
         if [[ "$PAGE_SIZE" = "4096" ]];then
-            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9699328@0x0(bootloader),22544384@0x940000(boot),62914560@0x1EC0000(rootfs),-@0x5AC0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9699328@0x0(bootloader),22544384@0x940000(boot),62914560@0x1EC0000(system),-@0x5AC0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
         else
-            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9568256@0x0(bootloader),22544384@0x920000(boot),62914560@0x1EA0000(rootfs),-@0x5AA0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
+            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9568256@0x0(bootloader),22544384@0x920000(boot),62914560@0x1EA0000(system),-@0x5AA0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
         fi
     elif [[ "$bootmode" = "nor" ]] || [[ "$FLASH_ENABLE" = "nor" ]];then
         if [[ "$bootmode" = "nor" ]];then
