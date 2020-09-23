@@ -683,7 +683,7 @@ static void hb_usb_dtb_config(void) {
 static void hb_usb_env_init(void)
 {
 	char *tmp = "send_id;run ddrboot";
-
+	env_set("bootargs", "earlycon console=ttyS0 kgdboc=ttyS0");
 	/* set bootcmd */
 	env_set("bootcmd", tmp);
 }
