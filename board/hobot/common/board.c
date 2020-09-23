@@ -1670,9 +1670,7 @@ static void add_baud_to_bootargs(void)
 	bootargs_ptr = bootargs_tmp;
 	bootargs_ptr = strstr(bootargs_ptr, "console=");
 	if (bootargs_ptr == NULL) {
-		strncpy(tmp, bootargs_tmp, strlen(bootargs_tmp));
-		snprintf(baudrate_str, sizeof(baudrate_str), " console=ttyS0,%u", rate);
-		strncat(tmp, baudrate_str, sizeof(tmp) - strlen(tmp));
+		return;
 	} else {
 		check = bootargs_ptr;
 		check = strstr(check, ",");
@@ -1681,9 +1679,14 @@ static void add_baud_to_bootargs(void)
 		snprintf(baudrate_str, sizeof(baudrate_str), ",%u ", rate);
 
 		/* Check if baudrate has already be set */
-		if (check && ((int64_t)(bootargs_ptr - check) > 4)) {
+		if (bootargs_ptr == NULL) {
+			/* there is baudrate previously set and is the last entry */
+			bootargs_ptr = bootargs_tmp + strlen(bootargs_tmp);
+		}
+		if (check && ((int64_t)(bootargs_ptr - check) > 0)) {
+			/* Check if the current baudrate is the same as the target */
 			strncpy(baud_tmp, check, (int64_t)(bootargs_ptr - check));
-			if (!strncmp(baudrate_str, baud_tmp, strlen(baudrate_str)))
+			if (!strncmp(baudrate_str, baud_tmp, strlen(baud_tmp)))
 				return;
 			need_change = 1;
 		}
@@ -1694,9 +1697,13 @@ static void add_baud_to_bootargs(void)
 		} else {
 			len = bootargs_ptr - bootargs_tmp;
 		}
+		/* Copy everything before "console=" */
 		strncpy(tmp, bootargs_tmp, len);
+		/* add new baudrate */
 		strncat(tmp, baudrate_str, sizeof(tmp) - strlen(tmp));
-		strncat(tmp, bootargs_ptr + 1, sizeof(tmp) - strlen(tmp));
+		/* add everything after "console=" */
+		if (bootargs_ptr != bootargs_tmp + strlen(bootargs_tmp))
+			strncat(tmp, bootargs_ptr + 1, sizeof(tmp) - strlen(tmp));
 	}
 	env_set("bootargs", tmp);
 
