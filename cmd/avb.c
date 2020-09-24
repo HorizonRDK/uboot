@@ -400,7 +400,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	char *cmd = NULL;
 	int ret = 0;
-	char cmd_boot[256] = { 0 };
+	char cmd_boot[2048] = { 0 };
 	char *bootargs = NULL;
 	int system_id;
 
