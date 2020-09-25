@@ -1,5 +1,52 @@
 #!/bin/bash
 
+function cal_mtdparts
+{
+    local total_parts=0
+    local part_size=0
+    local part_name=""
+    local part_start=0
+    local part_stop=0
+    local part_offset=0
+    local part_offset_str="0"
+    local arr=""
+    local _name=${arr[1]}
+    local part=${_name%/*}
+
+    for line in $(cat ${GPT_CONFIG})
+    do
+        arr=(${line//:/ })
+
+        local needparted=${arr[0]}
+        _name=${arr[1]}
+        part=${_name%/*}
+        local name=${_name##*/}
+        local fs=${arr[2]}
+        local starts=${arr[3]}
+        local start=${starts%?}
+        local stops=${arr[4]}
+        local stop=${stops%?}
+
+        if [ "${needparted}" = "1" ] && [ "$part" != "reserve" ];then
+            if [ "${total_parts}" != "0" ];then
+                part_size=$(( (${part_stop} - ${part_start} + 1) * 512 ))
+                mtdparts_str="${mtdparts_str}${part_size}@0x${part_offset_str}(${part_name}),"
+                part_offset=$(( ${part_offset} + ${part_size} ))
+                part_offset_str=$(echo "obase=16; ${part_offset}" | bc)
+                part_start=${start}
+                part_name=${part}
+            else
+                part_name=${part}
+                mtdparts_str="mtdparts=${mtdids_str##*=}:"
+                let total_parts=$(( ${total_parts} + 1 ))
+            fi
+        fi
+        part_stop=${stop}
+    done
+
+    mtdparts_str="${mtdparts_str}-@0x${part_offset_str}(${part})"
+}
+
 function choose()
 {
     local tmp="$cur_dir/include/configs/.hb_config.h"
@@ -9,26 +56,47 @@ function choose()
     local arr=(${line//:/ })
     local fs_type=${arr[2]}
     echo "*********************************************************************"
-    echo "boot mode= $bootmode"
+    echo "boot mode = $bootmode"
     echo "*********************************************************************"
     cp $cur_dir/.config $conftmp
 
     echo "#ifndef __HB_CONFIG_H__" > $tmp
     echo "#define __HB_CONFIG_H__" >> $tmp
 
-    if [ "$bootmode" = "nor" ];then
+    if [ "$bootmode" = "nor" ]|| [[ "$FLASH_ENABLE" = "nor" ]];then
+        mtdids_str="spi-nor1=hr_nor.0"
         echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
         echo "#define CONFIG_HB_NOR_BOOT" >> $tmp
         echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-    elif [ "$bootmode" = "nand" ];then
+        if [[ "$bootmode" = "nor" ]];then
+            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
+            sed -i 's/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/CONFIG_ENV_IS_IN_SPI_FLASH=y/g' $conftmp
+        fi
+        # Create mtdparts string according to gpt.conf
+        cal_mtdparts
+        sed -i "s/CONFIG_MTDIDS_DEFAULT=\"\"/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
+        sed -i "s/CONFIG_MTDPARTS_DEFAULT=\"\"/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
+    elif [[ "$bootmode" = *"nand"* ]]|| [[ "$FLASH_ENABLE" = "nand" ]];then
+        mtdids_str="spi-nand0=hr_nand.0"
         echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
         echo "#define NAND_PAGE_SIZE ${PAGE_SIZE}" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
+        sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $conftmp
+        echo "CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1" >> $conftmp
+        echo "CONFIG_MTD_UBI_FM_DEBUG=0" >> $conftmp
+        if [[ "$bootmode" = "nand" ]];then
+            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
+            sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $conftmp
+        fi
+        # Create mtdparts string according to gpt.conf
+        cal_mtdparts
+        sed -i "s/CONFIG_MTDIDS_DEFAULT=\"\"/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
+        sed -i "s/CONFIG_MTDPARTS_DEFAULT=\"\"/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
     elif [ "$bootmode" = "emmc" ];then
         echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
@@ -82,8 +150,6 @@ function build()
     # config dts
     # change_dts_flash_config
 
-    set_uboot_config
-
     local uboot_image="u-boot.bin"
     prefix=$TARGET_UBOOT_DIR
     config=$UBOOT_DEFCONFIG
@@ -128,7 +194,15 @@ function build()
             }
             cd -
         fi
-        runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=4096 conv=notrunc,sync"
+        local line=`sed -n '/UBOOT_IMAGE_NAME/p; /UBOOT_IMAGE_NAME/q' ${GPT_CONFIG}`
+        local arr=(${line//:/ })
+        local starts=${arr[3]}
+        local stops=${arr[4]}
+        local stop=${stops%?}
+        local start=${starts%?}
+        local uboot_size=$(( ${stop} - ${start} + 1 ))
+        rm -rf $TARGET_DEPLOY_DIR/uboot.img
+        runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=${uboot_size} conv=notrunc,sync"
         runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img conv=notrunc,sync"
         runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=512 seek=2048 conv=notrunc,sync"
     fi
@@ -145,48 +219,9 @@ function all_32()
     all
 }
 
-function set_uboot_config()
-{
-    # Defaults
-    sed -i 's/# CONFIG_CMD_MTDPARTS is not set/CONFIG_CMD_MTDPARTS=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_MTDIDS_DEFAULT/d' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_MTDPARTS_DEFAULT/d' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_ENV_IS_IN_UBI=y/# CONFIG_ENV_IS_IN_UBI is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_ENV_IS_IN_SPI_FLASH=y/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i 's/# CONFIG_ENV_IS_IN_MMC is not set/CONFIG_ENV_IS_IN_MMC=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_MTD_UBI_FASTMAP=y/# CONFIG_MTD_UBI_FASTMAP is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i 's/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_CMD_MTDPARTS/a CONFIG_MTDIDS_DEFAULT=""'  $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i '/CONFIG_MTDIDS_DEFAULT/a CONFIG_MTDPARTS_DEFAULT=""' $cur_dir/configs/$UBOOT_DEFCONFIG
-    sed -i 's/# CONFIG_SPI_FLASH_MTD is not set/CONFIG_SPI_FLASH_MTD=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-
-    if [[ "$bootmode" = "nand" ]] || [[ "$FLASH_ENABLE" = "nand" ]];then
-        sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-        sed -i 's/# CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT is not set/CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-        if [[ "$bootmode" = "nand" ]];then
-            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-            sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-        fi
-        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nand0=hr_nand.0"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
-        # TODO: change to read from conf and generate automatically
-        if [[ "$PAGE_SIZE" = "4096" ]];then
-            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9699328@0x0(bootloader),22544384@0x940000(boot),62914560@0x1EC0000(system),-@0x5AC0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-        else
-            sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nand.0:9568256@0x0(bootloader),22544384@0x920000(boot),62914560@0x1EA0000(system),-@0x5AA0000(userdata)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-        fi
-    elif [[ "$bootmode" = "nor" ]] || [[ "$FLASH_ENABLE" = "nor" ]];then
-        if [[ "$bootmode" = "nor" ]];then
-            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-            sed -i 's/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/CONFIG_ENV_IS_IN_SPI_FLASH=y/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-        fi
-        sed -i 's/CONFIG_MTDIDS_DEFAULT=""/CONFIG_MTDIDS_DEFAULT="spi-nor1=hr_nor.0"/g'  $cur_dir/configs/$UBOOT_DEFCONFIG
-        sed -i 's/CONFIG_MTDPARTS_DEFAULT=""/CONFIG_MTDPARTS_DEFAULT="mtdparts=hr_nor.0:655360@0x20000(sbl),524288@0xA0000(ddr),393216@0x120000(bl31),2097152@0x180000(uboot),131072@0x380000(bpu),131072@0x3A0000(vbmeta),10485760@0x3C0000(boot),34603008@0xDC0000(system),-@0x2EC0000(app)"/g' $cur_dir/configs/$UBOOT_DEFCONFIG
-    fi
-}
-
 function usage()
 {
-    echo "Usage: build.sh [-o emmc|nor|nand|all ] [-u] [-p] [-l]"    echo "Options:"
+    echo "Usage: build.sh [-o emmc|nor|nand|nand_4096 ] [-u] [-p] [-l]"    echo "Options:"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
     echo "  -p  create uboot.img"
@@ -203,15 +238,16 @@ do
     case $opt in
         o)
             arg="$OPTARG"
-            if [ "$arg" = "all" ];then
-                all_boot_mode=true
-                echo "compile all boot mode"
+            if [ "$arg" = "nand" ];then
+                export PAGE_SIZE="2048"
+            elif [ "$arg" = "nand_4096" ];then
+                export PAGE_SIZE="4096"
             else
-                export bootmode="$OPTARG"
-                echo "compile boot mode $bootmode"
+                arg="emmc"
             fi
+            export bootmode="$arg"
+            echo "compile boot mode $bootmode"
             ;;
-
         p)
             pack_img="true"
             ;;
@@ -232,6 +268,8 @@ done
 shift $[ $OPTIND - 1 ]
 
 cmd=$1
+mtdids_str=""
+mtdparts_str=""
 
 function clean()
 {
@@ -244,5 +282,17 @@ function clean()
 cur_dir=${OUT_BUILD_DIR}/uboot
 
 cd $(dirname $0)
+
+if [ "$bootmode" = "nand" ];then
+    if [ "$PAGE_SIZE" = "2048" ];then
+        export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-gpt.conf"
+    elif [ "$PAGE_SIZE" = "4096" ];then
+        export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-4096-gpt.conf"
+    fi
+elif [ "$bootmode" = "nor" ];then
+    export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nor-gpt-ubifs.conf"
+else
+    arg="emmc"
+fi
 
 buildopt $cmd

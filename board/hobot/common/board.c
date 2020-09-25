@@ -584,11 +584,14 @@ static void hb_nand_env_init(void)
 {
 #ifdef CONFIG_HB_NAND_BOOT
 	char bootargs[2048];
+	char *rootfs_name = "system";
+	struct mtd_info *root_mtd = get_mtd_device_nm(rootfs_name);
+	int rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 	/* set bootargs */
 	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=2,%d "\
+		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d,%d "\
 		"rootfstype=ubifs rw rootwait %s",
-		NAND_PAGE_SIZE, env_get("mtdparts"));
+		rootfs_mtdnm, NAND_PAGE_SIZE, env_get("mtdparts"));
 	env_set("bootargs", bootargs);
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm 0x10000000");
@@ -1308,8 +1311,8 @@ static int flash_write_partition(char *partition, int partition_offset,
 {
 	int ret = CMD_RET_SUCCESS;
 	char cmd[128];
-	snprintf(cmd, sizeof(cmd), "mtd erase %s %s %x",
-			 partition, "0x0", partition_size);
+	snprintf(cmd, sizeof(cmd), "mtd erase %s %s",
+			 partition, "0x0");
 	printf("%s\n", cmd);
 	ret = run_command(cmd, 0);
 	if (ret)
@@ -1328,13 +1331,11 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 {
 #define MAX_MTD_PART_NUM 16
 #define MAX_MTD_PART_NAME 128
-	struct mtd_info *mtd;
-	struct mtd_info *part;
-	int dev_nb = 0, ret = CMD_RET_SUCCESS, last_part = 0, total_part = 0;
-	u32 img_addr, img_size, tmp_size;
+	struct mtd_info *mtd, *part;
+	int dev_nb = 0, ret = CMD_RET_SUCCESS;
+	u32 img_addr, img_size;
+	int img_remain;
 	/*[0] - bl_size; [1] - boot_size; [2] - system_size; [3] - userdata_size*/
-	uint64_t part_sizes[MAX_MTD_PART_NUM] = { 0 };
-	char part_name[MAX_MTD_PART_NAME][MAX_MTD_PART_NUM] = { "" };
 	char *s1 = NULL, *s2 = NULL, *target_part = "", *flash_type = NULL;
 	if (argc < 4) {
 		printf("flash_type image_addr and img_size must be given, abort\n");
@@ -1351,6 +1352,11 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	/* TODO: Implement CS */
 	img_addr = (u32)simple_strtoul(s1, NULL, 16);
 	img_size = (u32)simple_strtoul(s2, NULL, 16);
+	if (img_addr == 0) {
+		printf("0 address not allowed!\n");
+		return CMD_RET_FAILURE;
+	}
+	img_remain = img_size;
 	mtd = __mtd_next_device(0);
 	/* Ensure all devices (and their partitions) are probed */
 	if (!mtd || list_empty(&(mtd->partitions))) {
@@ -1358,7 +1364,7 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 		mtd_for_each_device(mtd) {
 			dev_nb++;
 		}
-		if (!dev_nb) {
+		if (!dev_nb && !strcmp(flash_type, "nor")) {
 			run_command("sf probe", 0);
 			mtd_probe_devices();
 			mtd_for_each_device(mtd) {
@@ -1371,18 +1377,6 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 		}
 		mtd = __mtd_next_device(0);
 	}
-
-	list_for_each_entry(part, &mtd->partitions, node) {
-		part_sizes[total_part] = part->size;
-		strncpy(part_name[total_part], part->name, strlen(part->name));
-		total_part++;
-	}
-	if (total_part == 0 && argc == 5) {
-		printf("No MTD Partition found, abort!\n");
-		return CMD_RET_FAILURE;
-	}
-	last_part = total_part - 1;
-	part_sizes[last_part] = img_size;
 
 	if (!strcmp(flash_type, "nand")) {
 		if (mtd->type != MTD_NANDFLASH) {
@@ -1399,65 +1393,63 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
+	if (list_empty(&mtd->partitions)) {
+		printf("No MTD Partition found, abort!\n");
+		return CMD_RET_FAILURE;
+	}
+
 	ret = 0;
 #ifdef CONFIG_HB_NAND_BOOT
-	char veeprom[2048] = { 0 };
+	char veeprom[NAND_PAGE_SIZE] = { 0 };
 	ubi_part("boot", NULL);
-	ubi_volume_read("veeprom", veeprom, 2048);
+	ubi_volume_read("veeprom", veeprom, NAND_PAGE_SIZE);
 	run_command("ubi detach", 0);
 #endif
 	if ((argc == 5) && strcmp(target_part, "all")) {
-		for (int i = 0; i < total_part; i++) {
-			if (!strcmp(target_part, part_name[i])) {
-				if (img_size > part_sizes[i]) {
-					printf("Image size larger than partition size, abort!\n");
-					break;
-				} else {
-					printf(
-					   "Burning image of size 0x%llx from address: 0x%x to %s\n",
-						part_sizes[i], img_addr, flash_type);
-					ret = flash_write_partition(part_name[i],
-								   img_addr,
-								   part_sizes[i]);
-					break;
-				}
-			} else if (i == (total_part - 1)) {
-				printf("Partition %s not found, abort!\n", target_part);
-				ret = CMD_RET_FAILURE;
+		part = get_mtd_device_nm(target_part);
+		if (!IS_ERR_OR_NULL(part)) {
+			if (img_size > part->size) {
+				printf("Image size larger than partition size, abort!\n");
+				return CMD_RET_FAILURE;
+			} else {
+				printf(
+					"Burning image of size 0x%llx from address: 0x%x to %s\n",
+					part->size, img_addr, flash_type);
+				ret = flash_write_partition(part->name,
+								img_addr,
+								part->size);
 			}
+		} else {
+			printf("Partition %s not found, abort!\n", target_part);
+			ret = CMD_RET_FAILURE;
 		}
 	} else {
 		if (mtd->size < img_size) {
 			printf("Image size is larger than Flash size, abort!\n");
 			return CMD_RET_FAILURE;
 		}
-		tmp_size = 0;
-		if (!strcmp(target_part, "all")) {
-			for (int i = 0; i < total_part; i++) {
-				tmp_size += part_sizes[i];
-				if (!strcmp("system", part_name[i])) {
-					if (img_size < tmp_size) {
-						printf("Image size 0x%x < flash size 0x%x, %s",
-							   img_size, tmp_size,
-							   "system might be corrupted!\n");
-					}
-					img_size = tmp_size;
+		list_for_each_entry(part, &mtd->partitions, node) {
+			printf("Burning image of size 0x%llx from address: 0x%llx to %s\n",
+					(part->size < img_remain) ? part->size : img_remain,
+					 img_addr + part->offset, flash_type);
+			ret = flash_write_partition(part->name, img_addr + part->offset,
+						(part->size < img_remain) ? part->size : img_remain);
+			img_remain -= part->size;
+			if (img_remain <= 0) {
+				printf("Stop at %s for img size smaller than required!\n",
+					   part->name);
+				break;
+			} else if (!strcmp(target_part, "all") &&
+				!strcmp("system", part->name)) {
 					break;
-				} else if (i == (total_part - 1)) {
-					printf("Partition \"system\" not found, abort!\n");
-					return CMD_RET_FAILURE;
-				}
 			}
 		}
-		printf("Burning image of size 0x%x from address: 0x%x to %s\n",
-			img_size, img_addr, flash_type);
-		flash_write_partition(mtd->name, img_addr, img_size);
 	}
 
 #ifdef CONFIG_HB_NAND_BOOT
 	if (!strcmp(target_part, "boot")) {
 		ubi_part("boot", NULL);
-		ubi_volume_write("veeprom", veeprom, 2048);
+		ubi_volume_write("veeprom", veeprom, NAND_PAGE_SIZE);
 	}
 #endif
 	printf("Burn Flash Done!\n");

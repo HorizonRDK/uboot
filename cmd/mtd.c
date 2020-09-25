@@ -358,7 +358,7 @@ static int do_mtd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				return CMD_RET_FAILURE;
 			}
 
-			off += io_op.retlen;
+			off += (off < mtd->size) ? io_op.retlen : 0;
 			remaining -= io_op.retlen;
 			io_op.datbuf += io_op.retlen;
 			io_op.oobbuf += io_op.oobretlen;
