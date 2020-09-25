@@ -57,6 +57,9 @@ static int stored_dumptype;
 
 extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
+#ifdef CONFIG_TARGET_X3
+extern void disable_pll(void);
+#endif
 uint32_t x3_som_type = SOM_TYPE_X3;
 int32_t x3_base_board_type = -1;
 char hb_upmode[32] = "golden";
