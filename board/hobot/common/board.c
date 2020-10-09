@@ -1332,6 +1332,7 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 #define MAX_MTD_PART_NUM 16
 #define MAX_MTD_PART_NAME 128
 	struct mtd_info *mtd, *part;
+	__maybe_unused char cmd[512];
 	int dev_nb = 0, ret = CMD_RET_SUCCESS;
 	u32 img_addr, img_size;
 	int img_remain;
@@ -1406,6 +1407,13 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 	run_command("ubi detach", 0);
 #endif
 	if ((argc == 5) && strcmp(target_part, "all")) {
+#ifdef CONFIG_ENV_IS_IN_SPI_FLASH
+		if (mtd->type == MTD_NORFLASH && !strcmp(target_part, "uboot")) {
+			snprintf(cmd, sizeof(cmd), "mtd erase %s %x %x",
+					 mtd->name, CONFIG_ENV_OFFSET, CONFIG_ENV_SIZE);
+			run_command(cmd, 0);
+		}
+#endif
 		part = get_mtd_device_nm(target_part);
 		if (!IS_ERR_OR_NULL(part)) {
 			if (img_size > part->size) {
@@ -1428,6 +1436,14 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 			printf("Image size is larger than Flash size, abort!\n");
 			return CMD_RET_FAILURE;
 		}
+		if (mtd->type == MTD_NORFLASH) {
+			snprintf(cmd, sizeof(cmd), "mtd erase %s 0x0 %x",
+					 mtd->name, 0x20000);
+			run_command(cmd, 0);
+			snprintf(cmd, sizeof(cmd), "mtd write %s %x %x %x",
+					 mtd->name, img_addr + 0x10000, 0x10000, 0x10000);
+			run_command(cmd, 0);
+		}
 		list_for_each_entry(part, &mtd->partitions, node) {
 			printf("Burning image of size 0x%llx from address: 0x%llx to %s\n",
 					(part->size < img_remain) ? part->size : img_remain,
@@ -1436,8 +1452,6 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 						(part->size < img_remain) ? part->size : img_remain);
 			img_remain -= part->size;
 			if (img_remain <= 0) {
-				printf("Stop at %s for img size smaller than required!\n",
-					   part->name);
 				break;
 			} else if (!strcmp(target_part, "all") &&
 				!strcmp("system", part->name)) {

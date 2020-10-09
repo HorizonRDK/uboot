@@ -242,6 +242,8 @@ do
                 export PAGE_SIZE="2048"
             elif [ "$arg" = "nand_4096" ];then
                 export PAGE_SIZE="4096"
+            elif [ "$arg" = "nor" ];then
+                arg="nor"
             else
                 arg="emmc"
             fi

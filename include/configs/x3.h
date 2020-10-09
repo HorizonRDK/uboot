@@ -69,7 +69,7 @@
 
 #ifdef CONFIG_ENV_IS_IN_SPI_FLASH
 /* if nor xip is enabled, CONFIG_ENV_OFFSET should be moved */
-#define CONFIG_ENV_OFFSET 0x10000
+#define CONFIG_ENV_OFFSET 0x0
 #ifdef CONFIG_ENV_SIZE
 #undef CONFIG_ENV_SIZE
 #endif
