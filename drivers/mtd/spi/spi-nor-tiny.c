@@ -420,9 +420,9 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	return -ENOTSUPP;
 }
 
-#ifdef CONFIG_SPI_FLASH_MACRONIX
+#if defined(CONFIG_SPI_FLASH_MACRONIX) || defined(CONFIG_SPI_FLASH_ISSI)
 /**
- * macronix_quad_enable() - set QE bit in Status Register.
+ * sr_bit6_quad_enable() - set QE bit in Status Register.
  * @nor:	pointer to a 'struct spi_nor'
  *
  * Set the Quad Enable (QE) bit in the Status Register.
@@ -431,26 +431,26 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int macronix_quad_enable(struct spi_nor *nor)
+static int sr_bit6_quad_enable(struct spi_nor *nor)
 {
 	int ret, val;
 
 	val = read_sr(nor);
 	if (val < 0)
 		return val;
-	if (val & SR_QUAD_EN_MX)
+	if (val & SR_QUAD_EN_BIT6)
 		return 0;
 
 	write_enable(nor);
 
-	write_sr(nor, val | SR_QUAD_EN_MX);
+	write_sr(nor, val | SR_QUAD_EN_BIT6);
 
 	ret = spi_nor_wait_till_ready(nor);
 	if (ret)
 		return ret;
 
 	ret = read_sr(nor);
-	if (!(ret > 0 && (ret & SR_QUAD_EN_MX))) {
+	if (!(ret > 0 && (ret & SR_QUAD_EN_BIT6))) {
 		dev_err(nor->dev, "Macronix Quad bit not set\n");
 		return -EINVAL;
 	}
@@ -666,7 +666,12 @@ static int spi_nor_setup(struct spi_nor *nor, const struct flash_info *info,
 		switch (JEDEC_MFR(info)) {
 #ifdef CONFIG_SPI_FLASH_MACRONIX
 		case SNOR_MFR_MACRONIX:
-			err = macronix_quad_enable(nor);
+			err = sr_bit6_quad_enable(nor);
+			break;
+#endif
+#ifdef CONFIG_SPI_FLASH_MACRONIX
+		case SNOR_MFR_ISSI:
+			err = sr_bit6_quad_enable(nor);
 			break;
 #endif
 		case SNOR_MFR_ST:
