@@ -26,7 +26,6 @@ static int spi_flash_mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	err = spi_flash_erase(flash, instr->addr, instr->len);
 	if (err) {
 		instr->state = MTD_ERASE_FAILED;
-		instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 		return -EIO;
 	}
 

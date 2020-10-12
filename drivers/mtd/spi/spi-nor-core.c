@@ -591,15 +591,17 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 		if (ret)
 			goto erase_err;
 
-		addr += mtd->erasesize;
-		len -= mtd->erasesize;
-
 		ret = spi_nor_wait_till_ready(nor);
 		if (ret)
 			goto erase_err;
+
+		addr += mtd->erasesize;
+		len -= mtd->erasesize;
 	}
 
 erase_err:
+	if (ret)
+		instr->fail_addr = addr;
 #ifdef CONFIG_SPI_FLASH_BAR
 	ret = clean_bar(nor);
 #endif
