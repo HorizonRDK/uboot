@@ -1523,6 +1523,7 @@ static int hb_swinfo_dump_check(void)
 	const char *dcmd, *ddev;
 	uint32_t dmmc, dpart, dusb;
 	unsigned int dump_sdram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
+	char *dir = "";
 
 	s_magic = readl((void *)HB_SWINFO_MEM_ADDR);
 	if (s_magic == HB_SWINFO_MEM_MAGIC) {
@@ -1539,19 +1540,20 @@ static int hb_swinfo_dump_check(void)
 		stored_dumptype = 1;
 		if (s_boot == HB_SWINFO_BOOT_UDUMPTF) {
 			ddev = "tfcard";
-			dcmd = "fatwrite";
+			dcmd = "part list mmc 1; fatwrite";
 			dmmc = 1;
 			dpart = 1;
 		} else {
 			ddev = "emmc";
 			dcmd = "ext4write";
+			dir  = "/log";
 			dmmc = 0;
 			dpart = get_partition_id("userdata");
 		}
 		printf("swinfo dump ddr 0x%x -> %s:p%d\n", dump_sdram_size, ddev, dpart);
 		s += sprintf(s, "mmc rescan; ");
-		s += sprintf(s, "%s mmc %x:%x 0x%x /dump_ddr_%x.img 0x%x",
-				dcmd, dmmc, dpart, CONFIG_SYS_SDRAM_BASE,
+		s += sprintf(s, "%s mmc %x:%x 0x%x %s/dump_ddr_%x.img 0x%x",
+				dcmd, dmmc, dpart, CONFIG_SYS_SDRAM_BASE, dir,
 				dump_sdram_size, dump_sdram_size);
 
 		env_set("dumpcmd", dump);
