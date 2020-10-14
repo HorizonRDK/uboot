@@ -1394,18 +1394,12 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
-	if (list_empty(&mtd->partitions)) {
+	if ((argc == 5) && list_empty(&mtd->partitions)) {
 		printf("No MTD Partition found, abort!\n");
 		return CMD_RET_FAILURE;
 	}
 
 	ret = 0;
-#ifdef CONFIG_HB_NAND_BOOT
-	char veeprom[NAND_PAGE_SIZE] = { 0 };
-	ubi_part("boot", NULL);
-	ubi_volume_read("veeprom", veeprom, NAND_PAGE_SIZE);
-	run_command("ubi detach", 0);
-#endif
 	if ((argc == 5) && strcmp(target_part, "all")) {
 #ifdef CONFIG_ENV_IS_IN_SPI_FLASH
 		if (mtd->type == MTD_NORFLASH && !strcmp(target_part, "uboot")) {
@@ -1444,28 +1438,23 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 					 mtd->name, img_addr + 0x10000, 0x10000, 0x10000);
 			run_command(cmd, 0);
 		}
-		list_for_each_entry(part, &mtd->partitions, node) {
-			printf("Burning image of size 0x%llx from address: 0x%llx to %s\n",
-					(part->size < img_remain) ? part->size : img_remain,
-					 img_addr + part->offset, flash_type);
-			ret = flash_write_partition(part->name, img_addr + part->offset,
-						(part->size < img_remain) ? part->size : img_remain);
-			img_remain -= part->size;
-			if (img_remain <= 0) {
-				break;
-			} else if (!strcmp(target_part, "all") &&
-				!strcmp("system", part->name)) {
+		if (!strcmp(target_part, "all")) {
+			list_for_each_entry(part, &mtd->partitions, node) {
+				printf("Burning image of size 0x%llx from address: 0x%llx to %s\n",
+						(part->size < img_remain) ? part->size : img_remain,
+						img_addr + part->offset, flash_type);
+				ret = flash_write_partition(part->name, img_addr + part->offset,
+							(part->size < img_remain) ? part->size : img_remain);
+				img_remain -= part->size;
+				if (img_remain <= 0 || !strcmp("system", part->name)) {
 					break;
+				}
 			}
+		} else {
+			ret = flash_write_partition(mtd->name, img_addr, img_size);
 		}
 	}
 
-#ifdef CONFIG_HB_NAND_BOOT
-	if (!strcmp(target_part, "boot")) {
-		ubi_part("boot", NULL);
-		ubi_volume_write("veeprom", veeprom, NAND_PAGE_SIZE);
-	}
-#endif
 	printf("Burn Flash Done!\n");
 	return ret;
 }
