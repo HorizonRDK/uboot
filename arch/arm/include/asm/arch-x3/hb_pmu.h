@@ -1,3 +1,9 @@
+/*
+ *    COPYRIGHT NOTICE
+ *   Copyright 2019 Horizon Robotics, Inc.
+ *    All rights reserved.
+ */
+
 #ifndef __HB_PMU_H__
 #define __HB_PMU_H__
 
@@ -20,6 +26,7 @@
 #define HB_PMU_SW_REG_03               (PMU_SYS_BASE + 0x020c)
 #define HB_PMU_SW_REG_04               (PMU_SYS_BASE + 0x0210)
 #define HB_PMU_SW_REG_19               (PMU_SYS_BASE + 0x024c)
+#define HB_PMU_SW_REG_23               (PMU_SYS_BASE + 0x025C)
 #define HB_PMU_SW_REG_27               (PMU_SYS_BASE + 0x026c)
 #define HB_PMU_SW_REG_28               (PMU_SYS_BASE + 0x0270)
 #define HB_PMU_SW_REG_29               (PMU_SYS_BASE + 0x0274)
@@ -27,4 +34,3 @@
 #define HB_PMU_SW_REG_31               (PMU_SYS_BASE + 0x027c)
 
 #endif /* __HB_PMU_H__ */
-

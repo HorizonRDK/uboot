@@ -50,6 +50,7 @@
 #include <linux/err.h>
 #include <efi_loader.h>
 #include <hb_info.h>
+#include <asm/arch/hb_pmu.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -440,6 +441,8 @@ static int initr_mmc(void)
  */
 static int should_load_env(void)
 {
+	if (readl(HB_PMU_SW_REG_23) == 0x74726175)
+		return 0;
 #ifdef CONFIG_ENV_IS_IN_UBI
 	return 0;
 #elif defined CONFIG_OF_CONTROL
@@ -646,6 +649,10 @@ static int run_main_loop(void)
 #ifdef CONFIG_SANDBOX
 	sandbox_main_loop_init();
 #endif
+	if (readl(HB_PMU_SW_REG_23) == 0x74726175) {
+		env_set("bootdelay", "-1");
+		writel(0x00000000, HB_PMU_SW_REG_23);
+	}
 	/* main_loop() can return to retry autoboot, if so just run it again */
 	for (;;)
 		main_loop();

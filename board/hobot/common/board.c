@@ -1859,7 +1859,8 @@ int last_stage_init(void)
 #ifdef CONFIG_MMC
 	/* for determining mmc bus-width from environment */
 	run_command("mmc rescan", 0);
-	veeprom_init();
+	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
+		veeprom_init();
 #endif
 	bif_recover_reset_func();
 	apbooting();
@@ -1869,7 +1870,10 @@ int last_stage_init(void)
 
 	sw_efuse_set_register(EFS_NS);
 	base_board_gpio_test();
-	boot_src_test();
+	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
+		boot_src_test();
+	else
+		DEBUG_LOG("bootmode: UART\n");
 
 #ifdef CONFIG_HBOT_SECURE_ENGINE
 	/* spacc and pka init */
@@ -1883,17 +1887,19 @@ int last_stage_init(void)
 #endif
 
 #ifndef	CONFIG_FPGA_HOBOT
+	if (readl(HB_PMU_SW_REG_23) != 0x74726175) {
 #ifndef CONFIG_DOWNLOAD_MODE
-	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND) \
-		|| (boot_mode == PIN_2ND_EMMC))
-		hb_env_and_boardid_init();
+		if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND) \
+			|| (boot_mode == PIN_2ND_EMMC))
+			hb_env_and_boardid_init();
 
-	if (boot_mode == PIN_2ND_USB) {
-		hb_usb_dtb_config();
+		if (boot_mode == PIN_2ND_USB) {
+			hb_usb_dtb_config();
 
-		hb_usb_env_init();
-	}
+			hb_usb_env_init();
+		}
 #endif
+	}
 #endif
 
 #ifdef HB_AUTORESET
@@ -1909,10 +1915,12 @@ int last_stage_init(void)
 #endif
 
 //	misc();
+	if (readl(HB_PMU_SW_REG_23) != 0x74726175) {
 #ifdef CONFIG_TARGET_X3
-	hb_mipi_panel_reset();
-	disable_pll();
+		hb_mipi_panel_reset();
+		disable_pll();
 #endif
-	add_baud_to_bootargs();
+		add_baud_to_bootargs();
+	}
 	return 0;
 }
