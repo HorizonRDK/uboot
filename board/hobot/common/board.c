@@ -593,12 +593,12 @@ static void hb_nand_env_init(void)
 		rootfs_mtdnm, root_mtd->writesize, env_get("mtdparts"));
 	env_set("bootargs", bootargs);
 	if (hb_check_secure()) {
-		env_set("bootcmd", "avb_verify; bootm 0x10000000");
+		env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
 	} else {
-		env_set("bootcmd", "bootm 0x10000000");
+		env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
 	}
 
-	if (ubi_volume_read("boot", (void *) 0x10000000, 0)) {
+	if (ubi_volume_read("boot", (void *) BOOTIMG_ADDR, 0)) {
 		printf("Error: Read Kernel from UBI Volume Boot failed!\n");
 		env_set("bootdelay", "-1");
 		return;
@@ -626,9 +626,9 @@ static void hb_nor_env_init(void)
 	rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 
 	if (hb_check_secure()) {
-		env_set("bootcmd", "avb_verify; bootm 0x10000000");
+		env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
 	} else {
-		env_set("bootcmd", "bootm 0x10000000");
+		env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
 	}
 
 	/* set bootargs (moved down since @line 618 env is not initialized) */
@@ -638,7 +638,7 @@ static void hb_nor_env_init(void)
 		rootfs_mtdnm, env_get("mtdparts"));
 	env_set("bootargs", bootargs);
 	ret = spi_flash_read(flash, boot_mtd->offset,
-						 boot_mtd->size, (void *) 0x10000000);
+						 boot_mtd->size, (void *) BOOTIMG_ADDR);
 	if (ret) {
 		printf("Error: Read Kernel from SPI Flash failed!\n");
 		env_set("bootdelay", "-1");

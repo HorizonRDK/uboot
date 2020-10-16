@@ -120,7 +120,7 @@
 
 /* boot mode select */
 #define CONFIG_DDR_BOOT
-
+#define BOOTIMG_ADDR 0x10000000
 #define CONFIG_BOOTARGS "earlycon console=ttyS0 "\
 	"kgdboc=ttyS0 "
 /*
@@ -129,8 +129,8 @@
  */
 
 #define CONFIG_BOOTCOMMAND "avb_verify;part size mmc 0 boot bootimagesize;"\
-	"part start mmc 0 boot bootimageblk;mmc read 0x10000000 " \
-	"${bootimageblk} ${bootimagesize};bootm 0x10000000;"
+	"part start mmc 0 boot bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
+	" ${bootimageblk} ${bootimagesize};bootm "__stringify(BOOTIMG_ADDR)";"
 
 /*
  * This include file must after CONFIG_BOOTCOMMAND

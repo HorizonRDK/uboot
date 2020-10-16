@@ -430,8 +430,10 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 		/* init env bootcmd init */
 		snprintf(cmd_boot, sizeof(cmd_boot), "part size mmc 0 %s " \
 			"bootimagesize;part start mmc 0 %s bootimageblk;"\
-			"mmc read 0x10000000 ${bootimageblk} ${bootimagesize};" \
-			"bootm 0x10000000;", boot_partition, boot_partition);
+			"mmc read "__stringify(BOOTIMG_ADDR) \
+			" ${bootimageblk} ${bootimagesize};" \
+			"bootm "__stringify(BOOTIMG_ADDR)";",
+			boot_partition, boot_partition);
 
 		run_command_list(cmd_boot, -1, 0);
 	}
