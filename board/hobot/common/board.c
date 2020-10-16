@@ -582,7 +582,6 @@ static void hb_mmc_env_init(void)
 
 static void hb_nand_env_init(void)
 {
-#ifdef CONFIG_HB_NAND_BOOT
 	char bootargs[2048];
 	char *rootfs_name = "system";
 	struct mtd_info *root_mtd = get_mtd_device_nm(rootfs_name);
@@ -598,48 +597,53 @@ static void hb_nand_env_init(void)
 	} else {
 		env_set("bootcmd", "bootm 0x10000000");
 	}
-	ubi_volume_read("boot", (void *) 0x10000000, 0);
-#endif
+
+	if (ubi_volume_read("boot", (void *) 0x10000000, 0)) {
+		printf("Error: Read Kernel from UBI Volume Boot failed!\n");
+		env_set("bootdelay", "-1");
+		return;
+	}
 }
 
 static void hb_nor_env_init(void)
 {
-	char *s;
-	char *boot_arg[2];
 	char bootargs[2048];
-	loff_t offset, size, maxsize;
-	int dev = 0, ret = 0;
+	char *rootfs_name = "system";
+	char *boot_name = "boot";
+	int ret = 0, rootfs_mtdnm = -1;
+	struct mtd_info *root_mtd, *boot_mtd;
 
 	if (!flash) {
-		s = "sf probe";
-		ret = run_command_list(s, -1, 0);
+		ret = run_command("sf probe", 0);
 		if (ret < 0) {
 			printf("Error: flash init failed\n");
+			env_set("bootdelay", "-1");
 			return;
 		}
 	}
-
-	boot_arg[1] = "0x0";
-	boot_arg[0] = "boot";
+	root_mtd = get_mtd_device_nm(rootfs_name);
+	boot_mtd = get_mtd_device_nm(boot_name);
+	rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm 0x10000000");
 	} else {
 		env_set("bootcmd", "bootm 0x10000000");
 	}
-	if (mtd_arg_off_size(2, boot_arg, &dev, &offset, &maxsize,
-						&size, 0x0001, flash->size)) {
-		return;
-	}
 
 	/* set bootargs (moved down since @line 618 env is not initialized) */
 	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=7 "\
+		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d "\
 		"rootfstype=ubifs rw rootwait %s",
-		env_get("mtdparts"));
+		rootfs_mtdnm, env_get("mtdparts"));
 	env_set("bootargs", bootargs);
-	/* set secure boot bootcmd */
-	spi_flash_read(flash, offset, size, (void *) 0x10000000);
+	ret = spi_flash_read(flash, boot_mtd->offset,
+						 boot_mtd->size, (void *) 0x10000000);
+	if (ret) {
+		printf("Error: Read Kernel from SPI Flash failed!\n");
+		env_set("bootdelay", "-1");
+		return;
+	}
 }
 #endif
 
@@ -703,14 +707,7 @@ static void hb_env_and_boardid_init(void)
 	unsigned int boot_mode = hb_boot_mode_get();
 
 	DEBUG_LOG("board_id = %02x\n", x3_board_id);
-#ifdef CONFIG_HB_NAND_BOOT
-	run_command("mtd list", 0);
-	if (ubi_part("boot", NULL)) {
-		DEBUG_LOG("system ubi image load failed!\n");
-		env_set("bootdelay", "-1");
-		return 0;
-	}
-#endif
+
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");
 	if (s && strcmp(s, "disable") == 0) {
@@ -1403,13 +1400,6 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 
 	ret = 0;
 	if ((argc == 5) && strcmp(target_part, "all")) {
-#ifdef CONFIG_ENV_IS_IN_SPI_FLASH
-		if (mtd->type == MTD_NORFLASH && !strcmp(target_part, "uboot")) {
-			snprintf(cmd, sizeof(cmd), "mtd erase %s %x %x",
-					 mtd->name, CONFIG_ENV_OFFSET, CONFIG_ENV_SIZE);
-			run_command(cmd, 0);
-		}
-#endif
 		part = get_mtd_device_nm(target_part);
 		if (!IS_ERR_OR_NULL(part)) {
 			if (img_size > part->size) {
@@ -1431,14 +1421,6 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 		if (mtd->size < img_size) {
 			printf("Image size is larger than Flash size, abort!\n");
 			return CMD_RET_FAILURE;
-		}
-		if (mtd->type == MTD_NORFLASH) {
-			snprintf(cmd, sizeof(cmd), "mtd erase %s 0x0 %x",
-					 mtd->name, 0x20000);
-			run_command(cmd, 0);
-			snprintf(cmd, sizeof(cmd), "mtd write %s %x %x %x",
-					 mtd->name, img_addr + 0x10000, 0x10000, 0x10000);
-			run_command(cmd, 0);
 		}
 		if (!strcmp(target_part, "all")) {
 			list_for_each_entry(part, &mtd->partitions, node) {
@@ -1861,9 +1843,9 @@ int last_stage_init(void)
 #ifdef CONFIG_MMC
 	/* for determining mmc bus-width from environment */
 	run_command("mmc rescan", 0);
+#endif
 	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
 		veeprom_init();
-#endif
 	bif_recover_reset_func();
 	apbooting();
 #ifdef	CONFIG_AP_CP_COMN_MODE

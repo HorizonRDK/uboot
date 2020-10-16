@@ -400,9 +400,6 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 {
 	char *cmd = NULL;
 	int ret = 0;
-	char cmd_boot[2048] = { 0 };
-	char *bootargs = NULL;
-	int system_id;
 
 	/* avb init */
 #if defined CONFIG_HB_NOR_BOOT
@@ -410,8 +407,10 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 #elif defined CONFIG_HB_NAND_BOOT
 	cmd = "avb init nand 0";
 #else
+	char cmd_boot[2048] = { 0 };
+	char *bootargs = NULL;
+	int system_id;
 	cmd = "avb init mmc 0";
-#endif
 	/* init bootargs */
 	if (!hb_check_secure()) {
 		system_id = get_partition_id(system_partition);
@@ -436,6 +435,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 
 		run_command_list(cmd_boot, -1, 0);
 	}
+#endif
 
 	ret = run_command(cmd, 0);
 	if (ret != 0)

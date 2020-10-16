@@ -10,6 +10,7 @@
 #include <spi.h>
 #include <spi_flash.h>
 #include <veeprom.h>
+#include <mtd.h>
 #include <ubi_uboot.h>
 #include <configs/hb_config.h>
 #include <hb_info.h>
@@ -177,9 +178,16 @@ int veeprom_init(void)
 			printf("Failed to initialize SPI flash\n");
 			return -1;
 		}
+		mtd_probe_devices();
 	} else if (boot_mode == PIN_2ND_NAND) {
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
+		mtd_probe_devices();
+		if (ubi_part("boot", NULL)) {
+			DEBUG_LOG("system ubi image load failed!\n");
+			env_set("bootdelay", "-1");
+			return 0;
+		}
 	} else {
 		/* set veeprom raw sectors */
 		start_sector = VEEPROM_START_SECTOR;

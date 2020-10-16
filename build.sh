@@ -27,7 +27,7 @@ function cal_mtdparts
         local stops=${arr[4]}
         local stop=${stops%?}
 
-        if [ "${needparted}" = "1" ] && [ "$part" != "reserve" ];then
+        if [ "${needparted}" = "1" ];then
             if [ "${total_parts}" != "0" ];then
                 part_size=$(( (${part_stop} - ${part_start} + 1) * 512 ))
                 mtdparts_str="${mtdparts_str}${part_size}@0x${part_offset_str}(${part_name}),"

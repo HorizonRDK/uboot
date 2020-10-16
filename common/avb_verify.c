@@ -15,12 +15,6 @@
 
 #if defined CONFIG_HB_NOR_BOOT
 extern struct spi_flash *flash;
-static struct sf_part vbmeta = {.start = -1,
-								.size = -1,
-								.maxsize = -1};
-static struct sf_part boot = {.start = -1,
-								.size = -1,
-								.maxsize = -1};
 #endif
 
 static unsigned char avb_root_pub[520] = {
@@ -230,14 +224,14 @@ char *avb_set_enforce_verity(const char *cmdline)
  * ============================================================================
  */
 static uint64_t sf_read_and_flush(struct spi_flash *flash,
-					struct sf_part *part,
+					struct mtd_info *part,
 					lbaint_t start,
 					lbaint_t len,
 					void *buffer)
 {
 	uint64_t blks;
-	if ((start + len) > (part->start + part->size)) {
-		len = part->start + part->size - start;
+	if ((start + len) > (part->offset + part->size)) {
+		len = part->offset + part->size - start;
 		printf("%s: len aligned to nor partition bounds (%ld)\n",
 		       __func__, len);
 	}
@@ -254,7 +248,7 @@ static uint64_t sf_read_and_flush(struct spi_flash *flash,
 	return blks;
 }
 
-static uint64_t sf_write(struct spi_flash *flash, struct sf_part *part,
+static uint64_t sf_write(struct spi_flash *flash, struct mtd_info *part,
 					lbaint_t start, lbaint_t len, void *buffer)
 {
 	int ret = 0, bytes_written = 0, tmp_len = 0;
@@ -264,8 +258,8 @@ static uint64_t sf_write(struct spi_flash *flash, struct sf_part *part,
 		printf("avb sf malloc %lu Bytes failed!\n", sizeof(u8) * len);
 		return -1;
 	}
-	if ((start + len) > (part->start + part->size)) {
-		len = part->start + part->size - start;
+	if ((start + len) > (part->offset + part->size)) {
+		len = part->offset + part->size - start;
 		printf("%s: len aligned to nor partition bounds (%ld)\n",
 		       __func__, len);
 	}
@@ -290,38 +284,32 @@ static uint64_t sf_write(struct spi_flash *flash, struct sf_part *part,
 	return bytes_written;
 }
 
-static struct sf_part *sf_get_partition(const char *partition)
+static struct mtd_info *sf_get_partition(const char *partition)
 {
-	int ret, dev = 0;
-	char *s;
-	char *vbmeta_arg[2] = {"vbmeta", "0x0"};
-	char *boot_arg[2] = {"boot", "0x0"};
-	if (!flash) {
-		s = "sf probe";
-		ret = run_command_list(s, -1, 0);
-		if (ret)
-			return NULL;
+	int dev_nb = 0;
+	struct mtd_info *mtd = __mtd_next_device(0);;
+
+	/* Ensure all devices (and their partitions) are probed */
+	if (!mtd || list_empty(&(mtd->partitions))) {
+		mtd_probe_devices();
+		mtd_for_each_device(mtd) {
+			dev_nb++;
+		}
+		if (!dev_nb) {
+			run_command("sf probe", 0);
+			mtd_probe_devices();
+			mtd_for_each_device(mtd) {
+				dev_nb++;
+			}
+			if (!dev_nb) {
+				printf("No MTD device found, abort\n");
+				return NULL;
+			}
+		}
+		mtd = __mtd_next_device(0);
 	}
 
-	if (vbmeta.start < 0) {
-		if (mtd_arg_off_size(2, vbmeta_arg, &dev, &(vbmeta.start), &(vbmeta.maxsize),
-					&(vbmeta.size), 0x3, flash->size))
-			return NULL;
-	}
-
-	if (boot.start < 0) {
-		if (mtd_arg_off_size(2, boot_arg, &dev, &(boot.start), &(boot.maxsize),
-					&(boot.size), 0x3, flash->size))
-			return NULL;
-	}
-
-	if (!strcmp(partition, "vbmeta"))
-		return &vbmeta;
-
-	if (!strcmp(partition, "boot"))
-		return &boot;
-
-	return NULL;
+	return get_mtd_device_nm(partition);
 }
 
 static AvbIOResult sf_byte_io(AvbOps *ops,
@@ -335,14 +323,14 @@ static AvbIOResult sf_byte_io(AvbOps *ops,
 	ulong ret;
 	u64 start_offset;
 	size_t io_cnt = 0;
-	struct sf_part *part_ptr;
+	struct mtd_info *part_ptr;
 
 	if (!partition || !buffer || io_type > IO_WRITE)
 		return AVB_IO_RESULT_ERROR_IO;
 
 	part_ptr = sf_get_partition(partition);
 	offset = offset < 0 ? part_ptr->size + offset : offset;
-	start_offset = part_ptr->start + offset;
+	start_offset = part_ptr->offset + offset;
 	if (part_ptr == NULL)
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 
@@ -974,7 +962,7 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
 		return AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE;
 
 #if defined CONFIG_HB_NOR_BOOT
-	struct sf_part *cur_part = sf_get_partition(partition);
+	struct mtd_info *cur_part = sf_get_partition(partition);
 	if (!cur_part)
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 	*out_size_num_bytes = cur_part->size;
