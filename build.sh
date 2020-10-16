@@ -83,7 +83,6 @@ function choose()
         echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-        echo "#define NAND_PAGE_SIZE ${PAGE_SIZE}" >> $tmp
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $conftmp

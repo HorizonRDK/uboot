@@ -591,7 +591,7 @@ static void hb_nand_env_init(void)
 	snprintf(bootargs, sizeof(bootargs),
 		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d,%d "\
 		"rootfstype=ubifs rw rootwait %s",
-		rootfs_mtdnm, NAND_PAGE_SIZE, env_get("mtdparts"));
+		rootfs_mtdnm, root_mtd->writesize, env_get("mtdparts"));
 	env_set("bootargs", bootargs);
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm 0x10000000");
@@ -707,6 +707,8 @@ static void hb_env_and_boardid_init(void)
 	run_command("mtd list", 0);
 	if (ubi_part("boot", NULL)) {
 		DEBUG_LOG("system ubi image load failed!\n");
+		env_set("bootdelay", "-1");
+		return 0;
 	}
 #endif
 	/* init env recovery_sys_enable */
