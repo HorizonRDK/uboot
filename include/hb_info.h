@@ -159,8 +159,8 @@
 
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 
-extern uint32_t x3_board_id;
-extern uint32_t x3_som_type;
+extern uint32_t hb_board_id;
+extern int32_t hb_som_type;
 
 struct hb_image_hdr {
 	unsigned int img_addr;

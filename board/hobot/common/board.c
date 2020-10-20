@@ -60,8 +60,8 @@ extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
 #ifdef CONFIG_TARGET_X3
 extern void disable_pll(void);
 #endif
-uint32_t x3_som_type = SOM_TYPE_X3;
-int32_t x3_base_board_type = -1;
+int32_t hb_som_type = -1;
+int32_t hb_base_board_type = -1;
 char hb_upmode[32] = "golden";
 char hb_bootreason[32] = "normal";
 char hb_partstatus = 0;
@@ -433,34 +433,6 @@ static void wait_start(void)
 }
 #endif
 
-uint32_t hb_base_board_type_get(void)
-{
-	uint32_t reg, base_id;
-	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
-	if (x3_base_board_type < 0) {
-		base_id = BASE_BOARD_SEL(bootinfo->board_id);
-
-		switch (base_id) {
-		case AUTO_DETECTION:
-			reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
-			base_id = PIN_BASE_BOARD_SEL(reg) + 1;
-			break;
-		case BASE_BOARD_X3_DVB:
-		case BASE_BOARD_J3_DVB:
-		case BASE_BOARD_CVB:
-		case BASE_BOARD_X3_SDB:
-			break;
-		default:
-			break;
-		}
-		x3_base_board_type = base_id;
-	} else {
-		return x3_base_board_type;
-	}
-
-	return base_id;
-}
-
 static void hb_mipi_panel_reset(void)
 {
 	uint32_t reg = 0;
@@ -498,6 +470,62 @@ static bool hb_pf5024_device_id_getable(void)
 		return false;
 }
 
+
+uint32_t hb_som_type_get(void)
+{
+	uint32_t som_id;
+	bool flag = hb_pf5024_device_id_getable();
+
+	if (hb_som_type < 0) {
+		som_id = SOM_TYPE_SEL(hb_board_id);
+
+		switch (som_id) {
+		case AUTO_DETECTION:
+			som_id = flag ? SOM_TYPE_J3 : SOM_TYPE_X3;
+			break;
+		case SOM_TYPE_X3:
+		case SOM_TYPE_J3:
+		case SOM_TYPE_X3SDB:
+			break;
+		default:
+			break;
+		}
+		hb_som_type = som_id;
+	} else {
+		return hb_som_type;
+	}
+
+	return som_id;
+}
+
+uint32_t hb_base_board_type_get(void)
+{
+	uint32_t reg, base_id;
+
+	if (hb_base_board_type < 0) {
+		base_id = BASE_BOARD_SEL(hb_board_id);
+
+		switch (base_id) {
+		case AUTO_DETECTION:
+			reg = reg32_read(X2_GPIO_BASE + X3_GPIO0_VALUE_REG);
+			base_id = PIN_BASE_BOARD_SEL(reg) + 1;
+			break;
+		case BASE_BOARD_X3_DVB:
+		case BASE_BOARD_J3_DVB:
+		case BASE_BOARD_CVB:
+		case BASE_BOARD_X3_SDB:
+			break;
+		default:
+			break;
+		}
+		hb_base_board_type = base_id;
+	} else {
+		return hb_base_board_type;
+	}
+
+	return base_id;
+}
+
 static void hb_unique_id_get(void)
 {
     struct hb_uid_hdr *p_uid = (struct hb_uid_hdr *)(HB_UNIQUEID_INFO);
@@ -508,16 +536,9 @@ static void hb_unique_id_get(void)
 uint32_t hb_board_type_get(void)
 {
 	uint32_t board_type, base_board_id, som_id;
-	bool flag = hb_pf5024_device_id_getable();
 
 	base_board_id = hb_base_board_type_get();
-
-	if (flag)
-		som_id = SOM_TYPE_J3;
-	else
-		som_id = SOM_TYPE_X3;
-
-	x3_som_type = som_id;
+	som_id = hb_som_type_get();
 
 	board_type = (base_board_id & 0x7) | ((som_id & 0x7) << 8);
 	DEBUG_LOG("board_type = %02x\n", board_type);
@@ -706,7 +727,7 @@ static void hb_env_and_boardid_init(void)
 	char boot_reason[64] = { 0 };
 	unsigned int boot_mode = hb_boot_mode_get();
 
-	DEBUG_LOG("board_id = %02x\n", x3_board_id);
+	DEBUG_LOG("board_id = %02x\n", hb_board_id);
 
 	/* init env recovery_sys_enable */
 	s = env_get("recovery_system");

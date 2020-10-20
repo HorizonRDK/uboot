@@ -19,7 +19,7 @@
 DECLARE_GLOBAL_DATA_PTR;
 
 phys_size_t sys_sdram_size = 0x80000000; /* 2G */
-uint32_t x3_board_id = 1;
+uint32_t hb_board_id = 1;
 bool recovery_sys_enable = true;
 #define MHZ(x) ((x) * 1000000UL)
 
@@ -204,7 +204,7 @@ int dram_init(void)
 	gd->ram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
 	x3_mem_map[0].size = get_effective_memsize();
 
-	x3_board_id = boardid;
+	hb_board_id = boardid;
 
 	return 0;
 }
@@ -316,4 +316,3 @@ void disable_pll(void)
 	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
 			HB_VIOPLL2_PD_CTRL);
 }
-

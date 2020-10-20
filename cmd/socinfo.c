@@ -26,7 +26,7 @@ static uint32_t x3_ddr_size;
 static uint32_t x3_ddr_type;
 static uint32_t x3_ddr_freq;
 static uint32_t x3_origin_board_id;
-static uint32_t x3_base_board_type;
+static uint32_t hb_base_board_type;
 
 static int find_fdt(unsigned long fdt_addr);
 static int valid_fdt(struct fdt_header **blobp);
@@ -232,7 +232,7 @@ static int hb_set_board_id(int offset)
 	/* set boardid */
 	board_id = ((x3_ddr_vender & 0xf) << 28) | (x3_ddr_type << 24) | \
 		((x3_ddr_freq & 0xf) << 20) | ((x3_ddr_size & 0xf) << 16) | \
-		((x3_som_type & 0xff) << 8) | (x3_base_board_type & 0xff);
+		((hb_som_type & 0xff) << 8) | (hb_base_board_type & 0xff);
 
 	ret = hb_dtb_property_config(offset, prop, board_id);
 	if (ret < 0) {
@@ -263,10 +263,10 @@ static void hb_board_config_init(void) {
 	uint32_t reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
 
 	/* init base board type */
-	x3_base_board_type = hb_base_board_type_get();
+	hb_base_board_type = hb_base_board_type_get();
 
 	/* init ddr vender */
-	ddr_model = DDR_MANUF_SEL(x3_board_id);
+	ddr_model = DDR_MANUF_SEL(hb_board_id);
 	if (!ddr_model) {
 		/* use strap pin to decide ddr model */
 		if (PIN_DDR_TYPE_SEL(reg) == 0)
@@ -277,13 +277,13 @@ static void hb_board_config_init(void) {
 	x3_ddr_vender = ddr_model;
 
 	/* init ddr type */
-	x3_ddr_type = DDR_TYPE_SEL(x3_board_id);
+	x3_ddr_type = DDR_TYPE_SEL(hb_board_id);
 
 	/* init ddr size */
-	x3_ddr_size = DDR_CAPACITY_SEL(x3_board_id);
+	x3_ddr_size = DDR_CAPACITY_SEL(hb_board_id);
 
 	/* init ddr freq */
-	ddr_freq = DDR_FREQ_SEL(x3_board_id);
+	ddr_freq = DDR_FREQ_SEL(hb_board_id);
 	if (!ddr_freq) {
 		x3_ddr_freq = DDR_FREQC_2666;
 	} else {
@@ -337,7 +337,7 @@ static int hb_set_board_type(int offset)
 	char *prop_base_board_type = "base_board_name";
 
 	/* set ddr_vender */
-	ret = hb_dtb_property_config(offset, prop_som_type, x3_som_type);
+	ret = hb_dtb_property_config(offset, prop_som_type, hb_som_type);
 	if (ret < 0) {
 		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;
@@ -345,7 +345,7 @@ static int hb_set_board_type(int offset)
 
 	/* set ddr_vender */
 	ret = hb_dtb_property_config(offset, prop_base_board_type,
-		x3_base_board_type);
+		hb_base_board_type);
 	if (ret < 0) {
 		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;
