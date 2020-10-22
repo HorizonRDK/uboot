@@ -613,6 +613,7 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	bool root_flag = root_stat;
 	bool boot_flag = boot_stat;
 	char count;
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 	/* uboot flag check */
 	ota_uboot_upflag_check(up_flag, upmode);
@@ -622,14 +623,15 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	app_success = up_flag & 0x1;
 
 	veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
-
 	if (flash_success == 0) {
 		boot_flag = boot_stat ^ 1;
 		root_flag = root_stat ^ 1;
-	} else if (count > 0) {
-		count = count - 2;
+	} else if (count < bootinfo->reserved[0]) {
+		count = count + 2;
 		veeprom_write(VEEPROM_COUNT_OFFSET, &count,
 			VEEPROM_COUNT_SIZE);
+	} else if (bootinfo->reserved[0] == 0) {
+		DEBUG_LOG("skip ota count check\n");
 	} else if(app_success == 0) {
 		boot_flag = boot_stat ^ 1;
 		root_flag = root_stat ^ 1;

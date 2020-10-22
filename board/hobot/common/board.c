@@ -552,6 +552,7 @@ static void hb_mmc_env_init(void)
 	char *s;
 	char count;
 	char cmd[256] = { 0 };
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
@@ -562,7 +563,7 @@ static void hb_mmc_env_init(void)
 			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
 				VEEPROM_COUNT_SIZE);
 
-			if (count <= 0) {
+			if ((count >= bootinfo->reserved[0]) && (bootinfo->reserved[0] != 0)) {
 				if (strcmp(hb_upmode, "AB") == 0) {
 					/* AB mode, boot system backup partition */
 					ota_ab_boot_bak_partition();
