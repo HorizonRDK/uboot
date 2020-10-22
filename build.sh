@@ -76,8 +76,8 @@ function choose()
         fi
         # Create mtdparts string according to gpt.conf
         cal_mtdparts
-        sed -i "s/CONFIG_MTDIDS_DEFAULT=\"\"/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
-        sed -i "s/CONFIG_MTDPARTS_DEFAULT=\"\"/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
+        sed -i "s/CONFIG_MTDIDS_DEFAULT=.*/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
+        sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
     elif [[ "$bootmode" = *"nand"* ]]|| [[ "$FLASH_ENABLE" = "nand" ]];then
         mtdids_str="spi-nand0=hr_nand.0"
         echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
@@ -86,16 +86,16 @@ function choose()
         sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
         echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
         sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $conftmp
-        echo "CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1" >> $conftmp
-        echo "CONFIG_MTD_UBI_FM_DEBUG=0" >> $conftmp
+        [ -z "$(grep "FASTMAP_AUTOCONVERT" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1" >> $conftmp; }
+        [ -z "$(grep "CONFIG_MTD_UBI_FM_DEBUG" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FM_DEBUG=0" >> $conftmp; }
         if [[ "$bootmode" = "nand" ]];then
             sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
             sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $conftmp
         fi
         # Create mtdparts string according to gpt.conf
         cal_mtdparts
-        sed -i "s/CONFIG_MTDIDS_DEFAULT=\"\"/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
-        sed -i "s/CONFIG_MTDPARTS_DEFAULT=\"\"/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
+        sed -i "s/CONFIG_MTDIDS_DEFAULT=.*/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
+        sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
     elif [ "$bootmode" = "emmc" ];then
         echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
         echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
@@ -287,7 +287,7 @@ cd $(dirname $0)
 if [ "$bootmode" = "nand" ];then
     if [ "$PAGE_SIZE" = "2048" ];then
         export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-gpt.conf"
-    elif [ "$PAGE_SIZE" = "4096" ];then
+    elif [ "$PAGE_SIZE" = "4096" -o "$PAGE_SIZE" = "all" ];then
         export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-4096-gpt.conf"
     fi
 elif [ "$bootmode" = "nor" ];then
@@ -297,3 +297,17 @@ else
 fi
 
 buildopt $cmd
+
+if [ "$PAGE_SIZE" = "all" ];then
+    # encrypt and sign uboot image
+    path="$SRC_BUILD_DIR/tools/key_management_toolkits"
+    cd $path
+    bash pack_uboot_tool.sh || {
+        echo "$SRC_BUILD_DIR/tools/key_management_toolkits/pack_uboot_tool.sh failed"
+        exit 1
+    }
+    cd -
+    mv $TARGET_DEPLOY_DIR/uboot/${UBOOT_IMAGE_NAME} $prefix/uboot_4096.img
+    export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-gpt.conf"
+    buildopt $cmd
+fi
