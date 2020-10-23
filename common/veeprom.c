@@ -186,7 +186,7 @@ int veeprom_init(void)
 		if (ubi_part("boot", NULL)) {
 			DEBUG_LOG("system ubi image load failed!\n");
 			env_set("bootdelay", "-1");
-			return 0;
+			return 1;
 		}
 	} else {
 		/* set veeprom raw sectors */

@@ -1866,8 +1866,11 @@ int last_stage_init(void)
 	/* for determining mmc bus-width from environment */
 	run_command("mmc rescan", 0);
 #endif
-	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
-		veeprom_init();
+	if (readl(HB_PMU_SW_REG_23) != 0x74726175) {
+		if (veeprom_init() && boot_mode == PIN_2ND_NAND) {
+			return 0;
+		}
+	}
 	bif_recover_reset_func();
 	apbooting();
 #ifdef	CONFIG_AP_CP_COMN_MODE
