@@ -316,3 +316,12 @@ void disable_pll(void)
 	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
 			HB_VIOPLL2_PD_CTRL);
 }
+
+
+void change_sys_pclk_250M(void)
+{
+	uint32_t reg = readl(HB_SYS_PCLK);
+	reg &= ~SYS_PCLK_DIV_SEL(0x7);
+	reg |= SYS_PCLK_DIV_SEL(0x5);
+	writel(reg, HB_SYS_PCLK);
+}

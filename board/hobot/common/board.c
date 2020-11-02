@@ -59,6 +59,7 @@ extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
 #ifdef CONFIG_TARGET_X3
 extern void disable_pll(void);
+extern void change_sys_pclk_250M(void);
 #endif
 int32_t hb_som_type = -1;
 int32_t hb_base_board_type = -1;
@@ -1928,6 +1929,9 @@ int last_stage_init(void)
 #ifdef CONFIG_TARGET_X3
 		hb_mipi_panel_reset();
 		disable_pll();
+		/*both pvt and gptp use sys_pclk,
+		 * pvt can work properly when sys_pclk is 250M*/
+		change_sys_pclk_250M();
 #endif
 		add_baud_to_bootargs();
 	}

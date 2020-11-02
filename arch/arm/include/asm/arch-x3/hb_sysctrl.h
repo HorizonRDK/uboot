@@ -39,6 +39,9 @@
 #define HB_VIOPLL2_PD_CTRL                     (SYSCTRL_BASE + 0x0B4)
 #define HB_VIOPLL2_STATUS                      (SYSCTRL_BASE + 0x0B8)
 
+#define SYS_PCLK_DIV_SEL(x)             (((x) & 0x7) << 12)
+#define HB_SYS_PCLK			(SYSCTRL_BASE + 0x204)
+
 #define HB_CNNSYS_CLKOFF_STA		(SYSCTRL_BASE + 0x228)
 
 #define HB_DDRSYS_CLK_DIV_SEL		(SYSCTRL_BASE + 0x230)
