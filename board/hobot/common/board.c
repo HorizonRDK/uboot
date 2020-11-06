@@ -1928,7 +1928,6 @@ int last_stage_init(void)
 	if (readl(HB_PMU_SW_REG_23) != 0x74726175) {
 #ifdef CONFIG_TARGET_X3
 		hb_mipi_panel_reset();
-		disable_pll();
 		/*both pvt and gptp use sys_pclk,
 		 * pvt can work properly when sys_pclk is 250M*/
 		change_sys_pclk_250M();

@@ -309,15 +309,6 @@ int init_io_vol(void)
 	return 0;
 }
 
-void disable_pll(void)
-{
-	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
-			HB_CNNPLL_PD_CTRL);
-	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
-			HB_VIOPLL2_PD_CTRL);
-}
-
-
 void change_sys_pclk_250M(void)
 {
 	uint32_t reg = readl(HB_SYS_PCLK);
