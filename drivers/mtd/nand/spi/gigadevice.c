@@ -25,13 +25,13 @@ static SPINAND_OP_VARIANTS(read_cache_variants_3a,
 		SPINAND_PAGE_READ_FROM_CACHE_OP_3A(true, 0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_OP_3A(false, 0, 1, NULL, 0));
 
-/* static SPINAND_OP_VARIANTS(read_cache_variants,
-		//SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
+static SPINAND_OP_VARIANTS(read_cache_variants,
+		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_DUALIO_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_OP(true, 0, 1, NULL, 0),
-		SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0)); */
+		SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0));
 
 static SPINAND_OP_VARIANTS(write_cache_variants,
 		SPINAND_PROG_LOAD_X4(true, 0, NULL, 0),
@@ -53,6 +53,26 @@ static int gd5f1gq4u_ecc_get_status(struct spinand_device *spinand,
 
 	case GIGADEVICE_STATUS_ECC_8_BITFLIPS:
 		return 8;
+
+	case STATUS_ECC_UNCOR_ERROR:
+		return -EBADMSG;
+
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int gd5f_4bit_ecc_get_status(struct spinand_device *spinand,
+									u8 status)
+{
+	switch (status & STATUS_ECC_MASK) {
+	case STATUS_ECC_NO_BITFLIPS:
+		return 0;
+
+	case GIGADEVICE_STATUS_ECC_1TO7_BITFLIPS:
+		return 3;
 
 	case STATUS_ECC_UNCOR_ERROR:
 		return -EBADMSG;
@@ -105,23 +125,33 @@ static const struct spinand_info gigadevice_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&gd5fxgq4_variant2_ooblayout,
 						gd5f1gq4u_ecc_get_status)),
+	SPINAND_INFO("GD5F1GQ5xExxG", 0x41,
+		     NAND_MEMORG(1, 2048, 64, 64, 1024, 1, 1, 1),
+		     NAND_ECCREQ(4, 528),
+		     // Use special read_cache_variants
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+									&write_cache_variants,
+									&update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&gd5fxgq4_variant2_ooblayout,
+						gd5f_4bit_ecc_get_status)),
 };
 
 static int gigadevice_spinand_detect(struct spinand_device *spinand)
 {
 	u8 *id = spinand->id.data;
-	int ret;
+	int ret, i = 0;
 
 	/*
 	 * For GD NANDs, There is an address byte needed to shift in before IDs
 	 * are read out, so the first byte in raw_id is dummy.
 	 */
-	if (id[0] != SPINAND_MFR_GIGADEVICE)
+	if (id[i++] != SPINAND_MFR_GIGADEVICE && id[i++] != SPINAND_MFR_GIGADEVICE)
 		return 0;
 
 	ret = spinand_match_and_init(spinand, gigadevice_spinand_table,
 				     ARRAY_SIZE(gigadevice_spinand_table),
-				     id[1]);
+				     id[i]);
 	if (ret)
 		return ret;
 
