@@ -70,6 +70,10 @@
 #define GPIO_RGMII_TXD3 (PIN_MUX_BASE +0xCC)
 #define GPIO_RGMII_TX_EN (PIN_MUX_BASE +0xD0)
 #define GPIO1_DIR (X2_GPIO_BASE + 0x18)
+#define ETH0_MODE_CTRL  (0xA1000000 + 0x384)
+#define ETH0_MODE_CTRL_RMII_MODE         BIT(0)
+#define ETH0_MODE_CTRL_SEL_CLK_RMII_IN   BIT(4)
+#define ETH0_MODE_CTRL_SEL_CLK_RMII_INV  BIT(8)
 #endif
 /* Core registers */
 
@@ -609,7 +613,7 @@ static int eqos_set_tx_clk_speed_tegra186(struct udevice *dev)
     return 0;
 }
 
-static int eqos_adjust_link(struct udevice *dev)
+static int eqos_rgmii_adjust_link(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
     int ret, duplex, speed;
@@ -630,18 +634,24 @@ static int eqos_adjust_link(struct udevice *dev)
     switch (speed) {
     case SPEED_1000:
         ret = eqos_set_gmii_speed(dev);
+        clk_set_rate(&eqos->clk_master_bus, 125 * 1000000UL);
         clk_set_rate(&eqos->clk_tx, 125 * 1000000UL);
         debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         printf("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     case SPEED_100:
         ret = eqos_set_mii_speed_100(dev);
+        clk_set_rate(&eqos->clk_master_bus, 125 * 1000000UL);
         clk_set_rate(&eqos->clk_tx, 25 * 1000000UL);
         debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         printf("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     case SPEED_10:
-        ret = eqos_set_mii_speed_10(dev);
+        ret = eqos_set_mii_speed_100(dev);
+        clk_set_rate(&eqos->clk_master_bus, 25 * 1000000UL);
+        clk_set_rate(&eqos->clk_tx, 25 * 100000UL);
+        debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
+        printf("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
         break;
     default:
         pr_err("invalid speed %d\n", speed);
@@ -649,6 +659,51 @@ static int eqos_adjust_link(struct udevice *dev)
     }
     if (ret < 0) {
         pr_err("eqos_set_*mii_speed*() failed: %d\n", ret);
+        return ret;
+    }
+
+    ret = eqos_set_tx_clk_speed_tegra186(dev);
+    if (ret < 0) {
+        pr_err("eqos_set_tx_clk_speed_tegra186() failed: %d\n", ret);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int eqos_rmii_adjust_link(struct udevice *dev)
+{
+    struct eqos_priv *eqos = dev_get_priv(dev);
+    int ret, duplex, speed;
+
+    debug("%s(dev=%p):\n", __func__, dev);
+
+    duplex = eqos->phy->duplex;
+	speed = eqos->phy->speed;
+    if (duplex)
+        ret = eqos_set_full_duplex(dev);
+    else
+        ret = eqos_set_half_duplex(dev);
+    if (ret < 0) {
+        pr_err("eqos_set_rmii_duplex() failed: %d\n", ret);
+        return ret;
+    }
+
+    switch (speed) {
+    case SPEED_100:
+    case SPEED_10:
+        ret = eqos_set_mii_speed_100(dev);
+        clk_set_rate(&eqos->clk_master_bus, 150 * 1000000UL);
+        clk_set_rate(&eqos->clk_tx, 50 * 1000000UL);
+        debug("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
+        printf("set mac_div_clk = %lu", clk_get_rate(&eqos->clk_tx));
+        break;
+    default:
+        pr_err("invalid speed %d\n", speed);
+        return -EINVAL;
+    }
+    if (ret < 0) {
+        pr_err("eqos_set_rmii_speed*() failed: %d\n", ret);
         return ret;
     }
 
@@ -827,7 +882,15 @@ static int eqos_start(struct udevice *dev)
 		}
 	}
 
-    ret = eqos_adjust_link(dev);
+    if (eqos->interface == PHY_INTERFACE_MODE_RGMII
+        || eqos->interface == PHY_INTERFACE_MODE_RGMII_ID
+        || eqos->interface == PHY_INTERFACE_MODE_RGMII_TXID
+        || eqos->interface == PHY_INTERFACE_MODE_RGMII_RXID) {
+        ret = eqos_rgmii_adjust_link(dev);
+    } else if (eqos->interface == PHY_INTERFACE_MODE_RMII) {
+        ret = eqos_rmii_adjust_link(dev);
+    }
+
     if (ret < 0) {
         pr_err("eqos_adjust_link() failed: %d\n", ret);
         goto err_shutdown_phy;
@@ -1302,6 +1365,21 @@ static int eqos_remove_resources_tegra186(struct udevice *dev)
     return 0;
 }
 
+/* set driver data from dts */
+static int eqos_ofdata_to_platdata(struct udevice *dev)
+{
+    struct eqos_priv *eqos = dev_get_priv(dev);
+    const char *phy_mode;
+
+	phy_mode = dev_read_string(dev, "phy-mode");
+	if (phy_mode) {
+		eqos->interface = phy_get_interface_by_name(phy_mode);
+    } else {
+		eqos->interface = 0;
+    }
+    return 0;
+}
+
 static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
@@ -1414,6 +1492,25 @@ static int eqos_probe(struct udevice *dev)
     eqos->mac_regs = (void *)(eqos->regs + EQOS_MAC_REGS_BASE);
     eqos->mtl_regs = (void *)(eqos->regs + EQOS_MTL_REGS_BASE);
     eqos->dma_regs = (void *)(eqos->regs + EQOS_DMA_REGS_BASE);
+
+    /* set RMII/RGMII MODE */
+    switch (eqos->interface) {
+    case PHY_INTERFACE_MODE_RGMII:
+    case PHY_INTERFACE_MODE_RGMII_ID:
+    case PHY_INTERFACE_MODE_RGMII_TXID:
+    case PHY_INTERFACE_MODE_RGMII_RXID:
+        clrbits_le32(ETH0_MODE_CTRL, ETH0_MODE_CTRL_RMII_MODE);
+        setbits_le32(&eqos->dma_regs->mode, EQOS_DMA_MODE_SWR);
+        break;
+    case PHY_INTERFACE_MODE_RMII:
+        setbits_le32(ETH0_MODE_CTRL,
+                    ETH0_MODE_CTRL_RMII_MODE | ETH0_MODE_CTRL_SEL_CLK_RMII_INV);
+        setbits_le32(&eqos->dma_regs->mode, EQOS_DMA_MODE_SWR);
+        break;
+    default:
+        printf("Nod interface defined!\n");
+        return -ENXIO;
+    }
 
 	ret = clk_get_by_name(dev, "mac_pre_div_clk", &eqos->clk_master_bus);
 	if (ret) {
@@ -1544,6 +1641,7 @@ U_BOOT_DRIVER(eth_eqos) = {
     .name = "eth_eqos",
     .id = UCLASS_ETH,
     .of_match = eqos_ids,
+    .ofdata_to_platdata = eqos_ofdata_to_platdata,
     .probe = eqos_probe,
     .remove = eqos_remove,
     .ops = &eqos_ops,
