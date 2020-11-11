@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <ext4fs.h>
 #include <mmc.h>
+#include <mtd.h>
 #include <veeprom.h>
 #include <ota.h>
 #include <hb_info.h>
@@ -280,24 +281,22 @@ int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-static int ota_nor_update_image(char *partition, char *addr, unsigned int bytes)
+static int ota_flash_update_image(char *flash_type, char *partition,
+								  char *addr, unsigned int bytes)
 {
 	char command[64];
-
-	snprintf(command, sizeof(command), "burn_flash nor %s %s %x",
-										partition, addr, bytes);
-
-	return run_command(command, 0);
-}
-
-static int ota_nand_update_image(char *partition,
-								 char *addr,
-								 unsigned int bytes)
-{
-	char command[64];
-
-	snprintf(command, sizeof(command), "burn_flash nand %s %s %x",
-										partition, addr, bytes);
+	struct mtd_info *mtd;
+	if (!strcmp("all", partition)) {
+		mtd_probe_devices();
+		mtd = __mtd_next_device(0);
+		/* Ensure all devices (and their partitions) are probed */
+		if (!mtd || list_empty(&(mtd->partitions))) {
+			partition = "";
+			printf("Erasing all Flash!\n");
+		}
+	}
+	snprintf(command, sizeof(command), "burn_flash %s %s %s %x",
+										flash_type, partition, addr, bytes);
 
 	return run_command(command, 0);
 }
@@ -403,7 +402,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 						char *const argv[])
 {
 	char *file_name = NULL, *filesize = NULL, *fileaddr = NULL;
-	char *ep = NULL, *ptr = NULL;
+	char *ep = NULL, *ptr = NULL, *flash_type = NULL;
 	char partition_name[256] = { 0 };
 	int ret;
 	unsigned int boot_mode, bytes;
@@ -419,8 +418,10 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 			boot_mode = PIN_2ND_EMMC;
 		} else if (strcmp(argv[4], "nor") == 0) {
 			boot_mode = PIN_2ND_NOR;
+			flash_type = "nor";
 		} else if (strcmp(argv[4], "nand") == 0) {
 			boot_mode = PIN_2ND_NAND;
+			flash_type = "nand";
 		} else {
 			printf("error: parameter %s not support! \n", argv[4]);
 			return CMD_RET_USAGE;
@@ -464,12 +465,10 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	/* update image */
-	if (boot_mode == PIN_2ND_NOR)
-		ret = ota_nor_update_image(partition_name, fileaddr, bytes);
-	else if (boot_mode == PIN_2ND_NAND)
-		ret = ota_nand_update_image(partition_name, fileaddr, bytes);
-	else
+	if (boot_mode == PIN_2ND_EMMC)
 		ret = ota_mmc_update_image(partition_name, fileaddr, bytes);
+	else
+		ret = ota_flash_update_image(flash_type, partition_name, fileaddr, bytes);
 
 	if (ret == 0)
 		printf("ota update image success!\n");
