@@ -755,6 +755,8 @@ static void hb_env_and_boardid_init(void)
 
 	/* mmc or nor env init */
 	if (boot_mode == PIN_2ND_EMMC) {
+		/* make sure emmc last partition is properly defined */
+		run_command("gpt extend mmc 0", 0);
 		hb_mmc_env_init();
 	}  else if (boot_mode == PIN_2ND_NOR) {
 		/* load nor kernel and dtb */
