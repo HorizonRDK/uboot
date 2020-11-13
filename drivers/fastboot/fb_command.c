@@ -54,6 +54,9 @@ static void oem_ramdump(char *cmd_parameter, char *response);
 #if CONFIG_IS_ENABLED(FASTBOOT_OEM_GPT_EXTEND)
 static void oem_gpt_extend(char *cmd_parameter, char *response);
 #endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_VERIFY_WRITE)
+static void oem_verify_write(char *cmd_parameter, char *response);
+#endif
 
 static const struct {
 	const char *command;
@@ -113,6 +116,12 @@ static const struct {
 	[FASTBOOT_COMMAND_OEM_GPT_EXTEND] = {
 		.command = "oem gpt-extend",
 		.dispatch = oem_gpt_extend,
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_VERIFY_WRITE)
+	[FASTBOOT_COMMAND_OEM_VERIFY_WRITE] = {
+		.command = "oem verify_write",
+		.dispatch = oem_verify_write,
 	},
 #endif
 };
@@ -496,5 +505,59 @@ static void oem_gpt_extend(char *cmd_parameter, char *response)
 		fastboot_fail("", response);
 	else
 		fastboot_okay(NULL, response);
+}
+#endif
+
+#if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_VERIFY_WRITE)
+/**
+ * oem_verify_write() - verify the if write has succedded
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void oem_verify_write(char *cmd_parameter, char *response)
+{
+	char cmdbuf[128], *result;
+	uint32_t load_addr = gd->ram_size - image_size - 0x100000;
+	if (!cmd_parameter) {
+		fastboot_response("FAIL Image md5sum missing!",
+							response, "%s", "");
+		return;
+	}
+
+	if (image_size == 0) {
+		fastboot_response("FAIL Must fastboot flash first!",
+							response, "%s", "");
+		return;
+	}
+
+	if (fastboot_get_flash_type() != FLASH_TYPE_SPINAND) {
+		fastboot_response("FAIL Wrong flash type", response, "%s", "");
+	}
+
+	snprintf(cmdbuf, sizeof(cmdbuf), "mtd read spi-nand0 %x 0x0 %x",
+							   load_addr, image_size);
+	if (run_command(cmdbuf, 0)) {
+		fastboot_fail("mtd read failed!\n", response);
+		return;
+	}
+
+
+	snprintf(cmdbuf, sizeof(cmdbuf), "md5sum %x %x fb_md5sum",
+							   load_addr, image_size);
+
+	if (run_command(cmdbuf, 0)) {
+		fastboot_response("FAIL md5sum execute failed!",
+							response, "%s", "");
+		return;
+	}
+
+	result = env_get("fb_md5sum");
+	if (strcmp(result, cmd_parameter)) {
+		fastboot_response("FAIL md5sum mismatch", response, "%s", "");
+		return;
+	} else {
+		fastboot_okay(NULL, response);
+	}
 }
 #endif

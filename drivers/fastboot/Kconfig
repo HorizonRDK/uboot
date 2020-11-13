@@ -150,6 +150,11 @@ config FASTBOOT_OEM_GPT_EXTEND
 	  Then it can avoid some mount problem that gpt partition table mismatch
 	  with real partition. It is for hobot or other similar platforms.
 
+config FASTBOOT_CMD_OEM_VERIFY_WRITE
+	bool "Enable 'oem verify_write' command"
+	help
+	  check the written image's md5sum in fastboot, currently only support nand
+
 endif # FASTBOOT
 
 endmenu
