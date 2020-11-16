@@ -183,6 +183,7 @@ function build()
     fi
 
     if [ "$pack_img" = "true" ];then
+        local path_otatool="$SRC_BUILD_DIR/ota_tools/uboot_package_maker"
         if [ -d "$prefix/" ];then
             # encrypt and sign uboot image
             path="$SRC_BUILD_DIR/tools/key_management_toolkits"
@@ -204,6 +205,10 @@ function build()
         runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=${uboot_size} conv=notrunc,sync"
         runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img conv=notrunc,sync"
         runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=512 seek=2048 conv=notrunc,sync"
+        cd $path_otatool
+            bash build_uboot_update_package.sh emmc
+        cd -
+        cpfiles "$path_otatool/uboot.zip" "$TARGET_DEPLOY_DIR/ota"
     fi
 }
 
