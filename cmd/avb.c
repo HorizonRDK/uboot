@@ -407,36 +407,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 #elif defined CONFIG_HB_NAND_BOOT
 	cmd = "avb init nand 0";
 #else
-	char cmd_boot[2048] = { 0 };
-	char *bootargs = NULL;
-	int system_id;
 	cmd = "avb init mmc 0";
-	/* init bootargs */
-	if (!hb_check_secure()) {
-		system_id = get_partition_id(system_partition);
-		bootargs = env_get("bootargs");
-		if (bootargs) {
-			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
-				" rootfstype=%s ro rootwait raid=noautodetect hobotboot.reson=%s",
-				bootargs, system_id, ROOTFS_TYPE, hb_reset_reason_get());
-		}
-		env_set("bootargs", cmd_boot);
-		memset(cmd_boot, 0, sizeof(cmd_boot));
-	}
-
-	/* normal and recovery boot flow */
-	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0) ||
-		(strcmp(boot_partition, "boot_b") == 0)) {
-		/* init env bootcmd init */
-		snprintf(cmd_boot, sizeof(cmd_boot), "part size mmc 0 %s " \
-			"bootimagesize;part start mmc 0 %s bootimageblk;"\
-			"mmc read "__stringify(BOOTIMG_ADDR) \
-			" ${bootimageblk} ${bootimagesize};" \
-			"bootm "__stringify(BOOTIMG_ADDR)";",
-			boot_partition, boot_partition);
-
-		run_command_list(cmd_boot, -1, 0);
-	}
 #endif
 
 	ret = run_command(cmd, 0);

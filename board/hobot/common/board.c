@@ -550,11 +550,11 @@ uint32_t hb_board_type_get(void)
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_mmc_env_init(void)
 {
-	char *s;
+	char *s, *bootargs = NULL;
 	char count;
 	char cmd[256] = { 0 };
+	char cmd_boot[2048] = { 0 };
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
-
 
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
 		if (strcmp(hb_bootreason, "normal") == 0) {
@@ -601,6 +601,32 @@ static void hb_mmc_env_init(void)
 		env_set("mem_size", cmd);
 	}
 
+	/* init bootargs */
+	if (!hb_check_secure()) {
+		bootargs = env_get("bootargs");
+		if (bootargs) {
+			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
+				" rootfstype=%s ro rootwait raid=noautodetect hobotboot.reson=%s",
+				bootargs, get_partition_id(system_partition),
+				ROOTFS_TYPE, hb_reset_reason_get());
+		}
+		env_set("bootargs", cmd_boot);
+		memset(cmd_boot, 0, sizeof(cmd_boot));
+	}
+
+	/* normal and recovery boot flow */
+	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0) ||
+		(strcmp(boot_partition, "boot_b") == 0)) {
+		/* init env bootcmd init */
+		snprintf(cmd_boot, sizeof(cmd_boot), "part size mmc 0 %s " \
+			"bootimagesize;part start mmc 0 %s bootimageblk;"\
+			"mmc read "__stringify(BOOTIMG_ADDR) \
+			" ${bootimageblk} ${bootimagesize};" \
+			"bootm "__stringify(BOOTIMG_ADDR)";",
+			boot_partition, boot_partition);
+
+		env_set("bootcmd", cmd_boot);
+	}
 }
 
 static void hb_nand_env_init(void)
@@ -611,9 +637,10 @@ static void hb_nand_env_init(void)
 	int rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 	/* set bootargs */
 	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d,%d "\
-		"rootfstype=ubifs rw rootwait %s",
-		rootfs_mtdnm, root_mtd->writesize, env_get("mtdparts"));
+		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs"\
+		" ubi.mtd=%d,%d rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
+		rootfs_mtdnm, root_mtd->writesize,
+		env_get("mtdparts"), hb_reset_reason_get());
 	env_set("bootargs", bootargs);
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
@@ -657,8 +684,8 @@ static void hb_nor_env_init(void)
 	/* set bootargs (moved down since @line 618 env is not initialized) */
 	snprintf(bootargs, sizeof(bootargs),
 		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d "\
-		"rootfstype=ubifs rw rootwait %s",
-		rootfs_mtdnm, env_get("mtdparts"));
+		"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
+		rootfs_mtdnm, env_get("mtdparts"), hb_reset_reason_get());
 	env_set("bootargs", bootargs);
 	ret = spi_flash_read(flash, boot_mtd->offset,
 						 boot_mtd->size, (void *) BOOTIMG_ADDR);
