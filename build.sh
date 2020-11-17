@@ -65,12 +65,12 @@ function choose()
 
     if [ "$bootmode" = "nor" ]|| [[ "$FLASH_ENABLE" = "nor" ]];then
         mtdids_str="spi-nor1=hr_nor.0"
-        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
-        echo "#define CONFIG_HB_NOR_BOOT" >> $tmp
-        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
         if [[ "$bootmode" = "nor" ]];then
+            echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
+            echo "#define CONFIG_HB_NOR_BOOT" >> $tmp
+            echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
+            sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+            echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
             sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
             sed -i 's/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/CONFIG_ENV_IS_IN_SPI_FLASH=y/g' $conftmp
         fi
@@ -78,17 +78,17 @@ function choose()
         cal_mtdparts
         sed -i "s/CONFIG_MTDIDS_DEFAULT=.*/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
         sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
-    elif [[ "$bootmode" = *"nand"* ]]|| [[ "$FLASH_ENABLE" = "nand" ]];then
+    elif [[ "$bootmode" = *"nand"* ]];then
         mtdids_str="spi-nand0=hr_nand.0"
-        echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
-        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-        sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $conftmp
-        [ -z "$(grep "FASTMAP_AUTOCONVERT" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1" >> $conftmp; }
-        [ -z "$(grep "CONFIG_MTD_UBI_FM_DEBUG" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FM_DEBUG=0" >> $conftmp; }
         if [[ "$bootmode" = "nand" ]];then
+            echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
+            echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
+            echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
+            sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
+            echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
+            sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $conftmp
+            [ -z "$(grep "FASTMAP_AUTOCONVERT" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1" >> $conftmp; }
+            [ -z "$(grep "CONFIG_MTD_UBI_FM_DEBUG" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FM_DEBUG=0" >> $conftmp; }
             sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
             sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $conftmp
         fi
