@@ -443,9 +443,7 @@ static int should_load_env(void)
 {
 	if (readl(HB_PMU_SW_REG_23) == 0x74726175)
 		return 0;
-#ifdef CONFIG_ENV_IS_IN_UBI
-	return 0;
-#elif defined CONFIG_OF_CONTROL
+#if defined CONFIG_OF_CONTROL
 	return fdtdec_get_config_int(gd->fdt_blob, "load-environment", 1);
 #elif defined CONFIG_DELAY_ENVIRONMENT
 	return 0;
