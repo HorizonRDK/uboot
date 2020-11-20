@@ -86,9 +86,6 @@ function choose()
             echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
             sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
             echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-            sed -i 's/# CONFIG_MTD_UBI_FASTMAP is not set/CONFIG_MTD_UBI_FASTMAP=y/g' $conftmp
-            [ -z "$(grep "FASTMAP_AUTOCONVERT" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FASTMAP_AUTOCONVERT=1" >> $conftmp; }
-            [ -z "$(grep "CONFIG_MTD_UBI_FM_DEBUG" $conftmp)" ] && { echo "CONFIG_MTD_UBI_FM_DEBUG=0" >> $conftmp; }
             sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
             sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $conftmp
         fi
