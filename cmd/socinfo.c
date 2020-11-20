@@ -354,6 +354,23 @@ static int hb_set_board_type(int offset)
 	return ret;
 }
 
+static int hb_set_board_chip_id(int offset)
+{
+	int  ret;
+	char *prop_chip_id = "chip_id";
+	int chip_id;
+
+	chip_id = reg32_read(SEC_REG_BASE + 0x70);
+	printf("chip_id: %x\n", chip_id);
+	ret = hb_dtb_property_config(offset, prop_chip_id, chip_id);
+	if (ret < 0) {
+		printf("hb_dtb_property_config: %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	return ret;
+}
+
 static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 		int argc, char *const argv[])
 {
@@ -414,6 +431,12 @@ static int do_set_boardid(cmd_tbl_t *cmdtp, int flag,
 	ret = hb_set_board_id(nodeoffset);
 	if (ret < 0) {
 		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	ret = hb_set_board_chip_id(nodeoffset);
+	if (ret < 0) {
+		printf("hb_set_board_chip_id: %s\n", fdt_strerror(ret));
 		return 1;
 	}
 
