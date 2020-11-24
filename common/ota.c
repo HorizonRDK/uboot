@@ -712,9 +712,11 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 		env_set("bootdelay", "0");
 
 	/* normal boot */
-	if ((strcmp(boot_reason, rootfs) != 0) &&
-		(strcmp(boot_reason, kernel) != 0) &&
-		(strcmp(boot_reason, "all") != 0))  {
+	if ((strcmp(upmode, "AB") == 0) &&
+		((strcmp(boot_reason, rootfs) == 0) ||
+		(strcmp(boot_reason, kernel) == 0) ||
+		(strcmp(boot_reason, "all") == 0) ||
+		strcmp(boot_reason, "normal") == 0))  {
 			ota_normal_boot(root_stat, boot_stat);
 	}
 
