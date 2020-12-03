@@ -417,11 +417,13 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 	/* avb verify */
 	cmd = "avb verify";
 	ret = run_command(cmd, 0);
-	if(ret != 0)
-		printf("avb verify failed! \n");
-	else
+	if(ret != 0) {
+		/* if verify fail, reset and stop at UBoot */
+		run_command("swinfo boot 2", 0);
+		panic("avb verify failed! \n");
+	} else {
 		printf("avb verify success! \n");
-
+	}
 	return ret;
 }
 
