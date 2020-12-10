@@ -300,7 +300,7 @@ fi
 
 buildopt $cmd
 
-if [ "$PAGE_SIZE" = "all" ];then
+if [ "$PAGE_SIZE" = "all" -a "$cmd" != "clean" ];then
     # encrypt and sign uboot image
     path="$SRC_BUILD_DIR/tools/key_management_toolkits"
     cd $path
