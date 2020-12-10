@@ -1790,7 +1790,7 @@ int setup_boot_action(int boot_mode)
 	case BOOT_FASTBOOT:
 		/* currently only nand boot to flash nand, others all flash emmc */
 		printf("%s: enter fastboot!\n", __func__);
-		env_set("preboot", "setenv preboot; fastboot usb 0");
+		env_set("preboot", "fastboot usb 0");
 		break;
 	case BOOT_UMS:
 		/* ums currently only support emmc */
