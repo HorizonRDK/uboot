@@ -199,9 +199,9 @@ function build()
         local start=${starts%?}
         local uboot_size=$(( ${stop} - ${start} + 1 ))
         rm -rf $TARGET_DEPLOY_DIR/uboot.img
-        runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=${uboot_size} conv=notrunc,sync"
-        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img conv=notrunc,sync"
-        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=512 seek=2048 conv=notrunc,sync"
+        runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=${uboot_size} conv=notrunc,sync status=none"
+        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img conv=notrunc,sync status=none"
+        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=512 seek=2048 conv=notrunc,sync status=none"
         cd $path_otatool
             bash build_uboot_update_package.sh emmc
         cd -
