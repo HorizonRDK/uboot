@@ -759,6 +759,11 @@ config CMD_SEND_ID
 	help
 	  enable send_id cmd.
 
+config CMD_DETECT_PMIC
+	bool "detect_pmic - support for auto detect pmic and change DTB of pmic"
+	help
+	  enable detect_pmic cmd
+
 config CMD_SWINFO
 	bool "swinfo - support for swinfo reg/mem"
 	help

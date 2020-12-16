@@ -63,6 +63,7 @@ obj-$(CONFIG_CMD_FPGAD) += fpgad.o
 obj-$(CONFIG_CMD_FS_GENERIC) += fs.o
 obj-$(CONFIG_CMD_FUSE) += efuse.o
 obj-$(CONFIG_CMD_SEND_ID) += socinfo.o
+obj-${CONFIG_CMD_DETECT_PMIC} += detect_pmic.o
 obj-$(CONFIG_CMD_SWINFO) += swinfo.o
 obj-$(CONFIG_CMD_GETTIME) += gettime.o
 obj-$(CONFIG_CMD_GPIO) += gpio.o

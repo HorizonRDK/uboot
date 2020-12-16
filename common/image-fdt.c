@@ -139,6 +139,9 @@ static void hb_dts_node_modify(void) {
 	snprintf(cmd, sizeof(cmd), "send_id");
 	run_command(cmd, 0);
 
+    snprintf(cmd, sizeof(cmd), "detect_pmic");
+	run_command(cmd, 0);
+
 	/* enable/disable node */
 	snprintf(cmd, sizeof(cmd), "fdt_enable ${change_node}");
 	run_command(cmd, 0);
