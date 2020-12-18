@@ -605,10 +605,26 @@ static void ota_system_upflag_check(char *upmode,
 	}
 }
 
+static void ota_reverse_ab(void)
+{
+	char partstatus = 0;
+	char upmode[16] = { 0 };
+
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+		VEEPROM_UPDATE_MODE_SIZE);
+	if (strcmp(upmode, "AB") == 0) {
+		veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
+				VEEPROM_ABMODE_STATUS_SIZE);
+		partstatus ^= 0xff;
+		veeprom_write(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
+				VEEPROM_ABMODE_STATUS_SIZE);
+	}
+}
+
 static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	bool root_stat)
 {
-	bool flash_success, app_success;
+	bool flash_success, app_success, update_success;
 	bool root_flag = root_stat;
 	bool boot_flag = boot_stat;
 	char count;
@@ -618,11 +634,12 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	ota_uboot_upflag_check(up_flag, upmode);
 
 	/* update flag */
+	update_success = (up_flag >> 3) & 0x1;
 	flash_success = (up_flag >> 2) & 0x1;
 	app_success = up_flag & 0x1;
-
 	veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
-	if (flash_success == 0) {
+	if (flash_success == 0 || update_success == 0) {
+		DEBUG_LOG("%s:%d:update_flag:%d\n", __func__, __LINE__, update_success);
 		boot_flag = boot_stat ^ 1;
 		root_flag = root_stat ^ 1;
 	} else if (count < bootinfo->reserved[0]) {
@@ -651,12 +668,19 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 			if (boot_flag == 1) {
 				snprintf(boot_partition,
 					sizeof(boot_partition), "boot_b");
+			} else {
+				snprintf(boot_partition,
+					sizeof(boot_partition), "boot");
 			}
 
 			if (root_flag == 1) {
 				snprintf(system_partition,
 					sizeof(system_partition), "system_b");
+			} else {
+				snprintf(system_partition,
+					sizeof(system_partition), "system");
 			}
+			ota_reverse_ab();
 		}
 	}
 }
@@ -730,6 +754,7 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 	} else if (strcmp(boot_reason, "all") == 0) {
 		ota_all_update(upmode, up_flag, boot_stat, root_stat);
 	}
+	DEBUG_LOG("boot is %s, system is %s\n", boot_partition, system_partition);
 }
 
 uint32_t hb_do_cksum(const uint8_t *buff, uint32_t len)
