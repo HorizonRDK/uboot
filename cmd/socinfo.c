@@ -25,6 +25,7 @@ static uint32_t x3_ddr_vender;
 static uint32_t x3_ddr_size;
 static uint32_t x3_ddr_type;
 static uint32_t x3_ddr_freq;
+extern uint32_t x3_ddr_part_num;
 static uint32_t x3_origin_board_id;
 static uint32_t hb_base_board_type;
 
@@ -298,6 +299,7 @@ static int hb_set_ddr_property(int offset)
 	char *prop_size = "ddr_size";
 	char *prop_vender = "ddr_vender";
 	char *prop_freq = "ddr_freq";
+	char *prop_part_num = "ddr_part_num";
 
 	/* set ddr_vender */
 	ret = hb_dtb_property_config(offset, prop_vender, x3_ddr_vender);
@@ -322,6 +324,13 @@ static int hb_set_ddr_property(int offset)
 
 	/* set ddr_freq */
 	ret = hb_dtb_property_config(offset, prop_freq, x3_ddr_freq);
+	if (ret < 0) {
+		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
+		return 1;
+	}
+
+	/* set ddr_part_num */
+	ret = hb_dtb_property_config(offset, prop_part_num, x3_ddr_part_num);
 	if (ret < 0) {
 		printf("libfdt fdt_setprop(): %s\n", fdt_strerror(ret));
 		return 1;

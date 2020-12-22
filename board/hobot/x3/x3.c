@@ -17,7 +17,7 @@
 #include <asm/arch-x2/ddr.h>
 
 DECLARE_GLOBAL_DATA_PTR;
-
+uint32_t x3_ddr_part_num = 0xffffffff;
 phys_size_t sys_sdram_size = 0x80000000; /* 2G */
 uint32_t hb_board_id = 1;
 bool recovery_sys_enable = true;
@@ -205,7 +205,7 @@ int dram_init(void)
 	x3_mem_map[0].size = get_effective_memsize();
 
 	hb_board_id = boardid;
-
+	x3_ddr_part_num = bootinfo->reserved[1];
 	return 0;
 }
 
