@@ -184,7 +184,7 @@ int android_image_get_second(const struct andr_img_hdr *hdr,
 {
 	uint64_t second_addr = 0;
 	char *name = NULL;
-	uint32_t board_type = hb_board_type_get();;
+	uint32_t board_type = 0;
 
 	if (!hdr->second_size) {
 		*second_data = *second_len = 0;
@@ -198,6 +198,28 @@ int android_image_get_second(const struct andr_img_hdr *hdr,
 	second_addr += ALIGN(hdr->ramdisk_size, hdr->page_size);
 
 	/* search file dtb depend on board_id */
+    /* if BOARD_TYPE is defined, read board_type by pin state
+     * Vaild define is:
+     *     BOARD_TYPE_PIN_0   BOARD_TYPE_PIN_1   BOARD_TYPE_PIN_2
+     *           x                   0                 0
+     *           x                   x                 0
+     *           x                   x                 x
+     * x > 0 && x < HB_PIN_MAX_NUMS
+     */
+    if (BOARD_TYPE_PIN_0 > 0 && BOARD_TYPE_PIN_0 < HB_PIN_MAX_NUMS
+        && BOARD_TYPE_PIN_1 == 0 && BOARD_TYPE_PIN_2 == 0) {
+        board_type = hb_board_type_get_by_pin(1);
+    } else if (BOARD_TYPE_PIN_0 > 0 && BOARD_TYPE_PIN_0 < HB_PIN_MAX_NUMS
+        && BOARD_TYPE_PIN_1 > 0 && BOARD_TYPE_PIN_1 < HB_PIN_MAX_NUMS
+        && BOARD_TYPE_PIN_2 == 0) {
+        board_type = hb_board_type_get_by_pin(2);
+    } else if (BOARD_TYPE_PIN_0 > 0 && BOARD_TYPE_PIN_0 < HB_PIN_MAX_NUMS
+        && BOARD_TYPE_PIN_1 > 0 && BOARD_TYPE_PIN_1 < HB_PIN_MAX_NUMS
+        && BOARD_TYPE_PIN_2 > 0 && BOARD_TYPE_PIN_2 < HB_PIN_MAX_NUMS) {
+        board_type = hb_board_type_get_by_pin(3);
+    } else {
+        board_type = hb_board_type_get();
+    }
 	name = x3_image_get_dtb(board_type,
 		(struct hb_kernel_hdr *)second_addr, second_data, second_len);
 	DEBUG_LOG("dtb_name = %s\n", name);

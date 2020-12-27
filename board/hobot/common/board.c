@@ -41,6 +41,11 @@
 #include <mtd.h>
 #include "../../../cmd/legacy-mtd-utils.h"
 
+
+#define HB_PIN_FUNC_CFG_REG(p)  (PIN_MUX_BASE + ((p) * 0x4))
+#define HB_IO_OUT_CTL_REG(p)    (GPIO_BASE + ((p) / 16) * 0x10 + 0x8)
+#define HB_IO_IN_VAL_REG(p)     (GPIO_BASE + ((p) / 16) * 0x10 + 0xc)
+
 #ifdef CONFIG_HBOT_SECURE_ENGINE
 #include <hb_spacc.h>
 #include <hb_pka.h>
@@ -499,6 +504,7 @@ uint32_t hb_som_type_get(void)
 	return som_id;
 }
 
+
 uint32_t hb_base_board_type_get(void)
 {
 	uint32_t reg, base_id;
@@ -545,6 +551,40 @@ uint32_t hb_board_type_get(void)
 	DEBUG_LOG("board_type = %02x\n", board_type);
 
 	return board_type;
+}
+
+uint32_t hb_board_type_get_by_pin(int pin_nums)
+{
+	int16_t i = 0;
+    uint32_t board_type = 0;
+    uint32_t pin_no[] = {BOARD_TYPE_PIN_0, BOARD_TYPE_PIN_1, BOARD_TYPE_PIN_2};
+    uint64_t addr = 0, reg = 0;
+
+    /* set Board type pin func to GPIO*/
+    for (i = 0; i < pin_nums; ++i) {
+        addr = HB_PIN_FUNC_CFG_REG(pin_no[i]);
+        reg = readl(addr);
+        reg |= 0x3;
+        writel(reg, addr);
+    }
+
+    /* set Board type pin to GPIO output function */
+    for (i = 0; i < pin_nums; ++i) {
+        addr = HB_IO_OUT_CTL_REG(pin_no[i]);
+        reg = readl(addr);
+        reg &= (0x1) << (16 + pin_no[i] % 16);
+        writel(reg, addr);
+    }
+
+    for (i = 0; i < pin_nums; ++i) {
+        addr = HB_IO_IN_VAL_REG(pin_no[i]);
+        reg = readl(addr);
+        if (reg & (0x1 << (pin_no[i] % 16))) {
+            board_type |= 0x1 << i;
+        }
+    }
+    DEBUG_LOG("board_type_by_pin = %02x\n", board_type);
+    return board_type;
 }
 
 #ifndef CONFIG_FPGA_HOBOT

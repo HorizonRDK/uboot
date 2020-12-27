@@ -159,6 +159,12 @@
 
 #define PIN_DEV_MODE_SEL(x)		(((x) >> 4) & 0x1)
 
+#define BOARD_TYPE_PIN_0     0
+#define BOARD_TYPE_PIN_1     0
+#define BOARD_TYPE_PIN_2     0
+
+#define HB_PIN_MAX_NUMS       121
+
 extern uint32_t hb_board_id;
 extern int32_t hb_som_type;
 
@@ -270,6 +276,7 @@ int hb_fastboot_key_pressed(void);
 int hb_check_secure(void);
 uint32_t hb_board_type_get(void);
 uint32_t hb_base_board_type_get(void);
+uint32_t hb_board_type_get_by_pin(int pin_nums);
 char *hb_reset_reason_get(void);
 int init_io_vol(void);
 
