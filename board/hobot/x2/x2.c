@@ -88,7 +88,7 @@ int board_id_verify(unsigned int board_id)
         return -1;
 }
 
-unsigned int hb_gpio_to_borad_id(unsigned int gpio_id)
+unsigned int hb_gpio_to_board_id(unsigned int gpio_id)
 {
         int i = 0;
 
@@ -105,12 +105,12 @@ unsigned int hb_gpio_to_borad_id(unsigned int gpio_id)
 
 
 unsigned int hb_gpio_get(void)
-{   
+{
         unsigned int reg_x, reg_y;
-   
+
         reg_x = reg32_read(X2_GPIO_BASE + GPIO_GRP5_REG);
         reg_y = reg32_read(X2_GPIO_BASE + GPIO_GRP4_REG);
-   
+
         return PIN_BOARD_SEL(reg_x, reg_y);
 }
 
@@ -126,7 +126,7 @@ static void system_sdram_size_init(void)
 	if (board_id == HB_GPIO_MODE) {
 		gpio_id = hb_gpio_get();
 
-		board_id = hb_gpio_to_borad_id(gpio_id);
+		board_id = hb_gpio_to_board_id(gpio_id);
 
 		if (board_id == 0xff) {
 			printf("error: gpio id %02x not support \n", gpio_id);
@@ -233,4 +233,3 @@ ulong board_get_usable_ram_top(ulong total_size)
 	return X2_USABLE_RAM_TOP;
 }
 #endif
-

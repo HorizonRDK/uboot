@@ -153,7 +153,7 @@ static unsigned int spl_gpio_get(void)
 	return PIN_BOARD_SEL(reg_x, reg_y);
 }
 
-static unsigned int spl_gpio_to_borad_id(unsigned int gpio_id)
+static unsigned int spl_gpio_to_board_id(unsigned int gpio_id)
 {
 	int i = 0;
 
@@ -197,7 +197,7 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 	if (board_id == HB_GPIO_MODE) {
 		gpio_id = spl_gpio_get();
 
-		board_id = spl_gpio_to_borad_id(gpio_id);
+		board_id = spl_gpio_to_board_id(gpio_id);
 
 		if (board_id == 0xff) {
 			printf("error: gpio id %02x not support \n", gpio_id);

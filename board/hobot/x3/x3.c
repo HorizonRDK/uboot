@@ -282,7 +282,7 @@ unsigned int hb_gpio_get(void)
 	return 0;
 }
 
-unsigned int hb_gpio_to_borad_id(unsigned int gpio_id)
+unsigned int hb_gpio_to_board_id(unsigned int gpio_id)
 {
 	return 0;
 }

@@ -56,7 +56,7 @@ static int stored_dumptype;
 #endif
 
 extern unsigned int hb_gpio_get(void);
-extern unsigned int hb_gpio_to_borad_id(unsigned int gpio_id);
+extern unsigned int hb_gpio_to_board_id(unsigned int gpio_id);
 #ifdef CONFIG_TARGET_X3
 extern void disable_pll(void);
 extern void change_sys_pclk_250M(void);
