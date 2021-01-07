@@ -274,6 +274,7 @@ struct hb_uid_hdr {
 int hb_boot_mode_get(void);
 int hb_fastboot_key_pressed(void);
 int hb_check_secure(void);
+uint32_t hb_som_type_get(void);
 uint32_t hb_board_type_get(void);
 uint32_t hb_base_board_type_get(void);
 uint32_t hb_board_type_get_by_pin(int pin_nums);
