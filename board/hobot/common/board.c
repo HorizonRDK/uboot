@@ -655,8 +655,7 @@ static void hb_mmc_env_init(void)
 	}
 
 	/* normal and recovery boot flow */
-	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0) ||
-		(strcmp(boot_partition, "boot_b") == 0)) {
+	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0)) {
 		/* init env bootcmd init */
 		snprintf(cmd_boot, sizeof(cmd_boot), "part size mmc 0 %s " \
 			"bootimagesize;part start mmc 0 %s bootimageblk;"\
@@ -666,6 +665,8 @@ static void hb_mmc_env_init(void)
 			boot_partition, boot_partition);
 
 		env_set("bootcmd", cmd_boot);
+	} else if (hb_check_secure()) {
+		env_set("bootcmd", CONFIG_BOOTCOMMAND);
 	}
 }
 
