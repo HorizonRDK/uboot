@@ -232,14 +232,14 @@ static uint64_t sf_read_and_flush(struct spi_flash *flash,
 	uint64_t blks;
 	if ((start + len) > (part->offset + part->size)) {
 		len = part->offset + part->size - start;
-		printf("%s: len aligned to nor partition bounds (%ld)\n",
+		debug("%s: len aligned to nor partition bounds (%ld)\n",
 		       __func__, len);
 	}
 	blks = spi_flash_read(flash, start, len, buffer);
 	if (!blks) {
 		blks = len;
 	} else {
-		printf("Error: read nor flash fail\n");
+		avb_error("Error: read nor flash fail\n");
 		return 0;
 	}
 	/* flush cache after read */
@@ -260,7 +260,7 @@ static uint64_t sf_write(struct spi_flash *flash, struct mtd_info *part,
 	}
 	if ((start + len) > (part->offset + part->size)) {
 		len = part->offset + part->size - start;
-		printf("%s: len aligned to nor partition bounds (%ld)\n",
+		debug("%s: len aligned to nor partition bounds (%ld)\n",
 		       __func__, len);
 	}
 	while(len) {
@@ -272,7 +272,7 @@ static uint64_t sf_write(struct spi_flash *flash, struct mtd_info *part,
 		}
 		ret = spi_flash_erase(flash, start, tmp_len);
 		if (ret) {
-			printf("SPI Flash Erase failed!\n");
+			avb_error("SPI Flash Erase failed!\n");
 			return -1;
 		}
 		bytes_written += spi_flash_write(flash, start, tmp_len, tmp_buf);
@@ -302,7 +302,7 @@ static struct mtd_info *sf_get_partition(const char *partition)
 				dev_nb++;
 			}
 			if (!dev_nb) {
-				printf("No MTD device found, abort\n");
+				avb_error("No MTD device found, abort\n");
 				return NULL;
 			}
 		}
@@ -473,12 +473,12 @@ static uint64_t mmc_read_and_flush(struct mmc_part *part,
 	bool unaligned = is_buf_unaligned(buffer);
 
 	if (start < part->info.start) {
-		printf("%s: partition start out of bounds\n", __func__);
+		debug("%s: partition start out of bounds\n", __func__);
 		return 0;
 	}
 	if ((start + sectors) > (part->info.start + part->info.size)) {
 		sectors = part->info.start + part->info.size - start;
-		printf("%s: read sector aligned to partition bounds (%ld)\n",
+		debug("%s: read sector aligned to partition bounds (%ld)\n",
 		       __func__, sectors);
 	}
 
@@ -488,7 +488,7 @@ static uint64_t mmc_read_and_flush(struct mmc_part *part,
 	 */
 
 	if (unaligned) {
-		printf("Handling unaligned read buffer..\n");
+		avb_debug("Handling unaligned read buffer..\n");
 		tmp_buf = get_sector_buf();
 		buf_size = get_sector_buf_size();
 		if (sectors > buf_size / part->info.blksz)
@@ -516,18 +516,18 @@ static uint64_t mmc_write(struct mmc_part *part, lbaint_t start,
 	bool unaligned = is_buf_unaligned(buffer);
 
 	if (start < part->info.start) {
-		printf("%s: partition start out of bounds\n", __func__);
+		debug("%s: partition start out of bounds\n", __func__);
 		return 0;
 	}
 	if ((start + sectors) > (part->info.start + part->info.size)) {
 		sectors = part->info.start + part->info.size - start;
-		printf("%s: sector aligned to partition bounds (%ld)\n",
+		debug("%s: sector aligned to partition bounds (%ld)\n",
 		       __func__, sectors);
 	}
 	if (unaligned) {
 		tmp_buf = get_sector_buf();
 		buf_size = get_sector_buf_size();
-		printf("Handling unaligned wrire buffer..\n");
+		avb_debug("Handling unaligned wrire buffer..\n");
 		if (sectors > buf_size / part->info.blksz)
 			sectors = buf_size / part->info.blksz;
 
@@ -563,7 +563,7 @@ static struct mmc_part *get_partition(AvbOps *ops, const char *partition)
 		}
 
 		if (mmc_init(part->mmc)) {
-			printf("MMC initialization failed\n");
+			avb_error("MMC initialization failed\n");
 			goto err;
 		}
 
@@ -577,7 +577,7 @@ static struct mmc_part *get_partition(AvbOps *ops, const char *partition)
 	}
 
 	if (!mmc_blk) {
-		printf("Error - failed to obtain block descriptor\n");
+		avb_error("Error - failed to obtain block descriptor\n");
 		goto err;
 	}
 
@@ -848,7 +848,7 @@ static AvbIOResult read_rollback_index(AvbOps *ops,
 				       u64 *out_rollback_index)
 {
 	/* For now we always return 0 as the stored rollback index. */
-	printf("%s not supported yet\n", __func__);
+	debug("%s not supported yet\n", __func__);
 
 	if (out_rollback_index)
 		*out_rollback_index = 0;
@@ -872,7 +872,7 @@ static AvbIOResult write_rollback_index(AvbOps *ops,
 					u64 rollback_index)
 {
 	/* For now this is a no-op. */
-	printf("%s not supported yet\n", __func__);
+	debug("%s not supported yet\n", __func__);
 
 	return AVB_IO_RESULT_OK;
 }
@@ -892,7 +892,7 @@ static AvbIOResult read_is_device_unlocked(AvbOps *ops, bool *out_is_unlocked)
 {
 	/* For now we always return that the device is unlocked. */
 
-	printf("%s not supported yet\n", __func__);
+	debug("%s not supported yet\n", __func__);
 
 	*out_is_unlocked = true;
 
@@ -995,9 +995,9 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 	struct AvbOpsData *ops_data;
 
 #ifdef CONFIG_HB_NOR_BOOT
-	printf("Hobot SPI-NOR AVB Verify\n");
+	avb_debug("Hobot SPI-NOR AVB Verify\n");
 	if (strcmp(if_typename, "sf")) {
-		printf("Wrong interface passed in, please use sf!\n");
+		avb_error("Wrong interface passed in, please use sf!\n");
 		return NULL;
 	}
 	if_type = IF_TYPE_COUNT + 1;
@@ -1010,14 +1010,14 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 			return NULL;
 	}
 #elif defined CONFIG_HB_NAND_BOOT
-	printf("Hobot SPI-NAND AVB Verify\n");
+	avb_debug("Hobot SPI-NAND AVB Verify\n");
 	if_type = IF_TYPE_COUNT + 2;
 	if (strcmp(if_typename, "nand")) {
-		printf("Wrong interface passed in, please use nand!\n");
+		avb_error("Wrong interface passed in, please use nand!\n");
 		return NULL;
 	}
 	if (ubi_part("boot", NULL)) {
-		printf("UBI Volume Init Failed!\n");
+		avb_error("UBI Volume Init Failed!\n");
 		return NULL;
 	}
 #else

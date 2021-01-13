@@ -422,7 +422,7 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 		run_command("swinfo boot 2", 0);
 		panic("avb verify failed! \n");
 	} else {
-		printf("avb verify success! \n");
+		avb_debug("avb verify success! \n");
 	}
 	return ret;
 }

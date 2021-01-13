@@ -365,7 +365,7 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 
 	ret = load_full_partition(
 		ops, part_name, image_size, &image_buf, &image_preloaded);
-	printf("avb load part_name: %s\n", part_name);
+	avb_debugv("avb load part_name: %s\n", part_name);
 	if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
 		goto out;
 	}
@@ -1070,7 +1070,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
          * This is because the only processing here is to find the digest and
          * make it available on the kernel command line.
          */
-         printf("hashtree_desc.root_digest_len : %d \n", \
+         avb_debugv("hashtree_desc.root_digest_len : %d \n", \
          	hashtree_desc.root_digest_len);
 
         if (hashtree_desc.root_digest_len == 0) {
@@ -1337,11 +1337,11 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL) {
-	if ((strcmp(boot_partition, "boot") == 0) ||
-		strcmp(boot_partition, "boot_b") == 0)
-		snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
+      if ((strcmp(boot_partition, "boot") == 0) ||
+           strcmp(boot_partition, "boot_b") == 0)
+          snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
 
-        env_set("bootargs", cmd);
+      env_set("bootargs", cmd);
     }
 
     if (out_data != NULL) {
