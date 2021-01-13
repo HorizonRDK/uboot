@@ -14,6 +14,7 @@
 #include "avb_util.h"
 #include "avb_vbmeta_image.h"
 #include "avb_version.h"
+#include <hb_info.h>
 #include <malloc.h>
 #include <ota.h>
 
@@ -1194,7 +1195,9 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
       (flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR);
   AvbCmdlineSubstList* additional_cmdline_subst = NULL;
   char *bootargs = NULL;
+  char *bootargs_del_ptr = NULL;
   char cmd[1024] = { 0 };
+  int len = 0;
 
   /* Fail early if we're missing the AvbOps needed for slot verification.
    *
@@ -1330,16 +1333,20 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
         slot_data->cmdline = new_cmdline;
       }
     }
-
+    /* processing original bootargs to get rid of everything after "root=" */
     bootargs = env_get("bootargs");
+    bootargs_del_ptr = strstr(bootargs, "root=");
+    len = (bootargs_del_ptr == NULL) ?
+          strlen(bootargs) : (int64_t)(bootargs_del_ptr - bootargs);
     if (bootargs)
-        snprintf(cmd, sizeof(cmd), "%s", bootargs);
+        strncpy(cmd, bootargs, len);
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL) {
       if ((strcmp(boot_partition, "boot") == 0) ||
            strcmp(boot_partition, "boot_b") == 0)
-          snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
+          snprintf(cmd, sizeof(cmd), "%s %s hobotboot.reson=%s",
+                   cmd, slot_data->cmdline, hb_reset_reason_get());
 
       env_set("bootargs", cmd);
     }
