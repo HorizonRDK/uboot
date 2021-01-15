@@ -12,26 +12,60 @@
 #include <linux/libfdt.h>
 
 #define DEFAULT_PMIC_ADDR 0xFF
+#define DTB_PATH_MAX_LEN (50)
 
 extern struct fdt_header *working_fdt;
 
+static int switch_to_dc(const char *pathp, const char *set_prop,
+                const char *get_prop)
+{
+    int ret = 0;
+    int len = 0;
+    u64 value = 0;
+    int nodeoffset;
+    const void *nodep;
+    char cmd[128];
+
+    /* get regulator-max-microvolt of cnn0_pd_reg_dc@2/3 */
+    nodeoffset = fdt_path_offset(working_fdt, pathp);
+    if (nodeoffset < 0) {
+        printf("get nodeoffset of %s failed\n", pathp);
+        return 1;
+    }
+
+    nodep = fdt_getprop(working_fdt, nodeoffset, get_prop, &len);
+    if (len <= 0) {
+        printf("get nodep of %s %s failed\n", pathp, get_prop);
+        return 1;
+    }
+    value = fdt32_to_cpu(*(fdt32_t *)nodep);
+    ret = env_set_ulong("_switch_dc_tmp", value);
+    if (ret) {
+        printf("set env of %s %s failed\n", pathp, get_prop);
+        return 1;
+    }
+
+    snprintf(cmd, sizeof(cmd), "fdt set %s %s <${_switch_dc_tmp}>",
+            pathp, set_prop);
+    run_command(cmd, 0);
+    return 0;
+}
 static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
 		int argc, char *const argv[])
 {
     int ret, i = 0;
     char cmd[128];
-    int nodeoffset;
-    int len = 0;
-    const void *nodep;
-    u64 volt = 0;
     ulong axp1506_addr;
     struct udevice *dev;
     char *pathp  = "/soc/i2c@0xA5009000/axp15060@37";
-    char *cnn0_pathp = "/soc/cnn@0xA3000000";
-    char *cnn1_pathp = "/soc/cnn@0xA3001000";
-    char *cnn0_pd_pathp = "/cnn0_pd_reg_dc@2";
-    char *cnn1_pd_pathp = "/cnn1_pd_reg_dc@3";
-    char *cnn_opp_table = "/soc/cnn_opp_table/opp0";
+    char cpu_path[][DTB_PATH_MAX_LEN] =
+        {"/cpus/cpu@0", "/cpus/cpu@1", "/cpus/cpu@2", "/cpus/cpu@3"};
+    char cnn_path[][DTB_PATH_MAX_LEN] =
+        {"/soc/cnn@0xA3000000", "/soc/cnn@0xA3001000"};
+    char cpu_regu_path[][DTB_PATH_MAX_LEN] =
+        {"/cpu_pd_reg_dc"};
+    char cnn_regu_path[][DTB_PATH_MAX_LEN] =
+        {"/cnn0_pd_reg_dc@2", "/cnn1_pd_reg_dc@3"};
 
     if (hb_som_type_get() != SOM_TYPE_X3)
          return 0;
@@ -54,71 +88,41 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     i2c_get_chip_for_busnum(0, (int)axp1506_addr, 1, &dev);
 
     /* try to read register of axp1506 */
-    if (dm_i2c_reg_read(dev, 0x0) < 0) {
-        /*
-         * detect axp1506 failed, switch to dc-dc regulator
-         */
-        printf("PMIC invalid, Disable it\n");
-        /* diable axp1506 if read register failed */
-        snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", pathp);
+    if (dm_i2c_reg_read(dev, 0x0) >= 0)
+        return 0;
+
+    /*
+     * detect axp1506 failed, switch to dc-dc regulator
+     */
+    printf("PMIC invalid, Disable it\n");
+    /* diable axp1506 if read register failed */
+    snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", pathp);
+    run_command(cmd, 0);
+
+    /* enable dc-dc regulator dts */
+    for (i = 0; i < ARRAY_SIZE(cpu_regu_path); ++i) {
+        snprintf(cmd, sizeof(cmd), "fdt set %s status okay",
+                cpu_regu_path[i]);
         run_command(cmd, 0);
-
-        /* get dc-dc regulator phandle value */
-        snprintf(cmd, sizeof(cmd),
-                "fdt get value cnn0_pd_phandle %s cnn-supply-dc", cnn0_pathp);
-        ret = run_command(cmd, 0);
-        if (!ret) {
-            /* modify cnn-supply to dc-dc regualtor */
-            snprintf(cmd, sizeof(cmd),
-                    "fdt set %s cnn-supply <${cnn0_pd_phandle}>", cnn0_pathp);
-            run_command(cmd, 0);
-
-            /* enable dc-dc regulator dts */
-            snprintf(cmd, sizeof(cmd), "fdt set %s status okay", cnn0_pd_pathp);
-            run_command(cmd, 0);
-        }
-
-        /* get dc-dc regulator phandle value */
-        snprintf(cmd, sizeof(cmd),
-                "fdt get value cnn1_pd_phandle %s cnn-supply-dc", cnn1_pathp);
-        ret = run_command(cmd, 0);
-        if (!ret) {
-            /* modify cnn-supply to dc-dc regualtor */
-            snprintf(cmd, sizeof(cmd),
-                    "fdt set %s cnn-supply <${cnn1_pd_phandle}>", cnn1_pathp);
-            run_command(cmd, 0);
-
-            /* enable dc-dc regulator dts */
-            snprintf(cmd, sizeof(cmd), "fdt set %s status okay", cnn1_pd_pathp);
-            run_command(cmd, 0);
-        }
-
-        /* get regulator-max-microvolt of cnn0_pd_reg_dc@2/3 */
-        nodeoffset = fdt_path_offset(working_fdt, cnn1_pd_pathp);
-        if (nodeoffset < 0) {
-            printf("get nodeoffset of cnn1_pd_pathp failed\n");
-            return 1;
-        }
-
-        nodep = fdt_getprop(working_fdt, nodeoffset, "regulator-max-microvolt",
-                            &len);
-        if (len <= 0) {
-            printf("get nodep of regulator-max-microvolt failed\n");
-            return 1;
-        }
-        volt = fdt32_to_cpu(*(fdt32_t *)nodep);
-        ret = env_set_ulong("cnn_opp_microvolt", volt);
-        if (ret) {
-            printf("set env of cnn_opp_microvolt failed\n");
-            return 1;
-        }
-        for (i = 0; i < 4; ++i) {
-            snprintf(cmd, sizeof(cmd),
-                    "fdt set %s%d opp-microvolt <${cnn_opp_microvolt}>",
-                    cnn_opp_table, i);
-            run_command(cmd, 0);
-        }
     }
+    for (i = 0; i < ARRAY_SIZE(cnn_regu_path); ++i) {
+        snprintf(cmd, sizeof(cmd), "fdt set %s status okay",
+                cnn_regu_path[i]);
+        run_command(cmd, 0);
+    }
+
+    /* enable dc-dc regulator dts */
+    for (i = 0; i < ARRAY_SIZE(cpu_path); ++i) {
+        switch_to_dc(cpu_path[i], "cpu-supply", "cpu-supply-dc");
+        switch_to_dc(cpu_path[i], "operating-points-v2",
+                    "operating-points-v2-dc");
+    }
+    for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
+        switch_to_dc(cnn_path[i], "cnn-supply", "cnn-supply-dc");
+        switch_to_dc(cnn_path[i], "operating-points-v2",
+                    "operating-points-v2-dc");
+    }
+
     return 0;
 }
 
