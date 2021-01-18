@@ -1342,7 +1342,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
         strncpy(cmd, bootargs, len);
 
     /* config kernel cmdline: using vbmeta cmdline */
-    if (slot_data != NULL) {
+    if (slot_data != NULL && hb_boot_mode_get() == PIN_2ND_EMMC) {
       if ((strcmp(boot_partition, "boot") == 0) ||
            strcmp(boot_partition, "boot_b") == 0)
           snprintf(cmd, sizeof(cmd), "%s %s hobotboot.reson=%s",
