@@ -72,6 +72,7 @@ char hb_upmode[32] = "golden";
 char hb_bootreason[32] = "normal";
 char hb_partstatus = 0;
 uint16_t ion_cma_status = 1;
+bool custom_bootargs = false;
 
 struct hb_uid_hdr hb_unique_id;
 
@@ -590,7 +591,7 @@ uint32_t hb_board_type_get_by_pin(int pin_nums)
 #ifndef CONFIG_FPGA_HOBOT
 static void hb_mmc_env_init(void)
 {
-	char *s, *bootargs = NULL;
+	char *s;
 	char count;
 	char cmd[256] = { 0 };
 	char cmd_boot[2048] = { 0 };
@@ -643,14 +644,13 @@ static void hb_mmc_env_init(void)
 
 	/* init bootargs */
 	if (!hb_check_secure()) {
-		bootargs = env_get("bootargs");
-		if (bootargs) {
+		if (!custom_bootargs) {
 			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
 				" rootfstype=%s ro rootwait raid=noautodetect hobotboot.reson=%s",
-				bootargs, get_partition_id(system_partition),
+				CONFIG_BOOTARGS, get_partition_id(system_partition),
 				ROOTFS_TYPE, hb_reset_reason_get());
+			env_set("bootargs", cmd_boot);
 		}
-		env_set("bootargs", cmd_boot);
 		memset(cmd_boot, 0, sizeof(cmd_boot));
 	}
 
@@ -677,12 +677,14 @@ static void hb_nand_env_init(void)
 	struct mtd_info *root_mtd = get_mtd_device_nm(rootfs_name);
 	int rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 	/* set bootargs */
-	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs"\
-		" ubi.mtd=%d,%d rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
-		rootfs_mtdnm, root_mtd->writesize,
-		env_get("mtdparts"), hb_reset_reason_get());
-	env_set("bootargs", bootargs);
+	if (!custom_bootargs) {
+		snprintf(bootargs, sizeof(bootargs),
+			"%s root=ubi0:rootfs ubi.mtd=%d,%d "\
+			"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
+			CONFIG_BOOTARGS, rootfs_mtdnm,
+			root_mtd->writesize, env_get("mtdparts"), hb_reset_reason_get());
+		env_set("bootargs", bootargs);
+	}
 	if (hb_check_secure()) {
 		env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
 	} else {
@@ -723,11 +725,15 @@ static void hb_nor_env_init(void)
 	}
 
 	/* set bootargs (moved down since @line 618 env is not initialized) */
-	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d "\
-		"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
-		rootfs_mtdnm, env_get("mtdparts"), hb_reset_reason_get());
-	env_set("bootargs", bootargs);
+	if (!custom_bootargs) {
+		snprintf(bootargs, sizeof(bootargs),
+			"%s root=ubi0:rootfs ubi.mtd=%d "\
+			"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
+			CONFIG_BOOTARGS, rootfs_mtdnm,
+			env_get("mtdparts"), hb_reset_reason_get());
+		env_set("bootargs", bootargs);
+	}
+
 	ret = spi_flash_read(flash, boot_mtd->offset,
 						 boot_mtd->size, (void *) BOOTIMG_ADDR);
 	if (ret) {
@@ -784,7 +790,7 @@ static void hb_usb_dtb_config(void) {
 static void hb_usb_env_init(void)
 {
 	char *tmp = "send_id;run ddrboot";
-	env_set("bootargs", "earlycon console=ttyS0 kgdboc=ttyS0");
+	env_set("bootargs", CONFIG_BOOTARGS);
 	/* set bootcmd */
 	env_set("bootcmd", tmp);
 }
@@ -820,6 +826,11 @@ static void hb_env_and_boardid_init(void)
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 			VEEPROM_UPDATE_MODE_SIZE);
 	snprintf(hb_upmode, sizeof(hb_upmode), "%s", upmode);
+
+	/* check if customized bootargs should be used */
+	s = env_get("custom_bootargs");
+	custom_bootargs = (s == NULL ? false :
+						(strcmp(s, "true") == 0) ? true : false);
 
 	/* mmc or nor env init */
 	if (boot_mode == PIN_2ND_EMMC) {
