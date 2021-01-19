@@ -13,8 +13,9 @@
 #include <asm/arch-x2/hb_reg.h>
 #include <asm/arch/hb_pmu.h>
 #include <asm/arch/hb_sysctrl.h>
-#include <hb_info.h>
 #include <asm/arch-x2/ddr.h>
+#include <hb_info.h>
+#include <scomp.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 uint32_t x3_ddr_part_num = 0xffffffff;
@@ -142,19 +143,24 @@ void hb_set_serial_number(void)
 int hb_check_secure(void) {
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 	uint32_t reg;
-	uint32_t sec_cfg;
 	char *if_secure = bootinfo->secure_cfg;
-	char *if_secure_env = env_get("verify_kernel");
+	char *if_secure_env = env_get("secure_en");
 	int ret = 0;
 
 	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
-	sec_cfg = reg32_read(SEC_REG_BASE + EFUSE_S_OFF);
-	ret |= ((sec_cfg & SEFUSE_SECURE_CHIP)
-			&& ((sec_cfg & SEFUSE_NON_SECURE_CHIP) == 0));
+	ret |= scomp_read_sw_efuse_bnk(EFS_NS, 22) & 0x8;
 	ret |= PIN_SECURE_SEL(reg);
 	ret |= (!strcmp(if_secure, "avb"));
-	if (if_secure_env)
-		ret |= (!strcmp(if_secure_env, "true"));
+	if (if_secure_env) {
+		/*
+		 * when "secure_en" is set to false, all avb/dm-verity
+		 * functionalities will be forced to be disabled
+		 */
+		if (!strcmp(if_secure_env, "false"))
+			return 0;
+		else
+			ret |= (!strcmp(if_secure_env, "true"));
+	}
 	return ret;
 }
 
