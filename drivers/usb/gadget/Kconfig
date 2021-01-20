@@ -161,6 +161,13 @@ config USB_FUNCTION_THOR
 	  Enable Tizen's THOR download protocol support in U-Boot. It
 	  allows downloading images into memory and flash them to target device.
 
+config USB_FUNCTION_UFU
+	bool "Enable USB UFU gadget"
+	help
+	  Enable UFU download protocol support in U-Boot. It
+	  allows downloading images into memory and flash them to target device.
+	  For more detail about UFU protocol, please see doc/README.ufu
+
 endif # USB_GADGET_DOWNLOAD
 
 config USB_ETHER
