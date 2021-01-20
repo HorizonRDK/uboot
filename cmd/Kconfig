@@ -1078,6 +1078,14 @@ config CMD_USB_MASS_STORAGE
 	help
 	  USB mass storage support
 
+config CMD_UFU
+	bool "ufu - Usb Firmware Upgrade"
+	depends on USB_FUNCTION_UFU
+	help
+	  Enable UFU download command "ufu" in U-Boot. It
+	  allows downloading images into memory and flash them to target device.
+	  For more detail about UFU protocol, please see doc/README.ufu
+
 config CMD_AXI
 	bool "axi"
 	depends on AXI

@@ -250,6 +250,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <usb_mass_storage.h>
+#include <ufu.h>
 
 #include <asm/unaligned.h>
 #include <linux/bitops.h>
@@ -257,7 +258,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/composite.h>
 // #include <linux/bitmap.h>
-#include <g_dnl.h>
 
 /*------------------------------------------------------------------------*/
 
@@ -659,7 +659,16 @@ static int sleep_thread(struct fsg_common *common)
 			break;
 
 		if (++i == 20000) {
+#ifdef CONFIG_USB_FUNCTION_UFU
+			const char		*cdev_name __maybe_unused;
+			cdev_name = common->fsg->function.config->cdev->driver->name;
+			if (IS_UFU_UMS_DNL(cdev_name))
+				; // no need busy_indicator
+			else
+				busy_indicator();
+#else
 			busy_indicator();
+#endif
 			i = 0;
 			k++;
 		}
@@ -1084,8 +1093,16 @@ static int do_verify(struct fsg_common *common)
 static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 {
 	struct fsg_lun *curlun = &common->luns[common->lun];
-	static const char vendor_id[] = "Linux   ";
+	static char vendor_id[8] = "Linux   ";
 	u8	*buf = (u8 *) bh->buf;
+
+#ifdef CONFIG_USB_FUNCTION_UFU
+	const char		*cdev_name __maybe_unused;
+	cdev_name = common->fsg->function.config->cdev->driver->name;
+	if (IS_UFU_UMS_DNL(cdev_name)) {
+		strncpy(vendor_id, "GC Linux", 8);
+	}
+#endif
 
 	if (!curlun) {		/* Unsupported LUNs are okay */
 		common->bad_lun_okay = 1;
@@ -1655,6 +1672,9 @@ static int send_status(struct fsg_common *common)
 
 
 /*-------------------------------------------------------------------------*/
+#ifdef CONFIG_USB_FUNCTION_UFU
+#include "f_ufu.c"
+#endif
 
 /* Check whether the command is properly formed and whether its data size
  * and direction agree with the values we already have. */
@@ -1795,6 +1815,22 @@ static int do_scsi_command(struct fsg_common *common)
 	common->short_packet_received = 0;
 
 	down_read(&common->filesem);	/* We're using the backing file */
+
+#ifdef CONFIG_USB_FUNCTION_UFU
+	const char		*cdev_name __maybe_unused;
+	cdev_name = common->fsg->function.config->cdev->driver->name;
+	if (IS_UFU_UMS_DNL(cdev_name)) {
+		rc = ufu_cmd_process(common, bh, &reply);
+		if (rc == UFU_RC_FINISHED || rc == UFU_RC_ERROR)
+			goto finish;
+		else if (rc == UFU_RC_UNKNOWN_CMND)
+			goto standard_scsi_cmd;
+	}
+#endif
+
+#ifdef CONFIG_USB_FUNCTION_UFU
+standard_scsi_cmd:
+#endif
 	switch (common->cmnd[0]) {
 
 	case SC_INQUIRY:
@@ -2023,6 +2059,10 @@ unknown_cmnd:
 		}
 		break;
 	}
+
+#ifdef CONFIG_USB_FUNCTION_UFU
+finish:
+#endif
 	up_read(&common->filesem);
 
 	if (reply == -EINTR)
@@ -2385,6 +2425,19 @@ static void handle_exception(struct fsg_common *common)
 	}
 }
 
+static void handle_customized_command(struct fsg_common *common)
+{
+#ifdef CONFIG_USB_FUNCTION_UFU
+		const char		*cdev_name __maybe_unused;
+		cdev_name = common->fsg->function.config->cdev->driver->name;
+		if (IS_UFU_UMS_DNL(cdev_name)) {
+			ufu_run_host_command();
+		}
+#endif
+
+		return;
+}
+
 /*-------------------------------------------------------------------------*/
 
 int fsg_main_thread(void *common_)
@@ -2424,6 +2477,8 @@ int fsg_main_thread(void *common_)
 
 		if (!exception_in_progress(common))
 			common->state = FSG_STATE_IDLE;
+
+		handle_customized_command(common);
 	} while (0);
 
 	common->thread_task = NULL;
@@ -2678,7 +2733,14 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	fsg->bulk_out = ep;
 
 	/* Copy descriptors */
+#ifdef CONFIG_USB_FUNCTION_UFU
+	if (IS_UFU_UMS_DNL(c->cdev->driver->name))
+		f->descriptors = usb_copy_descriptors(ufu_fs_function);
+	else
+		f->descriptors = usb_copy_descriptors(fsg_fs_function);
+#else
 	f->descriptors = usb_copy_descriptors(fsg_fs_function);
+#endif
 	if (unlikely(!f->descriptors))
 		return -ENOMEM;
 
@@ -2688,7 +2750,15 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 			fsg_fs_bulk_in_desc.bEndpointAddress;
 		fsg_hs_bulk_out_desc.bEndpointAddress =
 			fsg_fs_bulk_out_desc.bEndpointAddress;
+
+#ifdef CONFIG_USB_FUNCTION_UFU
+		if (IS_UFU_UMS_DNL(c->cdev->driver->name))
+			f->hs_descriptors = usb_copy_descriptors(ufu_hs_function);
+		else
+			f->hs_descriptors = usb_copy_descriptors(fsg_hs_function);
+#else
 		f->hs_descriptors = usb_copy_descriptors(fsg_hs_function);
+#endif
 		if (unlikely(!f->hs_descriptors)) {
 			free(f->descriptors);
 			return -ENOMEM;
@@ -2754,7 +2824,18 @@ int fsg_add(struct usb_configuration *c)
 	fsg_common->release = 0xffff;
 
 	fsg_common->ops = NULL;
+#ifdef CONFIG_USB_FUNCTION_UFU
+	if (IS_UFU_UMS_DNL(c->cdev->driver->name)) {
+		if (ufu_func_init())
+			fsg_common->private_data = get_ufu();
+		else
+			fsg_common->private_data = NULL;
+	} else {
+		fsg_common->private_data = NULL;
+	}
+#else
 	fsg_common->private_data = NULL;
+#endif
 
 	the_fsg_common = fsg_common;
 
