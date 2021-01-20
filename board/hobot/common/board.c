@@ -1838,6 +1838,11 @@ int setup_boot_action(int boot_mode)
 		printf("%s: enter emmc UMS!\n", __func__);
 		env_set("preboot", "setenv preboot; ums 0 mmc 0");
 		break;
+	case BOOT_UFU:
+		/* ufu currently use emmc 0:1 as storage, later will use ddr */
+		printf("%s: enter emmc UFU!\n", __func__);
+		env_set("preboot", "setenv preboot; ufu 0 mmc 0:1");
+		break;
 	}
 
 	return 0;
