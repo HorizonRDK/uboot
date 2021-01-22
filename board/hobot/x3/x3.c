@@ -141,26 +141,22 @@ void hb_set_serial_number(void)
 }
 
 int hb_check_secure(void) {
-	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 	uint32_t reg;
-	char *if_secure = bootinfo->secure_cfg;
 	char *if_secure_env = env_get("secure_en");
 	int ret = 0;
 
 	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
-	ret |= scomp_read_sw_efuse_bnk(EFS_NS, 22) & 0x8;
 	ret |= PIN_SECURE_SEL(reg);
-	ret |= (!strcmp(if_secure, "avb"));
-	if (if_secure_env) {
 		/*
-		 * when "secure_en" is set to false, all avb/dm-verity
-		 * functionalities will be forced to be disabled
+		 * use "secure_en" to control avb functionality
 		 */
+	if (if_secure_env) {
 		if (!strcmp(if_secure_env, "false"))
-			return 0;
+			ret = 0;
 		else
 			ret |= (!strcmp(if_secure_env, "true"));
 	}
+	ret |= scomp_read_sw_efuse_bnk(EFS_NS, 22) & 0x8;
 	return ret;
 }
 
