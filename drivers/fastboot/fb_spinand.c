@@ -14,6 +14,11 @@
 #include <linux/mtd/mtd.h>
 #include <jffs2/load_kernel.h>
 
+/**
+ * sparse_bad_blocks - stored bad blocks during sparse writting
+ */
+static int sparse_bad_blocks = 0;
+
 static int _fb_spinand_erase_part(struct mtd_info *mtd,
 		struct part_info *part);
 static int _fb_spinand_erase_offset(struct mtd_info *mtd,
@@ -318,6 +323,7 @@ static lbaint_t fb_spinand_sparse_write(struct sparse_storage *info,
 		lbaint_t blk, lbaint_t blkcnt, const void *buffer)
 {
 	struct fb_spinand_sparse *sparse = info->priv;
+	lbaint_t actual_blkcnt;
 	size_t written;
 	int ret;
 
@@ -335,13 +341,16 @@ static lbaint_t fb_spinand_sparse_write(struct sparse_storage *info,
 	 * the return value must be 'blkcnt' ("good-blocks") plus the
 	 * number of "bad-blocks" encountered within this space...
 	 */
+	actual_blkcnt = written / info->blksz;
+	if (actual_blkcnt > blkcnt)	/* has bad-blocks */
+		sparse_bad_blocks += (actual_blkcnt - blkcnt);
 	return written / info->blksz;
 }
 
 static lbaint_t fb_spinand_sparse_reserve(struct sparse_storage *info,
 		lbaint_t blk, lbaint_t blkcnt)
 {
-	int bad_blocks = 0;
+	int bad_blocks = sparse_bad_blocks;
 
 /*
  * TODO - implement a function to determine the total number
@@ -354,6 +363,7 @@ static lbaint_t fb_spinand_sparse_reserve(struct sparse_storage *info,
 	 * the return value must be 'blkcnt' ("good-blocks") plus the
 	 * number of "bad-blocks" encountered within this space...
 	 */
+	printf("%s reserve %d bad-blocks\n", __func__, bad_blocks);
 	return blkcnt + bad_blocks;
 }
 
