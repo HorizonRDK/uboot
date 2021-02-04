@@ -64,6 +64,8 @@ int usb_add_function(struct usb_configuration *config,
 		config->fullspeed = 1;
 	if (!config->highspeed && function->hs_descriptors)
 		config->highspeed = 1;
+	if (!config->superspeed && function->ss_descriptors)
+		config->superspeed = 1;
 
 done:
 	if (value)
@@ -199,10 +201,17 @@ static int config_buf(struct usb_configuration *config,
 
 	/* add each function's descriptors */
 	list_for_each_entry(f, &config->functions, list) {
-		if (speed == USB_SPEED_HIGH)
+		switch (speed) {
+		case USB_SPEED_SUPER:
+			descriptors = f->ss_descriptors;
+			break;
+		case USB_SPEED_HIGH:
 			descriptors = f->hs_descriptors;
-		else
+			break;
+		default:
 			descriptors = f->descriptors;
+		}
+
 		if (!descriptors)
 			continue;
 		status = usb_descriptor_fillbuf(next, len,
@@ -226,7 +235,9 @@ static int config_desc(struct usb_composite_dev *cdev, unsigned w_value)
 	int                             hs = 0;
 	struct usb_configuration	*c;
 
-	if (gadget_is_dualspeed(gadget)) {
+	if (gadget->speed == USB_SPEED_SUPER)
+		speed = gadget->speed;
+	else if (gadget_is_dualspeed(gadget)) {
 		if (gadget->speed == USB_SPEED_HIGH)
 			hs = 1;
 		if (type == USB_DT_OTHER_SPEED_CONFIG)
@@ -237,13 +248,20 @@ static int config_desc(struct usb_composite_dev *cdev, unsigned w_value)
 
 	w_value &= 0xff;
 	list_for_each_entry(c, &cdev->configs, list) {
-		if (speed == USB_SPEED_HIGH) {
+		switch (speed) {
+		case USB_SPEED_SUPER:
+			if (!c->superspeed)
+				continue;
+			break;
+		case USB_SPEED_HIGH:
 			if (!c->highspeed)
 				continue;
-		} else {
+			break;
+		default:
 			if (!c->fullspeed)
 				continue;
 		}
+
 		if (w_value == 0)
 			return config_buf(c, speed, cdev->req->buf, type);
 		w_value--;
@@ -350,6 +368,9 @@ static int set_config(struct usb_composite_dev *cdev,
 		     case USB_SPEED_HIGH:
 			     speed = "high";
 			     break;
+		     case USB_SPEED_SUPER:
+			     speed = "super";
+			     break;
 		     default:
 			     speed = "?";
 			     break;
@@ -374,10 +395,16 @@ static int set_config(struct usb_composite_dev *cdev,
 		 * function's setup callback instead of the current
 		 * configuration's setup callback.
 		 */
-		if (gadget->speed == USB_SPEED_HIGH)
+		switch (gadget->speed) {
+		case USB_SPEED_SUPER:
+			descriptors = f->ss_descriptors;
+			break;
+		case USB_SPEED_HIGH:
 			descriptors = f->hs_descriptors;
-		else
+			break;
+		default:
 			descriptors = f->descriptors;
+		}
 
 		for (; *descriptors; ++descriptors) {
 			if ((*descriptors)->bDescriptorType != USB_DT_ENDPOINT)
@@ -454,8 +481,9 @@ int usb_add_config(struct usb_composite_dev *cdev,
 		list_del(&config->list);
 		config->cdev = NULL;
 	} else {
-		debug("cfg %d/%p speeds:%s%s\n",
+		debug("cfg %d/%p speeds:%s%s%s\n",
 			config->bConfigurationValue, config,
+			config->superspeed ? " super" : "",
 			config->highspeed ? " high" : "",
 			config->fullspeed
 				? (gadget_is_dualspeed(cdev->gadget)
