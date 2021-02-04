@@ -1778,6 +1778,8 @@ static void add_baud_to_bootargs(void)
 	char *bootargs_tmp = env_get("bootargs");
 	char *bootargs_ptr, *check;
 
+	if (bootargs_tmp == NULL)
+		return;
 	bootargs_ptr = bootargs_tmp;
 	bootargs_ptr = strstr(bootargs_ptr, "console=");
 	if (bootargs_ptr == NULL) {
