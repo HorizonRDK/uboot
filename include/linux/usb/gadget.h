@@ -560,7 +560,7 @@ static inline struct usb_gadget *dev_to_usb_gadget(struct device *dev)
 
 
 /**
- * gadget_is_dualspeed - return true iff the hardware handles high speed
+ * gadget_is_dualspeed - return true if the hardware handles high speed
  * @g: controller that might support both high and full speeds
  */
 static inline int gadget_is_dualspeed(struct usb_gadget *g)
