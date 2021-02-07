@@ -94,34 +94,6 @@
 		reg = <0x0 0xA5006000 0x0 0x1000>;
 	};
 
-	pwm0: pwm@A500D000 {
-		u-boot,dm-pre-reloc;
-		compatible = "hobot,hb-pwm";
-		status = "disabled";
-		reg = <0x0 0xA500D000 0x0 0x1000>;
-	};
-
-	pwm1: pwm@A500E000 {
-		u-boot,dm-pre-reloc;
-		compatible = "hobot,hb-pwm";
-		status = "disabled";
-		reg = <0x0 0xA500E000 0x0 0x1000>;
-	};
-
-	pwm2: pwm@A500F000 {
-		u-boot,dm-pre-reloc;
-		compatible = "hobot,hb-pwm";
-		status = "disabled";
-		reg = <0x0 0xA500F000 0x0 0x1000>;
-	};
-
-	bifsd: bifsd@A1007000 {
-		u-boot,dm-pre-reloc;
-		compatible = "hobot,bifsd";
-		status = "disabled";
-		reg = <0x0 0xA1007000 0x0 0x1000>;
-	};
-
 	sdio0:dwmmc@A5010000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,hb-dw-mshc";
