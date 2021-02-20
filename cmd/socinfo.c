@@ -134,7 +134,7 @@ static int get_socuid(char *socuid)
 	if (read_flag == 0) {
         snprintf(socuid, sizeof(tmp), "%.8x", 0);
         for (word = 0; word < 3; word++) {
-            val = api_efuse_read_data(EFS_NS, word + SOCNID_BANK);
+            val = api_efuse_read_data(word + SOCNID_BANK);
             if (val != 0) {
                 read_flag = 1;
             }

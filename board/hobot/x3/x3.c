@@ -156,7 +156,7 @@ int hb_check_secure(void) {
 		else
 			ret |= (!strcmp(if_secure_env, "true"));
 	}
-	ret |= scomp_read_sw_efuse_bnk(EFS_NS, 22) & 0x8;
+	ret |= scomp_read_sw_efuse_bnk(22) & 0x8;
 	return ret;
 }
 

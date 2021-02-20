@@ -142,7 +142,7 @@ static int do_fuse(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 			if (!(i % 4))
 				printf("\nbank[%d]:", bank);
 
-			val = api_efuse_read_data(EFS_NS, bank);
+			val = api_efuse_read_data(bank);
 			printf(" %.8x", val);
 		}
 		putc('\n');
@@ -152,7 +152,7 @@ static int do_fuse(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 
 		printf("Normal efuse dump:\n");
 
-		ret = api_efuse_dump_data(EFS_NS);
+		ret = api_efuse_dump_data();
 		if (ret)
 			goto err;
 	} else if (!strcmp(op, "prog")) {
@@ -166,7 +166,7 @@ static int do_fuse(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 		if (!confirm_prog())
 			return CMD_RET_FAILURE;
 
-		ret = api_efuse_write_data(EFS_NS, bank, val);
+		ret = api_efuse_write_data(bank, val);
 		if (ret)
 			goto err;
 	} else {

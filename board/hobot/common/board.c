@@ -1286,7 +1286,7 @@ static int do_fix_mmc_buswidth(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	if (argc == 2)
 		mmc_buswidth = argv[1];
-	else if (((api_efuse_read_data(EFS_NS, 28) >> 20) & 0xF) != 1)
+	else if (((api_efuse_read_data(28) >> 20) & 0xF) != 1)
 		return 0;
 
 	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
@@ -1966,7 +1966,7 @@ int last_stage_init(void)
 	hb_ap_communication();
 #endif
 
-	sw_efuse_set_register(EFS_NS);
+	sw_efuse_set_register();
 	base_board_gpio_test();
 	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
 		boot_src_test();
