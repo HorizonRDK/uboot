@@ -10,20 +10,13 @@
 
 static unsigned int fw_base_addr = SEC_REG_BASE;
 
-static unsigned int _hw_efuse_store(enum EFS_TPE type, unsigned int bnk_num,
+static unsigned int _hw_efuse_store(unsigned int bnk_num,
 		unsigned int data)
 {
 	unsigned int efs_bank_base;
 	unsigned int sta;
 
-	if (type == EFS_NS) {
-		efs_bank_base = HW_NORMAL_EFUSE_BASE;
-	} else if (type == EFS_S) {
-		efs_bank_base = HW_SEC_EFUSE_BASE;
-	} else {
-		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
-		return HW_EFUSE_READ_FAIL;
-	}
+	efs_bank_base = HW_NORMAL_EFUSE_BASE;
 
 	// enable efuse
 	mmio_write_32(efs_bank_base + HW_EFS_CFG, HW_EFS_CFG_EFS_EN);
@@ -118,20 +111,13 @@ static unsigned int _hw_efuse_store(enum EFS_TPE type, unsigned int bnk_num,
 	return HW_EFUSE_READ_OK;
 }
 
-static unsigned int _hw_efuse_load(enum EFS_TPE type, unsigned int bnk_num,
+static unsigned int _hw_efuse_load(unsigned int bnk_num,
 		unsigned int *ret)
 {
 	unsigned int efs_bank_base;
 	unsigned int sta, val;
 
-	if (type == EFS_NS) {
-		efs_bank_base = HW_NORMAL_EFUSE_BASE;
-	} else if (type == EFS_S) {
-		efs_bank_base = HW_SEC_EFUSE_BASE;
-	} else {
-		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
-		return HW_EFUSE_READ_FAIL;
-	}
+	efs_bank_base = HW_NORMAL_EFUSE_BASE;
 
 	// enable efuse
 	mmio_write_32(efs_bank_base + HW_EFS_CFG, HW_EFS_CFG_EFS_EN);
@@ -188,26 +174,18 @@ static unsigned int _hw_efuse_load(enum EFS_TPE type, unsigned int bnk_num,
 	return HW_EFUSE_READ_OK;
 }
 
-unsigned int sw_efuse_set_register(enum EFS_TPE type)
+unsigned int sw_efuse_set_register()
 {
 	unsigned int efs_bank_off = 0;
 	unsigned int i, efs_bank_num, val;
 
 
-	if (type == EFS_NS) {
-		efs_bank_off = fw_base_addr + EFUSE_NS_OFF;
-		efs_bank_num = NS_EFUSE_NUM;
-	} else if (type == EFS_S) {
-		efs_bank_off = fw_base_addr + EFUSE_S_OFF;
-		efs_bank_num = S_EFUSE_NUM;
-	} else {
-		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
-		return SW_EFUSE_FAIL;
-	}
+	efs_bank_off = fw_base_addr + EFUSE_NS_OFF;
+	efs_bank_num = NS_EFUSE_NUM;
 
 	for (i = 0; i < efs_bank_num; i++) {
-		if (_hw_efuse_load(type, i, &val) == HW_EFUSE_READ_FAIL) {
-			printf("[ERR] HW Efuse read fail type: %d, bnk: %d\n", type, i);
+		if (_hw_efuse_load(i, &val) == HW_EFUSE_READ_FAIL) {
+			printf("[ERR] HW Efuse read fail bnk: %d\n", i);
 			return SW_EFUSE_FAIL;
 		}
 		mmio_write_32(efs_bank_off + i * 4, val);
@@ -216,44 +194,30 @@ unsigned int sw_efuse_set_register(enum EFS_TPE type)
 	return SW_EFUSE_OK;
 }
 
-int scomp_write_hw_efuse_bnk(enum EFS_TPE type, unsigned int bnk_num,
+int scomp_write_hw_efuse_bnk(unsigned int bnk_num,
 		unsigned int val)
 {
-	return _hw_efuse_store(type, bnk_num, val);
+	return _hw_efuse_store(bnk_num, val);
 }
 
 
-int scomp_write_sw_efuse_bnk(enum EFS_TPE type, unsigned int bnk_num,
+int scomp_write_sw_efuse_bnk(unsigned int bnk_num,
 		unsigned int val)
 {
 	unsigned int efs_reg_off = 0;
 
-	if (type == EFS_NS) {
-		efs_reg_off = fw_base_addr + EFUSE_NS_OFF;
-	} else if (type == EFS_S) {
-		efs_reg_off = fw_base_addr + EFUSE_S_OFF;
-	} else {
-		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
-		return SW_EFUSE_FAIL;
-	}
+	efs_reg_off = fw_base_addr + EFUSE_NS_OFF;
 
 	mmio_write_32(efs_reg_off + (bnk_num << 2), val);
 
 	return SW_EFUSE_OK;
 }
 
-int scomp_read_sw_efuse_bnk(enum EFS_TPE type, unsigned int bnk_num)
+int scomp_read_sw_efuse_bnk(unsigned int bnk_num)
 {
 	unsigned int efs_reg_off = 0;
 
-	if (type == EFS_NS) {
-		efs_reg_off = fw_base_addr + EFUSE_NS_OFF;
-	} else if (type == EFS_S) {
-		efs_reg_off = fw_base_addr + EFUSE_S_OFF;
-	} else {
-		printf("[ERR] %s no such type %d!!!", __FUNCTION__, type);
-		return SW_EFUSE_FAIL;
-	}
+	efs_reg_off = fw_base_addr + EFUSE_NS_OFF;
 
 	return mmio_read_32(efs_reg_off + (bnk_num << 2));
 }
@@ -277,20 +241,20 @@ int scomp_read_sw_efuse_bnk(enum EFS_TPE type, unsigned int bnk_num)
  *		key_bank_address, size
  *  -------------------------------------------------------
  */
-int api_efuse_write_data(enum EFS_TPE type, unsigned int bnk_num,
+int api_efuse_write_data(unsigned int bnk_num,
 		unsigned int val)
 {
 	int nRet = SW_EFUSE_OK;
 
 	/// 1st step write hw efuse
-	nRet = scomp_write_hw_efuse_bnk(type, bnk_num, val);
+	nRet = scomp_write_hw_efuse_bnk(bnk_num, val);
 	if(HW_EFUSE_READ_OK != nRet) {
 		printf("[ERR] %s write hw efuse error:%d.\n", __FUNCTION__, nRet);
 		return RET_API_EFUSE_FAIL;
 	}
 
 	/// 2nd write sw efuse data when 1st step sccess.
-	nRet = scomp_write_sw_efuse_bnk(type, bnk_num, val);
+	nRet = scomp_write_sw_efuse_bnk(bnk_num, val);
 	if(SW_EFUSE_OK != nRet) {
 		printf("[ERR] %s write sw efuse error:%d.\n", __FUNCTION__, nRet);
 		return RET_API_EFUSE_FAIL;
@@ -299,28 +263,21 @@ int api_efuse_write_data(enum EFS_TPE type, unsigned int bnk_num,
 	return RET_API_EFUSE_OK;
 }
 
-int api_efuse_read_data(enum EFS_TPE type, unsigned int bnk_num)
+int api_efuse_read_data(unsigned int bnk_num)
 {
-	return scomp_read_sw_efuse_bnk(type, bnk_num);
+	return scomp_read_sw_efuse_bnk(bnk_num);
 }
 
-int api_efuse_dump_data(enum EFS_TPE type)
+int api_efuse_dump_data()
 {
 	unsigned int efs_reg_bnk = 0;
 	unsigned int efs_reg_size = 0;
 	unsigned int lock_byte = 0;
 
-	if (type == EFS_NS) {
-		efs_reg_size = NS_EFUSE_NUM;
-	} else if (type == EFS_S) {
-		efs_reg_size = S_EFUSE_NUM;
-	} else {
-		printf("%s no such type %d!!!", __FUNCTION__, type);
-		return RET_API_EFUSE_FAIL;
-	}
+	efs_reg_size = NS_EFUSE_NUM;
 
 	/* Read Bnk 31, lock bnk */
-	lock_byte = scomp_read_sw_efuse_bnk(type, HW_EFUSE_LOCK_BNK);
+	lock_byte = scomp_read_sw_efuse_bnk(HW_EFUSE_LOCK_BNK);
 
 	if (SW_EFUSE_FAIL == lock_byte) {
 		printf("%s line:%d, read sw efuse error.\n",
@@ -331,7 +288,7 @@ int api_efuse_dump_data(enum EFS_TPE type)
 	/* Dump Bnk 0 ~ 30 */
 	for(efs_reg_bnk = 0; efs_reg_bnk < (efs_reg_size -1);  efs_reg_bnk++) {
 		printf("Bnk[0x%x] = 0x%x \n", efs_reg_bnk,
-				scomp_read_sw_efuse_bnk(type, efs_reg_bnk));
+				scomp_read_sw_efuse_bnk(efs_reg_bnk));
 	}
 
 	/* Dump Bnk 31. */
@@ -346,17 +303,10 @@ int sflow_handle_efuse_dumping(void)
 
 	printf("efuse: dump all banks\n");
 
-	/* dump secure efuse data */
-	nRet = api_efuse_dump_data(EFS_S);
-	if (nRet != RET_API_EFUSE_OK) {
-		printf("[Error] dump secure efuse data fail !!\n");
-		return nRet;
-	}
-
 	printf("----------------------------------------------------------\n");
 
 	/* dump normal efuse data */
-	nRet = api_efuse_dump_data(EFS_NS);
+	nRet = api_efuse_dump_data();
 	if (nRet != RET_API_EFUSE_OK) {
 		printf("[Error] dump normal efuse data fail !!\n");
 		return nRet;
