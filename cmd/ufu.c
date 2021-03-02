@@ -113,8 +113,8 @@ static int ufu_init(const char *devtype, const char *devnums_part_str)
 		if (!name)
 			goto cleanup;
 
-		// Refer to TCL ufu spec. UBO prefix means in uboot stage.
-		snprintf(name, UFU_NAME_LEN, "UBO ufu disk %d", cnt);
+		// Refer to ufu spec. UBOOT prefix means in uboot stage.
+		snprintf(name, UFU_NAME_LEN, "UBOOT");
 		g_ufu->ums[cnt].name = name;
 		g_ufu->ums[cnt].block_dev = *block_dev;
 
