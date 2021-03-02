@@ -50,6 +50,12 @@
 #define	GOOGLE_VENDOR_NUM	0x18d1	/* Google Inc. */
 #define	ANDROID_PRODUCT_NUM	0xd00d	/* Android device */
 
+/*
+ * ufu gadget vendor id and product id
+ */
+#define	UFU_VENDOR_NUM		0x1b20
+#define	UFU_PRODUCT_NUM		0x0300
+
 #define DRIVER_VERSION		"usb_dnl 2.0"
 
 static const char product[] = "USB download gadget";
@@ -309,6 +315,15 @@ int g_dnl_register(const char *name)
 			__constant_cpu_to_le16(GOOGLE_VENDOR_NUM);
 		device_desc.idProduct =
 			__constant_cpu_to_le16(ANDROID_PRODUCT_NUM);
+	}
+#endif
+
+#ifdef CONFIG_USB_FUNCTION_UFU
+	if (!strncmp(name, "ufu_ums_dnl", 11)) {
+		device_desc.idVendor =
+			__constant_cpu_to_le16(UFU_VENDOR_NUM);
+		device_desc.idProduct =
+			__constant_cpu_to_le16(UFU_PRODUCT_NUM);
 	}
 #endif
 
