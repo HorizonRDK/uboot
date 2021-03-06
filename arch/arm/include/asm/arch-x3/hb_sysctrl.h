@@ -60,6 +60,8 @@
 #define HB_SYSC_DDRSYS_SW_RSTEN		(SYSCTRL_BASE + 0x430)
 #define HB_SYSC_PERISYS_SW_RSTEN	(SYSCTRL_BASE + 0x450)
 
+#define HB_CPU_FLAG			(PMU_SYS_BASE + 0x214)
+
 /* DDRPLL_FREQ_CTRL */
 #define FBDIV_BITS(x)		((x & 0xFFF) << 0)
 #define REFDIV_BITS(x)		((x & 0x3F) << 12)
