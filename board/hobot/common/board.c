@@ -65,6 +65,7 @@ extern unsigned int hb_gpio_to_board_id(unsigned int gpio_id);
 #ifdef CONFIG_TARGET_X3
 extern void disable_pll(void);
 extern void change_sys_pclk_250M(void);
+extern int hb_get_cpu_num(void);
 #endif
 int32_t hb_som_type = -1;
 int32_t hb_base_board_type = -1;
@@ -595,6 +596,7 @@ static void hb_mmc_env_init(void)
 	char count;
 	char cmd[256] = { 0 };
 	char cmd_boot[2048] = { 0 };
+	int nr_cpus = 0;
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
@@ -642,6 +644,9 @@ static void hb_mmc_env_init(void)
 		env_set("mem_size", cmd);
 	}
 
+#ifdef CONFIG_TARGET_X3
+	nr_cpus = hb_get_cpu_num();
+#endif
 	/* init bootargs */
 	if (!hb_check_secure()) {
 		if (!custom_bootargs) {
@@ -649,6 +654,12 @@ static void hb_mmc_env_init(void)
 				" rootfstype=%s ro rootwait raid=noautodetect hobotboot.reson=%s",
 				CONFIG_BOOTARGS, get_partition_id(system_partition),
 				ROOTFS_TYPE, hb_reset_reason_get());
+
+			if (nr_cpus > 0) {
+				snprintf(cmd, sizeof(cmd), " nr_cpus=%d", nr_cpus);
+				strncat(cmd_boot, cmd, strlen(cmd));
+			}
+
 			env_set("bootargs", cmd_boot);
 		}
 		memset(cmd_boot, 0, sizeof(cmd_boot));
@@ -673,9 +684,16 @@ static void hb_mmc_env_init(void)
 static void hb_nand_env_init(void)
 {
 	char bootargs[2048];
+	char cmd[256] = { 0 };
 	char *rootfs_name = "system";
 	struct mtd_info *root_mtd = get_mtd_device_nm(rootfs_name);
+	int nr_cpus = 0;
 	int rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
+
+#ifdef CONFIG_TARGET_X3
+	nr_cpus = hb_get_cpu_num();
+#endif
+
 	/* set bootargs */
 	if (!custom_bootargs) {
 		snprintf(bootargs, sizeof(bootargs),
@@ -683,6 +701,12 @@ static void hb_nand_env_init(void)
 			"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
 			CONFIG_BOOTARGS, rootfs_mtdnm,
 			root_mtd->writesize, env_get("mtdparts"), hb_reset_reason_get());
+
+			if (nr_cpus > 0) {
+				snprintf(cmd, sizeof(cmd), " nr_cpus=%d", nr_cpus);
+				strncat(bootargs, cmd, strlen(cmd));
+			}
+
 		env_set("bootargs", bootargs);
 	}
 	if (hb_check_secure()) {
@@ -701,10 +725,12 @@ static void hb_nand_env_init(void)
 static void hb_nor_env_init(void)
 {
 	char bootargs[2048];
+	char cmd[256] = { 0 };
 	char *rootfs_name = "system";
 	char *boot_name = "boot";
 	int ret = 0, rootfs_mtdnm = -1;
 	struct mtd_info *root_mtd, *boot_mtd;
+	int nr_cpus = 0;
 
 	if (!flash) {
 		ret = run_command("sf probe", 0);
@@ -724,6 +750,10 @@ static void hb_nor_env_init(void)
 		env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
 	}
 
+#ifdef CONFIG_TARGET_X3
+	nr_cpus = hb_get_cpu_num();
+#endif
+
 	/* set bootargs (moved down since @line 618 env is not initialized) */
 	if (!custom_bootargs) {
 		snprintf(bootargs, sizeof(bootargs),
@@ -731,6 +761,12 @@ static void hb_nor_env_init(void)
 			"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
 			CONFIG_BOOTARGS, rootfs_mtdnm,
 			env_get("mtdparts"), hb_reset_reason_get());
+
+			if (nr_cpus > 0) {
+				snprintf(cmd, sizeof(cmd), " nr_cpus=%d", nr_cpus);
+				strncat(bootargs, cmd, strlen(cmd));
+			}
+
 		env_set("bootargs", bootargs);
 	}
 

@@ -318,3 +318,13 @@ void change_sys_pclk_250M(void)
 	reg |= SYS_PCLK_DIV_SEL(0x5);
 	writel(reg, HB_SYS_PCLK);
 }
+
+int hb_get_cpu_num(void)
+{
+	uint32_t reg = readl(HB_CPU_FLAG);
+
+	if (reg & 0x2)
+		return 2;
+	else
+		return 0;
+}

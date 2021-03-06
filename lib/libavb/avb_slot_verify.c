@@ -22,6 +22,9 @@
 #include <hb_spacc.h>
 #endif
 
+#ifdef CONFIG_TARGET_X3
+extern int hb_get_cpu_num(void);
+#endif
 uint64_t image_salt_len = 0;
 
 /* Maximum number of partitions that can be loaded with avb_slot_verify(). */
@@ -1196,8 +1199,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   AvbCmdlineSubstList* additional_cmdline_subst = NULL;
   char *bootargs = NULL;
   char *bootargs_del_ptr = NULL;
-  char cmd[1024] = { 0 };
-  int len = 0;
+  char cmd[1024] = { 0 }, nr_cpu_tmp[10] = {0};
+	int len = 0, nr_cpus = 0;
 
   /* Fail early if we're missing the AvbOps needed for slot verification.
    *
@@ -1340,6 +1343,15 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
           strlen(bootargs) : (int64_t)(bootargs_del_ptr - bootargs);
     if (bootargs)
         strncpy(cmd, bootargs, len);
+
+#ifdef CONFIG_TARGET_X3
+	nr_cpus = hb_get_cpu_num();
+#endif
+
+    if (nr_cpus > 0) {
+      snprintf(nr_cpu_tmp, sizeof(nr_cpu_tmp), " nr_cpus=%d", nr_cpus);
+      strncat(cmd, nr_cpu_tmp, strlen(nr_cpu_tmp));
+    }
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL && hb_boot_mode_get() == PIN_2ND_EMMC) {
