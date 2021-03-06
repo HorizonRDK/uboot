@@ -509,11 +509,11 @@ static void ota_normal_boot(bool root_flag, bool boot_flag)
 		return;
 	}
 
-	if (root_flag == 1)
+	if (boot_flag == 1)
 		snprintf(boot_partition, sizeof(boot_partition),
 			"boot_b");
 
-	if (boot_flag == 1)
+	if (root_flag == 1)
 		snprintf(system_partition, sizeof(system_partition),
 			"system_b");
 }
