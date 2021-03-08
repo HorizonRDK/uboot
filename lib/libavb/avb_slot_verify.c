@@ -1199,7 +1199,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   AvbCmdlineSubstList* additional_cmdline_subst = NULL;
   char *bootargs = NULL;
   char *bootargs_del_ptr = NULL;
-  char cmd[1024] = { 0 }, nr_cpu_tmp[10] = {0};
+  char cmd[1024] = { 0 }, nr_cpu_tmp[10] = {0}, system_partition[32] = { 0 };
+  char cmd_final[1024] = { 0 }, system_dev[32] = { 0 };
 	int len = 0, nr_cpus = 0;
 
   /* Fail early if we're missing the AvbOps needed for slot verification.
@@ -1359,8 +1360,29 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
            strcmp(boot_partition, "boot_b") == 0)
           snprintf(cmd, sizeof(cmd), "%s %s hobotboot.reson=%s",
                    cmd, slot_data->cmdline, hb_reset_reason_get());
-
-      env_set("bootargs", cmd);
+      /* check AB and update bootargs */
+      if (!strncmp(ab_suffix, "_b", strlen("_b"))) {
+        snprintf(system_partition, sizeof(system_partition), "system%s",
+                ab_suffix);
+        snprintf(system_dev, sizeof(system_dev),
+                "/dev/mmcblk0p%d", get_partition_id(system_partition));
+        char *cmd_tmp = cmd;
+        bootargs_del_ptr = strtok(cmd_tmp, " ");
+        while (bootargs_del_ptr != NULL) {
+          if (strncmp(bootargs_del_ptr, "/dev/mmcblk0p", strlen("/dev/mmcblk0p"))) {
+            strncat(cmd_final, bootargs_del_ptr,
+                    sizeof(cmd_final) - strlen(cmd_final));
+          } else {
+            strncat(cmd_final, system_dev,
+                    sizeof(cmd_final) - strlen(cmd_final));
+          }
+          strncat(cmd_final, " ", sizeof(cmd_final) - strlen(cmd_final));
+          bootargs_del_ptr = strtok(NULL, " ");
+        }
+        env_set("bootargs", cmd_final);
+      } else {
+        env_set("bootargs", cmd);
+      }
     }
 
     if (out_data != NULL) {
