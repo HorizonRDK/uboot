@@ -41,7 +41,6 @@
 #include <mtd.h>
 #include "../../../cmd/legacy-mtd-utils.h"
 
-
 #define HB_PIN_FUNC_CFG_REG(p)  (PIN_MUX_BASE + ((p) * 0x4))
 #define HB_IO_OUT_CTL_REG(p)    (GPIO_BASE + ((p) / 16) * 0x10 + 0x8)
 #define HB_IO_IN_VAL_REG(p)     (GPIO_BASE + ((p) / 16) * 0x10 + 0xc)
@@ -62,6 +61,8 @@ static int stored_dumptype;
 
 extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_board_id(unsigned int gpio_id);
+extern unsigned int detect_baud(void);
+
 #ifdef CONFIG_TARGET_X3
 extern void disable_pll(void);
 extern void change_sys_pclk_250M(void);
@@ -73,6 +74,7 @@ char hb_upmode[32] = "golden";
 char hb_bootreason[32] = "normal";
 char hb_partstatus = 0;
 uint16_t ion_cma_status = 1;
+bool custom_bootargs = false;
 
 struct hb_uid_hdr hb_unique_id;
 
@@ -589,13 +591,118 @@ uint32_t hb_board_type_get_by_pin(int pin_nums)
 }
 
 #ifndef CONFIG_FPGA_HOBOT
+static void hb_boot_args_cmd_set(int boot_mode)
+{
+	char bootargs_str[2048] = { 0 };
+	char tmp[256] = { 0 };
+	/* rootfs_name is used for Flashes, now there is no B partition */
+	char *rootfs_name = "system";
+	char *boot_name = "boot";
+	int ret = 0, rootfs_mtdnm = -1;
+	struct mtd_info *root_mtd, *boot_mtd;
+	int nr_cpus = 0;
+	int if_secure = hb_check_secure();
+#ifdef CONFIG_TARGET_X3
+	nr_cpus = hb_get_cpu_num();
+#endif
+	/* Set Bootargs */
+	if (!custom_bootargs) {
+		/* General Bootargs */
+		snprintf(bootargs_str, sizeof(bootargs_str),
+			"%s,%d raid=noautodetect hobotboot.reson=%s",
+			CONFIG_BOOTARGS, detect_baud(), hb_reset_reason_get());
+		/* Add nr_cpus */
+		if (nr_cpus > 0) {
+			snprintf(tmp, sizeof(tmp), " nr_cpus=%d", nr_cpus);
+			strncat(bootargs_str, tmp, sizeof(bootargs_str) - strlen(bootargs_str));
+		}
+		if (!if_secure || (if_secure && boot_mode != PIN_2ND_EMMC)) {
+			/* Add Rootfstype, passed from Macro during build */
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), " rootfstype=%s", ROOTFS_TYPE);
+			strncat(bootargs_str, tmp,
+					sizeof(bootargs_str) - strlen(bootargs_str));
+		}
+
+		/* Specific bootargs for each bootmode */
+		memset(tmp, 0, sizeof(tmp));
+		if (boot_mode == PIN_2ND_EMMC) {
+			if(!if_secure) {
+				strncat(bootargs_str, " ro rootwait",
+						sizeof(bootargs_str) - strlen(bootargs_str));
+				snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
+						get_partition_id(system_partition));
+				strncat(bootargs_str, tmp,
+						sizeof(bootargs_str) - strlen(bootargs_str));
+			}
+		} else {
+			/* TODO: add dynamic ro/rw judgement from volume option */
+			strncat(bootargs_str, " rw rootwait",
+					sizeof(bootargs_str) - strlen(bootargs_str));
+
+			root_mtd = get_mtd_device_nm(rootfs_name);
+			rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
+			/* If neccessary, add logic to determine which ubi device is
+				rootfs, ubi0 and volume name rootfs is used as default */
+			snprintf(tmp, sizeof(tmp), " root=ubi0:rootfs ubi.mtd=%d", rootfs_mtdnm);
+			strncat(bootargs_str, tmp,
+				sizeof(bootargs_str) - strlen(bootargs_str));
+			if (boot_mode == PIN_2ND_NAND) {
+				/* For nand, page size must also be specified */
+				memset(tmp, 0, sizeof(tmp));
+				snprintf(tmp, sizeof(tmp), ",%d", root_mtd->writesize);
+				strncat(bootargs_str, tmp,
+					sizeof(bootargs_str) - strlen(bootargs_str));
+			}
+			/* For Flashes, Kernel MTD partition is constructed with mtdparts */
+			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str));
+			strncat(bootargs_str, env_get("mtdparts"),
+					sizeof(bootargs_str) - strlen(bootargs_str));
+		}
+		env_set("bootargs", bootargs_str);
+	}
+
+	/* Set Bootcmd */
+	memset(tmp, 0, sizeof(tmp));
+	if (boot_mode == PIN_2ND_EMMC) {
+		if (if_secure) {
+			snprintf(tmp, sizeof(tmp), "avb_verify; %s", CONFIG_BOOTCOMMAND);
+			env_set("bootcmd", tmp);
+		} else {
+			env_set("bootcmd", CONFIG_BOOTCOMMAND);
+		}
+	} else {
+		/* TODO: Unify bootcmd to get rid of function calls below loading boot */
+		if (boot_mode == PIN_2ND_NOR) {
+			boot_mtd = get_mtd_device_nm(boot_name);
+			ret = spi_flash_read(flash, boot_mtd->offset,
+						 boot_mtd->size, (void *) BOOTIMG_ADDR);
+			if (ret) {
+				printf("Error: Read Kernel from SPI Flash failed!\n");
+				env_set("bootdelay", "-1");
+				return;
+			}
+		} else if (boot_mode == PIN_2ND_NAND) {
+			if (ubi_volume_read("boot", (void *) BOOTIMG_ADDR, 0)) {
+				printf("Error: Read Kernel from UBI Volume Boot failed!\n");
+				env_set("bootdelay", "-1");
+				return;
+			}
+		}
+
+		if (if_secure) {
+			env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
+		} else {
+			env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
+		}
+	}
+}
+
 static void hb_mmc_env_init(void)
 {
-	char *s, *bootargs = NULL;
+	char *s;
 	char count;
 	char cmd[256] = { 0 };
-	char cmd_boot[2048] = { 0 };
-	int nr_cpus = 0;
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
@@ -642,94 +749,18 @@ static void hb_mmc_env_init(void)
 		snprintf(cmd, sizeof(cmd), "%02x", sys_sdram_size);
 		env_set("mem_size", cmd);
 	}
-
-#ifdef CONFIG_TARGET_X3
-	nr_cpus = hb_get_cpu_num();
-#endif
-	/* init bootargs */
-	if (!hb_check_secure()) {
-		bootargs = env_get("bootargs");
-		if (bootargs) {
-			snprintf(cmd_boot, sizeof(cmd_boot), "%s root=/dev/mmcblk0p%d" \
-				" rootfstype=%s ro rootwait raid=noautodetect hobotboot.reson=%s",
-				bootargs, get_partition_id(system_partition),
-				ROOTFS_TYPE, hb_reset_reason_get());
-
-			if (nr_cpus > 0) {
-				snprintf(cmd, sizeof(cmd), " nr_cpus=%d", nr_cpus);
-				strncat(cmd_boot, cmd, strlen(cmd));
-			}
-		}
-		env_set("bootargs", cmd_boot);
-		memset(cmd_boot, 0, sizeof(cmd_boot));
-	}
-
-	/* normal and recovery boot flow */
-	if (!hb_check_secure() || (strcmp(boot_partition, "recovery") == 0)) {
-		/* init env bootcmd init */
-		snprintf(cmd_boot, sizeof(cmd_boot), "part size mmc 0 %s " \
-			"bootimagesize;part start mmc 0 %s bootimageblk;"\
-			"mmc read "__stringify(BOOTIMG_ADDR) \
-			" ${bootimageblk} ${bootimagesize};" \
-			"bootm "__stringify(BOOTIMG_ADDR)";",
-			boot_partition, boot_partition);
-
-		env_set("bootcmd", cmd_boot);
-	} else if (hb_check_secure()) {
-		env_set("bootcmd", CONFIG_BOOTCOMMAND);
-	}
 }
 
 static void hb_nand_env_init(void)
 {
-	char bootargs[2048];
-	char cmd[256] = { 0 };
-	char *rootfs_name = "system";
-	struct mtd_info *root_mtd = get_mtd_device_nm(rootfs_name);
-	int nr_cpus = 0;
-	int rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
-
-#ifdef CONFIG_TARGET_X3
-	nr_cpus = hb_get_cpu_num();
-#endif
-
-	/* set bootargs */
-	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs"\
-		" ubi.mtd=%d,%d rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
-		rootfs_mtdnm, root_mtd->writesize,
-		env_get("mtdparts"), hb_reset_reason_get());
-
-	if (nr_cpus > 0) {
-		snprintf(cmd, sizeof(cmd), " nr_cpus=%d", nr_cpus);
-		strncat(bootargs, cmd, strlen(cmd));
-	}
-
-	env_set("bootargs", bootargs);
-
-	if (hb_check_secure()) {
-		env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
-	} else {
-		env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
-	}
-
-	if (ubi_volume_read("boot", (void *) BOOTIMG_ADDR, 0)) {
-		printf("Error: Read Kernel from UBI Volume Boot failed!\n");
-		env_set("bootdelay", "-1");
-		return;
-	}
+	/* reserve for future use */
+	return;
 }
 
 static void hb_nor_env_init(void)
 {
-	char bootargs[2048];
-	char cmd[256] = { 0 };
-	char *rootfs_name = "system";
-	char *boot_name = "boot";
-	int ret = 0, rootfs_mtdnm = -1;
-	struct mtd_info *root_mtd, *boot_mtd;
-	int nr_cpus = 0;
-
+	int ret = 0;
+	/* Init SPI NOR if not already probed */
 	if (!flash) {
 		ret = run_command("sf probe", 0);
 		if (ret < 0) {
@@ -738,39 +769,7 @@ static void hb_nor_env_init(void)
 			return;
 		}
 	}
-	root_mtd = get_mtd_device_nm(rootfs_name);
-	boot_mtd = get_mtd_device_nm(boot_name);
-	rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
-
-	if (hb_check_secure()) {
-		env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
-	} else {
-		env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
-	}
-
-#ifdef CONFIG_TARGET_X3
-	nr_cpus = hb_get_cpu_num();
-#endif
-
-	/* set bootargs (moved down since @line 618 env is not initialized) */
-	snprintf(bootargs, sizeof(bootargs),
-		"earlycon console=ttyS0 clk_ignore_unused root=ubi0:rootfs ubi.mtd=%d "\
-		"rootfstype=ubifs rw rootwait %s hobotboot.reson=%s",
-		rootfs_mtdnm, env_get("mtdparts"), hb_reset_reason_get());
-	if (nr_cpus > 0) {
-		snprintf(cmd, sizeof(cmd), " nr_cpus=%d", nr_cpus);
-		strncat(bootargs, cmd, strlen(cmd));
-	}
-
-	env_set("bootargs", bootargs);
-
-	ret = spi_flash_read(flash, boot_mtd->offset,
-						 boot_mtd->size, (void *) BOOTIMG_ADDR);
-	if (ret) {
-		printf("Error: Read Kernel from SPI Flash failed!\n");
-		env_set("bootdelay", "-1");
-		return;
-	}
+	return;
 }
 #endif
 
@@ -820,7 +819,7 @@ static void hb_usb_dtb_config(void) {
 static void hb_usb_env_init(void)
 {
 	char *tmp = "send_id;run ddrboot";
-	env_set("bootargs", "earlycon console=ttyS0 kgdboc=ttyS0");
+	env_set("bootargs", CONFIG_BOOTARGS);
 	/* set bootcmd */
 	env_set("bootcmd", tmp);
 }
@@ -857,6 +856,11 @@ static void hb_env_and_boardid_init(void)
 			VEEPROM_UPDATE_MODE_SIZE);
 	snprintf(hb_upmode, sizeof(hb_upmode), "%s", upmode);
 
+	/* check if customized bootargs should be used */
+	s = env_get("custom_bootargs");
+	custom_bootargs = (s == NULL ? false :
+						(strcmp(s, "true") == 0) ? true : false);
+
 	/* mmc or nor env init */
 	if (boot_mode == PIN_2ND_EMMC) {
 		/* make sure emmc last partition is properly defined */
@@ -869,6 +873,7 @@ static void hb_env_and_boardid_init(void)
 		hb_nand_env_init();
 	}
 
+	hb_boot_args_cmd_set(boot_mode);
 }
 
 static int fdt_get_reg(const void *fdt, void *buf, u64 *address, u64 *size)
@@ -1794,57 +1799,6 @@ static void hb_swinfo_boot(void)
 	}
 }
 
-static void add_baud_to_bootargs(void)
-{
-	unsigned int br_sel = hb_pin_get_uart_br();
-	unsigned int rate = (br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600);
-	unsigned int len = 0, need_change = 0;
-	char tmp[1024], baudrate_str[32], baud_tmp[32];
-	char *bootargs_tmp = env_get("bootargs");
-	char *bootargs_ptr, *check;
-
-	bootargs_ptr = bootargs_tmp;
-	bootargs_ptr = strstr(bootargs_ptr, "console=");
-	if (bootargs_ptr == NULL) {
-		return;
-	} else {
-		check = bootargs_ptr;
-		check = strstr(check, ",");
-		bootargs_ptr = strstr(bootargs_ptr, " ");
-		memset(baudrate_str, 0, sizeof(baudrate_str));
-		snprintf(baudrate_str, sizeof(baudrate_str), ",%u ", rate);
-
-		/* Check if baudrate has already be set */
-		if (bootargs_ptr == NULL) {
-			/* there is baudrate previously set and is the last entry */
-			bootargs_ptr = bootargs_tmp + strlen(bootargs_tmp);
-		}
-		if (check && ((int64_t)(bootargs_ptr - check) > 0)) {
-			/* Check if the current baudrate is the same as the target */
-			strncpy(baud_tmp, check, (int64_t)(bootargs_ptr - check));
-			if (!strncmp(baudrate_str, baud_tmp, strlen(baud_tmp)))
-				return;
-			need_change = 1;
-		}
-		memset(tmp, 0, sizeof(tmp));
-
-		if (need_change) {
-			len = check - bootargs_tmp;
-		} else {
-			len = bootargs_ptr - bootargs_tmp;
-		}
-		/* Copy everything before "console=" */
-		strncpy(tmp, bootargs_tmp, len);
-		/* add new baudrate */
-		strncat(tmp, baudrate_str, sizeof(tmp) - strlen(tmp));
-		/* add everything after "console=" */
-		if (bootargs_ptr != bootargs_tmp + strlen(bootargs_tmp))
-			strncat(tmp, bootargs_ptr + 1, sizeof(tmp) - strlen(tmp));
-	}
-	env_set("bootargs", tmp);
-
-	return;
-}
 #endif
 
 #if defined(CONFIG_FASTBOOT) || defined(CONFIG_USB_FUNCTION_MASS_STORAGE)
@@ -2043,7 +1997,6 @@ int last_stage_init(void)
 		 * pvt can work properly when sys_pclk is 250M*/
 		change_sys_pclk_250M();
 #endif
-		add_baud_to_bootargs();
 	}
 	return 0;
 }

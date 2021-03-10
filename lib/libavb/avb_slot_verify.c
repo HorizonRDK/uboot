@@ -1198,11 +1198,9 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   bool allow_verification_error =
       (flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR);
   AvbCmdlineSubstList* additional_cmdline_subst = NULL;
-  char *bootargs = NULL;
   char *bootargs_del_ptr = NULL;
-  char cmd[1024] = { 0 }, nr_cpu_tmp[10] = {0}, system_partition[32] = { 0 };
+  char cmd[1024] = { 0 }, system_partition[32] = { 0 };
   char cmd_final[1024] = { 0 }, system_dev[32] = { 0 };
-	int len = 0, nr_cpus = 0;
 
   /* Fail early if we're missing the AvbOps needed for slot verification.
    *
@@ -1338,28 +1336,13 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
         slot_data->cmdline = new_cmdline;
       }
     }
-    /* processing original bootargs to get rid of everything after "root=" */
-    bootargs = env_get("bootargs");
-    bootargs_del_ptr = strstr(bootargs, "root=");
-    len = (bootargs_del_ptr == NULL) ?
-          strlen(bootargs) : (int64_t)(bootargs_del_ptr - bootargs);
-    if (bootargs)
-        strncpy(cmd, bootargs, len);
-#ifdef CONFIG_TARGET_X3
-    nr_cpus = hb_get_cpu_num();
-#endif
-
-    if (nr_cpus > 0) {
-        snprintf(nr_cpu_tmp, sizeof(nr_cpu_tmp), " nr_cpus=%d", nr_cpus);
-        strncat(cmd, nr_cpu_tmp, strlen(nr_cpu_tmp));
-    }
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL && hb_boot_mode_get() == PIN_2ND_EMMC) {
+      strncpy(cmd, env_get("bootargs"), sizeof(cmd));
       if ((strcmp(boot_partition, "boot") == 0) ||
            strcmp(boot_partition, "boot_b") == 0)
-          snprintf(cmd, sizeof(cmd), "%s %s hobotboot.reson=%s",
-                   cmd, slot_data->cmdline, hb_reset_reason_get());
+          snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
       /* check AB and update bootargs */
       if (!strncmp(ab_suffix, "_b", strlen("_b"))) {
         snprintf(system_partition, sizeof(system_partition), "system%s",
@@ -1370,8 +1353,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
         snprintf(system_dev, sizeof(system_dev),
                  "/dev/mmcblk0p%d", get_partition_id("system"));
       }
-      char *cmd_tmp = cmd;
-      bootargs_del_ptr = strtok(cmd_tmp, " ");
+      bootargs_del_ptr = strtok(cmd, " ");
       while (bootargs_del_ptr != NULL) {
         if (strncmp(bootargs_del_ptr, "/dev/mmcblk0p", strlen("/dev/mmcblk0p"))) {
           strncat(cmd_final, bootargs_del_ptr,
