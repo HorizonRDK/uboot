@@ -595,11 +595,13 @@ static void hb_boot_args_cmd_set(int boot_mode)
 {
 	char bootargs_str[2048] = { 0 };
 	char tmp[256] = { 0 };
-	/* rootfs_name is used for Flashes, now there is no B partition */
-	char *rootfs_name = "system";
-	char *boot_name = "boot";
+	/* rootfs_mtd_name is used for Flashes, now there is no B partition */
+	char *rootfs_mtd_name = "system";
+	char *rootfs_vol_name = "rootfs";
+	char *boot_mtd_name = "boot";
 	int ret = 0, rootfs_mtdnm = -1;
 	struct mtd_info *root_mtd, *boot_mtd;
+	struct ubi_volume *vol;
 	int nr_cpus = 0;
 	int if_secure = hb_check_secure();
 #ifdef CONFIG_TARGET_X3
@@ -636,11 +638,23 @@ static void hb_boot_args_cmd_set(int boot_mode)
 						sizeof(bootargs_str) - strlen(bootargs_str));
 			}
 		} else {
-			/* TODO: add dynamic ro/rw judgement from volume option */
-			strncat(bootargs_str, " rw rootwait",
+			/* ro/rw judgement from volume type */
+			ubi_part(rootfs_mtd_name, NULL);
+			vol = ubi_find_volume(rootfs_vol_name);
+			if (vol != NULL) {
+				strncat(bootargs_str,
+					vol->vol_type == UBI_STATIC_VOLUME ? " ro" : " rw",
 					sizeof(bootargs_str) - strlen(bootargs_str));
+			} else {
+				printf("Rootfs volume: %s not found in UBI partition: %s\n",
+						rootfs_vol_name, rootfs_mtd_name);
+				/* Stop at UBoot */
+				env_set("bootdelay", "-1");
+			}
 
-			root_mtd = get_mtd_device_nm(rootfs_name);
+			strncat(bootargs_str, " rootwait",
+					sizeof(bootargs_str) - strlen(bootargs_str));
+			root_mtd = get_mtd_device_nm(rootfs_mtd_name);
 			rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 			/* If neccessary, add logic to determine which ubi device is
 				rootfs, ubi0 and volume name rootfs is used as default */
@@ -674,7 +688,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	} else {
 		/* TODO: Unify bootcmd to get rid of function calls below loading boot */
 		if (boot_mode == PIN_2ND_NOR) {
-			boot_mtd = get_mtd_device_nm(boot_name);
+			boot_mtd = get_mtd_device_nm(boot_mtd_name);
 			ret = spi_flash_read(flash, boot_mtd->offset,
 						 boot_mtd->size, (void *) BOOTIMG_ADDR);
 			if (ret) {
@@ -683,6 +697,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 				return;
 			}
 		} else if (boot_mode == PIN_2ND_NAND) {
+			ubi_part(boot_mtd_name, NULL);
 			if (ubi_volume_read("boot", (void *) BOOTIMG_ADDR, 0)) {
 				printf("Error: Read Kernel from UBI Volume Boot failed!\n");
 				env_set("bootdelay", "-1");
