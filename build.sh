@@ -103,8 +103,14 @@ function choose()
         echo "Unknown BOOT_MODE value: $bootmode"
         exit 1
     fi
+    # Here, ROOTFS_TYPE is passed to UBoot for bootargs
+    # TODO: Integrate UBIFS in gpt.conf to the build process for partition.sh
     if ! inList "$fs_type" "ext4 squashfs" ;then
-        echo "#define ROOTFS_TYPE \"ext4\"" >> $tmp
+        if [ "$bootmode" = "emmc" ]; then
+            echo "#define ROOTFS_TYPE \"ext4\"" >> $tmp
+        elif [ "$bootmode" = "nand" -o "$bootmode" = "nor" ];then
+            echo "#define ROOTFS_TYPE \"ubifs\"" >> $tmp
+        fi
     else
         echo "#define ROOTFS_TYPE \"$fs_type\"" >> $tmp
     fi

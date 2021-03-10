@@ -11,6 +11,7 @@
 
 #include <asm/armv8/mmu.h>
 #include <asm/arch-x2/hb_reg.h>
+#include <asm/arch-x3/hb_pinmux.h>
 #include <asm/arch/hb_pmu.h>
 #include <asm/arch/hb_sysctrl.h>
 #include <asm/arch-x2/ddr.h>
@@ -158,6 +159,14 @@ int hb_check_secure(void) {
 	}
 	ret |= scomp_read_sw_efuse_bnk(22) & 0x8;
 	return ret;
+}
+
+/* Detect baud rate for console according to bootsel */
+unsigned int detect_baud(void)
+{
+	unsigned int br_sel = hb_pin_get_uart_br();;
+
+	return (br_sel > 0 ? UART_BAUDRATE_115200 : UART_BAUDRATE_921600);
 }
 
 char *hb_reset_reason_get()

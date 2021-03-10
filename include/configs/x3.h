@@ -121,14 +121,13 @@
 /* boot mode select */
 #define CONFIG_DDR_BOOT
 #define BOOTIMG_ADDR 0x10000000
-#define CONFIG_BOOTARGS "earlycon console=ttyS0 "\
-	"kgdboc=ttyS0 "
+#define CONFIG_BOOTARGS "earlycon kgdboc=ttyS0 console=ttyS0"
 /*
  * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
  *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
  */
 
-#define CONFIG_BOOTCOMMAND "avb_verify;part size mmc 0 boot bootimagesize;"\
+#define CONFIG_BOOTCOMMAND "part size mmc 0 boot bootimagesize;"\
 	"part start mmc 0 boot bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
 	" ${bootimageblk} ${bootimagesize};bootm "__stringify(BOOTIMG_ADDR)";"
 
