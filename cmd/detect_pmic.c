@@ -15,6 +15,7 @@
 #define DTB_PATH_MAX_LEN (50)
 
 extern struct fdt_header *working_fdt;
+extern int hb_get_cpu_num(void);
 
 static int switch_to_dc(const char *pathp, const char *set_prop,
                 const char *get_prop)
@@ -88,8 +89,18 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     i2c_get_chip_for_busnum(0, (int)axp1506_addr, 1, &dev);
 
     /* try to read register of axp1506 */
-    if (dm_i2c_reg_read(dev, 0x0) >= 0)
+    if (dm_i2c_reg_read(dev, 0x0) >= 0) {
+	/*x3e cnn opptable is cnn_opp_table_lite*/
+	if (hb_get_cpu_num()) {
+		printf("change cnn opp table to lite version\n");
+		for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
+			switch_to_dc(cnn_path[i], "operating-points-v2",
+					"operating-points-v2-lite");
+		}
+	}
+
         return 0;
+    }
 
     /*
      * detect axp1506 failed, switch to dc-dc regulator
@@ -119,8 +130,14 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     }
     for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
         switch_to_dc(cnn_path[i], "cnn-supply", "cnn-supply-dc");
-        switch_to_dc(cnn_path[i], "operating-points-v2",
-                    "operating-points-v2-dc");
+	/*x3e cnn opptable is cnn_opp_table_lite*/
+	if (hb_get_cpu_num()) {
+		switch_to_dc(cnn_path[i], "operating-points-v2",
+			"operating-points-v2-dc-lite");
+	} else {
+		switch_to_dc(cnn_path[i], "operating-points-v2",
+			"operating-points-v2-dc");
+	}
     }
 
     return 0;
