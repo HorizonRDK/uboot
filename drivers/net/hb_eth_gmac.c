@@ -828,7 +828,7 @@ static int eqos_start(struct udevice *dev)
         debug("customer board\n");
         phy_addr = 0x0;
     }
-#if defined CONFIG_TARGET_X3 || defined CONFIG_TARGET_X3_FPGA
+#if defined CONFIG_TARGET_XJ3 || defined CONFIG_TARGET_X3_FPGA
 
 	phy_mode = fdt_getprop(blob, node, "phy-mode", NULL);
 	if (phy_mode)
@@ -1409,7 +1409,7 @@ static int eqos_probe(struct udevice *dev)
 	reg_val |= 0x00800080;
 	writel(reg_val, GPIO4_DIR);
     }
-#elif defined(CONFIG_TARGET_X3)
+#elif defined(CONFIG_TARGET_XJ3)
 	/* GPIO_EPHY_CLK as reset gpio, oths as eth pin */
 	reg_val = readl(GPIO_EPHY_CLK);
 	reg_val |= 0x03;

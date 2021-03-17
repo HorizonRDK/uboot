@@ -1093,12 +1093,12 @@ config TARGET_X2
 	help
 	  Support for Horizon X2.
 
-config TARGET_X3
-	bool "Support Horizon X3"
+config TARGET_XJ3
+	bool "Support Horizon XJ3"
 	depends on ARCH_HOBOT
 	select SPL_BOARD_INIT if SPL
 	help
-	  Support for Horizon X3.
+	  Support for Horizon XJ3.
 
 config TARGET_LS1012AQDS
 	bool "Support ls1012aqds"
@@ -1563,7 +1563,7 @@ source "board/zipitz2/Kconfig"
 source "board/hobot/x2_fpga/Kconfig"
 source "board/hobot/x3_fpga/Kconfig"
 source "board/hobot/x2/Kconfig"
-source "board/hobot/x3/Kconfig"
+source "board/hobot/xj3/Kconfig"
 
 source "arch/arm/Kconfig.debug"
 
@@ -1573,5 +1573,3 @@ config SPL_LDSCRIPT
 	default "arch/arm/cpu/arm926ejs/mxs/u-boot-spl.lds" if (ARCH_MX23 || ARCH_MX28) && !SPL_FRAMEWORK
 	default "arch/arm/cpu/arm1136/u-boot-spl.lds" if CPU_ARM1136
 	default "arch/arm/cpu/armv8/u-boot-spl.lds" if ARM64
-
-

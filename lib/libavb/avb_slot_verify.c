@@ -22,7 +22,7 @@
 #include <hb_spacc.h>
 #endif
 
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 extern int hb_get_cpu_num(void);
 #endif
 

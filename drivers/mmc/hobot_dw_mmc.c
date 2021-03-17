@@ -70,7 +70,7 @@ struct hobot_dwmmc_priv {
 
 static void sdio_reset(int dev_index)
 {
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 	u32 val = 0;
 	u32 rst_val = 0;
 
@@ -94,7 +94,7 @@ static void sdio_reset(int dev_index)
 
 static void sdio_power(int dev_index)
 {
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 	u32 val = 0;
         uint32_t base_board_id = hb_base_board_type_get();
 
@@ -172,7 +172,7 @@ static void sdio_pin_mux_config(int dev_index)
 	}
 #endif
 #endif
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 	u64 i;
 	if (dev_index == 0) {
 		for (i = SD0_CLK; i <= SD0_WPROT; i += 4) {

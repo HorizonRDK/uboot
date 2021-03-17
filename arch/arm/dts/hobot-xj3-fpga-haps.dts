@@ -8,7 +8,7 @@
  */
 
 /dts-v1/;
-#include "hobot-x3-fpga.dts"
+#include "hobot-xj3-fpga.dts"
 
 / {
 	model = "Hobot X3 Fpga Haps Board";
@@ -27,4 +27,3 @@
                 reg = <7>;
         };
 };
-

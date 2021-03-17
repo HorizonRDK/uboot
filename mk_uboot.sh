@@ -6,11 +6,11 @@ whoami=`whoami`
 
 cross=aarch64-linux-gnu-
 arch=arm64
-cfg=x3_soc_defconfig
+cfg=xj3_soc_defconfig
 fs_tmp="rootfs"
 
 ####################################
-# function define 
+# function define
 ####################################
 mk_cfg()
 {
@@ -22,7 +22,7 @@ mk_cfg()
 mk_all()
 {
     #echo make all with $j
-    make CROSS_COMPILE=$cross 
+    make CROSS_COMPILE=$cross
 #   make CROSS_COMPILE=$cross ARCH=$arch dtbs
 }
 
@@ -34,7 +34,7 @@ mk_clean()
 
 helper()
 {
-    echo	
+    echo
     echo ---------------------------------------------------------------------
     echo "Usage:  "
     echo "  sh mk_kernel.sh [option]"

@@ -177,8 +177,8 @@ dtb-$(CONFIG_ARCH_ZYNQMP) += \
 dtb-$(CONFIG_ARCH_ZYNQMP_R5) += \
 	zynqmp-r5.dtb
 dtb-$(CONFIG_TARGET_X2_FPGA) += hobot-x2-fpga.dtb
-dtb-$(CONFIG_TARGET_X3_FPGA) += hobot-x3-fpga.dtb
-dtb-$(CONFIG_TARGET_X3_FPGA_HAPS) += hobot-x3-fpga-haps.dtb
+dtb-$(CONFIG_TARGET_X3_FPGA) += hobot-xj3-fpga.dtb
+dtb-$(CONFIG_TARGET_X3_FPGA_HAPS) += hobot-xj3-fpga-haps.dtb
 dtb-$(CONFIG_AM33XX) += am335x-boneblack.dtb am335x-bone.dtb \
 	am335x-draco.dtb \
 	am335x-evm.dtb \

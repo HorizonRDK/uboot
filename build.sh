@@ -122,7 +122,7 @@ function choose()
 
 function change_dts_flash_config()
 {
-    local dts_file="$cur_dir/arch/arm/dts/hobot-x3-soc.dts"
+    local dts_file="$cur_dir/arch/arm/dts/hobot-xj3-soc.dts"
     local key_value="qspi {"
 
     declare -i nline
@@ -294,12 +294,12 @@ cd $(dirname $0)
 
 if [ "$bootmode" = "nand" ];then
     if [ "$PAGE_SIZE" = "2048" ];then
-        export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-gpt.conf"
+        export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-gpt.conf"
     elif [ "$PAGE_SIZE" = "4096" -o "$PAGE_SIZE" = "all" ];then
-        export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-4096-gpt.conf"
+        export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-4096-gpt.conf"
     fi
 elif [ "$bootmode" = "nor" ];then
-    export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nor-gpt-ubifs.conf"
+    export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nor-gpt-ubifs.conf"
 else
     arg="emmc"
 fi
@@ -316,6 +316,6 @@ if [ "$PAGE_SIZE" = "all" -a "$cmd" != "clean" ];then
     }
     cd -
     mv $TARGET_DEPLOY_DIR/uboot/${UBOOT_IMAGE_NAME} $prefix/uboot_4096.img
-    export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-x3-nand-gpt.conf"
+    export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-gpt.conf"
     buildopt $cmd
 fi

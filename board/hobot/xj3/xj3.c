@@ -11,7 +11,7 @@
 
 #include <asm/armv8/mmu.h>
 #include <asm/arch-x2/hb_reg.h>
-#include <asm/arch-x3/hb_pinmux.h>
+#include <asm/arch-xj3/hb_pinmux.h>
 #include <asm/arch/hb_pmu.h>
 #include <asm/arch/hb_sysctrl.h>
 #include <asm/arch-x2/ddr.h>

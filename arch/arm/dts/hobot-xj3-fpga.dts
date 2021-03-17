@@ -1,38 +1,33 @@
 /*
- * dts file for Hobot X3 soc
+ * dts file for Hobot X3 FPGA
  *
  * (C) Copyright 2017 - 2018, Hobot, Inc.
+ *
+ * yu.xing <yu.xing@hobot.cc>
  *
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
 /dts-v1/;
 
-#include "hobot-x3.dtsi"
+#include "hobot-xj3.dtsi"
 
 / {
-	model = "Hobot XJ3 Soc Board";
-	compatible = "hobot,x3";
+	model = "Hobot X3 Fpga Board";
+	compatible = "hobot,x3-fpga";
 
 	aliases {
 		serial0 = &uart0;
 		spi0	= &qspi;
-		gmac0 	= &gmac;
+		gmac0 = &gmac;
 		bif	= &bifsd;
-		mmc0    = &sdio0;
-		mmc1   	= &sdio1;
-		mmc2   	= &sdio2;
-		i2c0	= &i2c0;
-		i2c1	= &i2c1;
-		i2c2	= &i2c2;
-		i2c3	= &i2c3;
-		i2c4	= &i2c4;
-		i2c5	= &i2c5;
+		mmc0    = &sdmmc;
+		mmc1   = &sd;
 	};
 
 	chosen {
 		bootargs = "";
-//		stdout-path = "serial0:921600n8";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@0 {
@@ -47,49 +42,40 @@
 		reg = <0x0 0xa6003000 0x0 0x100>;
 	};
 
+	j2-leds {
+		red-gpio = <62>;
+		green-gpio = <61>;
+	};
 };
 
 &uart0 {
 	status = "okay";
 };
 
-&i2c0 {
-	status = "okay";
-};
-
-&i2c1 {
-	status = "okay";
-};
-
-&i2c4 {
-	status = "okay";
-};
-
-&i2c5 {
-	status = "okay";
-};
-
 &qspi {
 	status = "okay";
+	spi-max-frequency = <500000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	is25wp512@0 {
+	flash0: gd25q256c@0 {
 		u-boot,dm-pre-reloc;
-		compatible = "jedec,spi-nor";
+		compatible = "spi-flash";
 		reg = <0x0>;
-		spi-max-frequency = <62500000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
 	};
 
-	5f1gq4rc9ig@0 {
-		u-boot,dm-pre-reloc;
+
+	spi-nand@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 		compatible = "spi-nand";
 		reg = <0x0>;
-		spi-max-frequency = <62500000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
 	};
 
 };
@@ -98,28 +84,21 @@
         status = "okay";
         #address-cells = <0x1>;
         #size-cells = <0x0>;
-        phyaddr = <0xe>; //for dvb
-        #phyaddr = <0x0>; //for cvb
+        phyaddr = <3>;
 
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 	phy0: ethernet-phy@0 {
-		compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
+		//compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
+		compatible = "Marvell 88E1118R","ethernet-phy-ieee802.3-c22";
+		reg = <0>;
 	};
 };
-
 &bifsd {
 	status = "okay";
-};
-
-&sdio0 {
+	};
+&sdmmc {
 	status = "okay";
-};
-
-&sdio1 {
+	};
+&sd {
 	status = "okay";
-};
-
-&sdio2 {
-	status = "disabled";
-};
+	};

@@ -29,13 +29,13 @@
 #endif
 #include <asm/arch/hb_sysctrl.h>
 #include <asm/arch/hb_pmu.h>
-#include <asm/arch-x3/hb_pinmux.h>
+#include <asm/arch-xj3/hb_pinmux.h>
 #include <asm/arch/hb_share.h>
 #include <configs/hb_config.h>
 #include <hb_info.h>
 #include <ubi_uboot.h>
-#include <asm/arch-x3/hb_reg.h>
-#include <asm/arch-x3/boot_mode.h>
+#include <asm/arch-xj3/hb_reg.h>
+#include <asm/arch-xj3/boot_mode.h>
 #include <asm/arch-x2/ddr.h>
 #include <i2c.h>
 #include <mtd.h>
@@ -63,7 +63,7 @@ extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_board_id(unsigned int gpio_id);
 extern unsigned int detect_baud(void);
 
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 extern void disable_pll(void);
 extern void change_sys_pclk_250M(void);
 extern int hb_get_cpu_num(void);
@@ -604,7 +604,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	struct ubi_volume *vol;
 	int nr_cpus = 0;
 	int if_secure = hb_check_secure();
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 	nr_cpus = hb_get_cpu_num();
 #endif
 	/* Set Bootargs */
@@ -1867,7 +1867,7 @@ int board_early_init_r(void)
 
 int board_early_init_f(void)
 {
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 	init_io_vol();
 #endif
 	bif_change_reset2gpio();
@@ -2006,7 +2006,7 @@ int last_stage_init(void)
 
 //	misc();
 	if (readl(HB_PMU_SW_REG_23) != 0x74726175) {
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 		hb_mipi_panel_reset();
 		/*both pvt and gptp use sys_pclk,
 		 * pvt can work properly when sys_pclk is 250M*/

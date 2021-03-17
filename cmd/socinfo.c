@@ -11,7 +11,7 @@
 #include <asm/global_data.h>
 #include <fdt_support.h>
 #include <x2_fuse_regs.h>
-#include <asm/arch-x3/hb_reg.h>
+#include <asm/arch-xj3/hb_reg.h>
 #include <asm/arch-x2/ddr.h>
 #include <socinfo.h>
 #include <hb_info.h>

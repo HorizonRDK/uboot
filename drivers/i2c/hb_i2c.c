@@ -17,7 +17,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define PERISYS_CLKEN	0xA1000154
 #define X2_RESET_CTL	0xA1000450
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 #define X2_RESET_CTL_I2C	10
 #else
 #define X2_RESET_CTL_I2C	11
@@ -562,7 +562,7 @@ static int hb_i2c_ofdata_to_platdata(struct udevice *dev)
 
 	priv->bus_num = bus_nr;
 
-#ifdef CONFIG_TARGET_X3
+#ifdef CONFIG_TARGET_XJ3
 	switch (priv->bus_num) {
 	case 0:
 		priv->pin_first = 0x20;

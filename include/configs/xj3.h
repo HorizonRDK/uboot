@@ -172,7 +172,7 @@
 	"gz_addr=" __stringify(GZ_ADDR) "\0" \
 	"bootimage=Image\0" \
 	"bootfile=Image.gz\0" \
-	"fdtimage=hobot-x3-soc.dtb\0" \
+	"fdtimage=hobot-xj3-soc.dtb\0" \
 	"bootargs=" CONFIG_BOOTARGS "\0" \
 	"mmcload=mmc rescan;" \
 	    "ext4load mmc 0:4 ${gz_addr} ${bootfile};" \
