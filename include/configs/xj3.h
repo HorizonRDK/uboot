@@ -127,8 +127,8 @@
  *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
  */
 
-#define CONFIG_BOOTCOMMAND "part size mmc 0 boot bootimagesize;"\
-	"part start mmc 0 boot bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
+#define CONFIG_BOOTCOMMAND "part size mmc 0 %s bootimagesize;"\
+	"part start mmc 0 %s bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
 	" ${bootimageblk} ${bootimagesize};bootm "__stringify(BOOTIMG_ADDR)";"
 
 /*
