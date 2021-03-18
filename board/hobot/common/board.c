@@ -680,10 +680,13 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	memset(tmp, 0, sizeof(tmp));
 	if (boot_mode == PIN_2ND_EMMC) {
 		if (if_secure) {
-			snprintf(tmp, sizeof(tmp), "avb_verify; %s", CONFIG_BOOTCOMMAND);
+			snprintf(tmp, sizeof(tmp), "avb_verify; "CONFIG_BOOTCOMMAND,
+				 boot_partition, boot_partition);
 			env_set("bootcmd", tmp);
 		} else {
-			env_set("bootcmd", CONFIG_BOOTCOMMAND);
+			snprintf(tmp, sizeof(tmp), CONFIG_BOOTCOMMAND,
+				 boot_partition, boot_partition);
+			env_set("bootcmd", tmp);
 		}
 	} else {
 		/* TODO: Unify bootcmd to get rid of function calls below loading boot */
