@@ -108,6 +108,9 @@
 
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
 
+/* DFU class support */
+#define CONFIG_SYS_DFU_DATA_BUF_SIZE	(SZ_4M)
+
 /* Serial setup */
 #define UART_BAUDRATE_115200			115200
 #define UART_BAUDRATE_921600			921600
