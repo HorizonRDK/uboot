@@ -384,7 +384,7 @@ CONFIG_CMD_UNZIP=y
 # CONFIG_CMD_BIND is not set
 # CONFIG_CMD_CLK is not set
 # CONFIG_CMD_DEMO is not set
-# CONFIG_CMD_DFU is not set
+CONFIG_CMD_DFU=y
 CONFIG_CMD_DM=y
 CONFIG_CMD_FASTBOOT=y
 # CONFIG_CMD_FDC is not set
@@ -655,6 +655,13 @@ CONFIG_CLK_HB=y
 #
 # DFU support
 #
+CONFIG_DFU=y
+CONFIG_DFU_OVER_USB=y
+# CONFIG_DFU_TFTP is not set
+CONFIG_DFU_MMC=y
+# CONFIG_DFU_NAND is not set
+# CONFIG_DFU_RAM is not set
+CONFIG_DFU_SF=y
 
 #
 # DMA Support
