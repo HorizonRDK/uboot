@@ -11,11 +11,13 @@
 #define BOOT_RECOVERY		(REBOOT_FLAG + 3)
 /* enter fastboot mode */
 #define BOOT_FASTBOOT		(REBOOT_FLAG + 9)
-/* enter charging mode */
-#define BOOT_CHARGING		(REBOOT_FLAG + 11)
 /* enter usb mass storage mode */
-#define BOOT_UMS		(REBOOT_FLAG + 12)
+#define BOOT_UMS		(REBOOT_FLAG + 11)
+/* enter device firmware upgrade mode */
+#define BOOT_DFU		(REBOOT_FLAG + 12)
 /* enter usb fimrware upgrade mode */
 #define BOOT_UFU		(REBOOT_FLAG + 13)
+/* enter eye diagram debug mode */
+#define BOOT_EYE_DIAG		(REBOOT_FLAG + 14)
 
 #endif /* __REBOOT_MODE_H */

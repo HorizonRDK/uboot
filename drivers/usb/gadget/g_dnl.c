@@ -51,6 +51,12 @@
 #define	ANDROID_PRODUCT_NUM	0xd00d	/* Android device */
 
 /*
+ * dfu gadget vendor id and product id
+ */
+#define	DFU_VENDOR_NUM		0x0405
+#define DFU_PRODUCT_NUM		0x0050
+
+/*
  * ufu gadget vendor id and product id
  */
 #define	UFU_VENDOR_NUM		0x1b20
@@ -315,6 +321,15 @@ int g_dnl_register(const char *name)
 			__constant_cpu_to_le16(GOOGLE_VENDOR_NUM);
 		device_desc.idProduct =
 			__constant_cpu_to_le16(ANDROID_PRODUCT_NUM);
+	}
+#endif
+
+#ifdef CONFIG_DFU_OVER_USB
+	if (!strncmp(name, "usb_dnl_dfu", 11)) {
+		device_desc.idVendor =
+			__constant_cpu_to_le16(DFU_VENDOR_NUM);
+		device_desc.idProduct =
+			__constant_cpu_to_le16(DFU_PRODUCT_NUM);
 	}
 #endif
 
