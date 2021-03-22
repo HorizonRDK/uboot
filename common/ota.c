@@ -754,7 +754,7 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 	} else if (strcmp(boot_reason, "all") == 0) {
 		ota_all_update(upmode, up_flag, boot_stat, root_stat);
 	}
-	DEBUG_LOG("boot parition: %s, system partition: %s\n",
+	DEBUG_LOG("boot partition: %s, system partition: %s\n",
 				boot_partition, system_partition);
 }
 
