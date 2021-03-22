@@ -113,6 +113,7 @@ int hb_boot_mode_get(void) {
 	return PIN_2NDBOOT_SEL(reg);
 }
 
+#ifdef CONFIG_FASTBOOT
 int hb_fastboot_key_pressed(void) {
 	unsigned int reg;
 
@@ -120,6 +121,30 @@ int hb_fastboot_key_pressed(void) {
 
 	return PIN_FASTBOOT_SEL(reg);
 }
+#endif
+
+#if defined(CONFIG_DFU_OVER_USB) || defined(CONFIG_SET_DFU_ALT_INFO)
+void set_dfu_alt_info(char *interface, char *devstr)
+{
+	unsigned int boot_mode = hb_boot_mode_get();
+	char *alt_info = NULL;
+
+	switch (boot_mode) {
+	case PIN_2ND_NAND:
+		alt_info = DFU_ALT_INFO_SPINAND;
+		break;
+	case PIN_2ND_EMMC:
+	default:
+		alt_info = DFU_ALT_INFO_EMMC;
+		break;
+	}
+
+	if (alt_info)
+		env_set("dfu_alt_info", alt_info);
+
+	puts("DFU alt info setting: done\n");
+}
+#endif
 
 void hb_set_serial_number(void)
 {

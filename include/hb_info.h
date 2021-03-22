@@ -272,7 +272,9 @@ struct hb_uid_hdr {
 };
 
 int hb_boot_mode_get(void);
+#if defined(CONFIG_FASTBOOT)
 int hb_fastboot_key_pressed(void);
+#endif
 int hb_check_secure(void);
 uint32_t hb_som_type_get(void);
 uint32_t hb_board_type_get(void);

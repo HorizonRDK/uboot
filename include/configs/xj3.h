@@ -148,25 +148,23 @@
  */
 
 /* USB Device Firmware Upgrade support */
-#define DFU_ALT_INFO_MMC \
-	"dfu_mmc_info=" \
-	"setenv dfu_alt_info "\
-	"disk.img raw 0 30597120\\\\;" \
-	"veeprom part 0 1\\\\;" \
-	"sbl part 0 2\\\\;" \
-	"ddr part 0 3\\\\;" \
-	"bl31 part 0 4\\\\;" \
-	"uboot part 0 5\\\\;" \
-	"vbmeta part 0 6\\\\;" \
-	"boot part 0 7\\\\;" \
-	"recovery part 0 8\\\\;" \
-	"system part 0 9\\\\;" \
-	"bpu part 0 10\\\\;" \
-	"app part 0 11\\\\;" \
-	"userdata part 0 12;\0" \
-	"dfu_mmc=run dfu_mmc_info;dfu 0 mmc 0\0"
-#define DFU_ALT_INFO \
-	DFU_ALT_INFO_MMC
+#define DFU_ALT_INFO_EMMC \
+	"disk.img raw 0 30597120;" \
+	"veeprom part 0 1;" \
+	"sbl part 0 2;" \
+	"ddr part 0 3;" \
+	"bl31 part 0 4;" \
+	"uboot part 0 5;" \
+	"vbmeta part 0 6;" \
+	"boot part 0 7;" \
+	"recovery part 0 8;" \
+	"system part 0 9;" \
+	"bpu part 0 10;" \
+	"app part 0 11;" \
+	"userdata part 0 12\0"
+
+#define DFU_ALT_INFO_SPINAND \
+	"disk.img raw 0 8000000\0"
 
 /* default partition table */
 #ifndef PARTS_DEFAULT
@@ -209,7 +207,6 @@
 	    "fatload usb 0:0 ${fdt_addr} ${fdtimage};" \
 	    "run ddrboot\0" \
 	"cdc_connect_timeout=360\0" \
-	DFU_ALT_INFO \
 	"partitions=" PARTS_DEFAULT "\0"
 #endif
 

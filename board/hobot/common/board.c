@@ -1819,7 +1819,8 @@ static void hb_swinfo_boot(void)
 
 #endif
 
-#if defined(CONFIG_FASTBOOT) || defined(CONFIG_USB_FUNCTION_MASS_STORAGE)
+#if defined(CONFIG_FASTBOOT) || defined(CONFIG_USB_FUNCTION_MASS_STORAGE) \
+	|| defined(CONFIG_DFU_OVER_USB)
 int setup_boot_action(int boot_mode)
 {
 	void *reg = (void *)HB_PMU_SW_REG_04;
@@ -1847,9 +1848,14 @@ int setup_boot_action(int boot_mode)
 		env_set("preboot", "setenv preboot; ums 0 mmc 0");
 		break;
 	case BOOT_DFU:
-		/* dfu currently use emmc as default */
-		printf("%s: enter emmc DFU!\n", __func__);
-		env_set("preboot", "setenv preboot; run dfu_mmc"); /* dfu_mmc command in xj3.h */
+		/* currently only nand boot to flash nand, others all flash emmc */
+		if (boot_mode == PIN_2ND_NAND) {
+			printf("%s: enter spi-nand0 DFU!\n", __func__);
+			env_set("preboot", "setenv preboot; dfu 0 mtd spi-nand0");
+		} else {
+			printf("%s: enter emmc DFU!\n", __func__);
+			env_set("preboot", "setenv preboot; dfu 0 mmc 0");
+		}
 		break;
 	case BOOT_UFU:
 		/* ufu currently use emmc 0:1 as storage, later will use ddr */
