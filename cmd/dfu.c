@@ -21,7 +21,7 @@
 static int do_dfu(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 
-	if (argc < 2)
+	if (argc < 4)	/* few arguments case not ready */
 		return CMD_RET_USAGE;
 
 #ifdef CONFIG_DFU_OVER_USB

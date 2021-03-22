@@ -143,7 +143,9 @@ int dfu_init_env_entities(char *interface, char *devstr)
 	dfu_reinit_needed = false;
 
 #ifdef CONFIG_SET_DFU_ALT_INFO
-	set_dfu_alt_info(interface, devstr);
+	/* if has dfu_alt_info, don't invoke set_dfu_alt_info */
+	if (!env_get("dfu_alt_info"))
+		set_dfu_alt_info(interface, devstr);
 #endif
 	str_env = env_get("dfu_alt_info");
 	if (!str_env) {
