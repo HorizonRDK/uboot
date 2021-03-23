@@ -612,12 +612,21 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		break;
 	}
 
+	/* below patch will cause board still in gadget mode after
+	 * ctrl-c operation, and PC host will try to enumerate our
+	 * our device, which will cause usb phy & controller still
+	 * working. I don't think it is reasonable... So revert it first.
+	 * For below patch's detail, we could refer to url:
+	 * http://patchwork.ozlabs.org/project/uboot/patch/20190627110251.2591-6-jjhiblot@ti.com/
+	 */
+#if 0
 	/*
 	 * switch back to peripheral mode
 	 * This enables the phy to enter idle and then, if enabled, suspend.
 	 */
 	dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 	dwc3_gadget_run(dwc);
+#endif
 }
 
 static void dwc3_uboot_hsphy_mode(struct dwc3_device *dwc3_dev,
