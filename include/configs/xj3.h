@@ -164,7 +164,11 @@
 	"userdata part 0 12\0"
 
 #define DFU_ALT_INFO_SPINAND \
-	"disk.img raw 0 8000000\0"
+	"disk.img raw 0 8000000;" \
+	"bootloader part 1;" \
+	"boot part 2;" \
+	"system part 3;" \
+	"userdata part 4\0"
 
 /* default partition table */
 #ifndef PARTS_DEFAULT
