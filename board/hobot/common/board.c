@@ -617,14 +617,14 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		/* Add nr_cpus */
 		if (nr_cpus > 0) {
 			snprintf(tmp, sizeof(tmp), " nr_cpus=%d", nr_cpus);
-			strncat(bootargs_str, tmp, sizeof(bootargs_str) - strlen(bootargs_str));
+			strncat(bootargs_str, tmp, sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
 		if (!if_secure || (if_secure && boot_mode != PIN_2ND_EMMC)) {
 			/* Add Rootfstype, passed from Macro during build */
 			memset(tmp, 0, sizeof(tmp));
 			snprintf(tmp, sizeof(tmp), " rootfstype=%s", ROOTFS_TYPE);
 			strncat(bootargs_str, tmp,
-					sizeof(bootargs_str) - strlen(bootargs_str));
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
 
 		/* Specific bootargs for each bootmode */
@@ -632,11 +632,11 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		if (boot_mode == PIN_2ND_EMMC) {
 			if(!if_secure) {
 				strncat(bootargs_str, " ro rootwait",
-						sizeof(bootargs_str) - strlen(bootargs_str));
+						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 				snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
 						get_partition_id(system_partition));
 				strncat(bootargs_str, tmp,
-						sizeof(bootargs_str) - strlen(bootargs_str));
+						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			}
 		} else {
 			/* ro/rw judgement from volume type */
@@ -645,7 +645,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			if (vol != NULL) {
 				strncat(bootargs_str,
 					vol->vol_type == UBI_STATIC_VOLUME ? " ro" : " rw",
-					sizeof(bootargs_str) - strlen(bootargs_str));
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			} else {
 				printf("Rootfs volume: %s not found in UBI partition: %s\n",
 						rootfs_vol_name, rootfs_mtd_name);
@@ -654,30 +654,30 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			}
 
 			strncat(bootargs_str, " rootwait",
-					sizeof(bootargs_str) - strlen(bootargs_str));
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			root_mtd = get_mtd_device_nm(rootfs_mtd_name);
 			rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
 			/* If neccessary, add logic to determine which ubi device is
 				rootfs, ubi0 and volume name rootfs is used as default */
 			snprintf(tmp, sizeof(tmp), " root=ubi0:rootfs ubi.mtd=%d", rootfs_mtdnm);
 			strncat(bootargs_str, tmp,
-				sizeof(bootargs_str) - strlen(bootargs_str));
+				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			if (boot_mode == PIN_2ND_NAND) {
 				/* For nand, page size must also be specified */
 				memset(tmp, 0, sizeof(tmp));
 				snprintf(tmp, sizeof(tmp), ",%d", root_mtd->writesize);
 				strncat(bootargs_str, tmp,
-					sizeof(bootargs_str) - strlen(bootargs_str));
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			}
 			/* For Flashes, Kernel MTD partition is constructed with mtdparts */
-			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str));
+			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			strncat(bootargs_str, env_get("mtdparts"),
-					sizeof(bootargs_str) - strlen(bootargs_str));
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
 		/* Use extra_bootargs to append extra bootargs to bootargs when necessary */
 		extra_bootargs = env_get("extra_bootargs");
 		if (extra_bootargs != NULL) {
-			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str));
+			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			strncat(bootargs_str, extra_bootargs, sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
 		env_set("bootargs", bootargs_str);

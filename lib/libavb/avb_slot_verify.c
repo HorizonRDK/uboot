@@ -1357,12 +1357,12 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
       while (bootargs_del_ptr != NULL) {
         if (strncmp(bootargs_del_ptr, "/dev/mmcblk0p", strlen("/dev/mmcblk0p"))) {
           strncat(cmd_final, bootargs_del_ptr,
-                  sizeof(cmd_final) - strlen(cmd_final));
+                  sizeof(cmd_final) - strlen(cmd_final) - 1);
         } else {
           strncat(cmd_final, system_dev,
-                  sizeof(cmd_final) - strlen(cmd_final));
+                  sizeof(cmd_final) - strlen(cmd_final) - 1);
         }
-        strncat(cmd_final, " ", sizeof(cmd_final) - strlen(cmd_final));
+        strncat(cmd_final, " ", sizeof(cmd_final) - strlen(cmd_final) - 1);
         bootargs_del_ptr = strtok(NULL, " ");
       }
       env_set("bootargs", cmd_final);
