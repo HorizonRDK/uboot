@@ -599,6 +599,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	char *rootfs_mtd_name = "system";
 	char *rootfs_vol_name = "rootfs";
 	char *boot_mtd_name = "boot";
+	char *extra_bootargs = NULL;
 	int ret = 0, rootfs_mtdnm = -1;
 	struct mtd_info *root_mtd, *boot_mtd;
 	struct ubi_volume *vol;
@@ -672,6 +673,12 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str));
 			strncat(bootargs_str, env_get("mtdparts"),
 					sizeof(bootargs_str) - strlen(bootargs_str));
+		}
+		/* Use extra_bootargs to append extra bootargs to bootargs when necessary */
+		extra_bootargs = env_get("extra_bootargs");
+		if (extra_bootargs != NULL) {
+			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str));
+			strncat(bootargs_str, extra_bootargs, sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
 		env_set("bootargs", bootargs_str);
 	}
