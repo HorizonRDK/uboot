@@ -132,6 +132,35 @@ void boot_fdt_add_mem_rsv_regions(struct lmb *lmb, void *fdt_blob)
 	}
 }
 
+static void hb_add_dts_bootargs() {
+	char cmd[2048] = { 0 };
+	int   nodeoffset = -1, err = 0;
+	void *fdt = NULL;
+	const struct fdt_property *fdt_prop;
+	char *bootargs_from_dts, *bootargs_env;
+	/* configure bootargs according to Kernel DTS */
+	err = fdt_check_header(FDT_ADDR);
+	if (err < 0) {
+		printf("fdt_chosen: %s\n", fdt_strerror(err));
+		return err;
+	}
+
+	/* find "/chosen" node. */
+	nodeoffset = fdt_subnode_offset(FDT_ADDR, 0, "chosen");
+	if (nodeoffset != -FDT_ERR_NOTFOUND) {
+		fdt_prop = fdt_get_property(FDT_ADDR, nodeoffset, "bootargs", NULL);
+		bootargs_from_dts = fdt_prop->data;
+		/* process bootargs from dts and add it to bootargs */
+		memset(cmd, 0, sizeof(cmd));
+		strncpy(cmd, bootargs_from_dts, sizeof(cmd) - 1);
+		strncat(cmd, " ", sizeof(cmd) - strlen(cmd) - 1);
+		bootargs_env = env_get("bootargs");
+		if (bootargs_env != NULL)
+			strncat(cmd, bootargs_env, sizeof(cmd) - strlen(cmd) - 1);
+		env_set("bootargs", cmd);
+	}
+}
+
 static void hb_dts_node_modify(void) {
 	char cmd[128] = { 0 };
 
@@ -154,13 +183,15 @@ static void hb_dts_node_modify(void) {
 	snprintf(cmd, sizeof(cmd), "ion_modify ${ion_size} ${ion_cma}");
 	run_command(cmd, 0);
 
-        /* modify ion mem size */
+	/* modify ion mem size */
 	snprintf(cmd, sizeof(cmd), "model_reserved_modify ${model_reserved_size}");
 	run_command(cmd, 0);
 
 	/* modify mem size */
 	snprintf(cmd, sizeof(cmd), "mem_modify ${mem_size}");
 	run_command(cmd, 0);
+
+	hb_add_dts_bootargs();
 }
 
 /**

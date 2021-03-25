@@ -124,7 +124,7 @@
 /* boot mode select */
 #define CONFIG_DDR_BOOT
 #define BOOTIMG_ADDR 0x10000000
-#define CONFIG_BOOTARGS "earlycon kgdboc=ttyS0 console=ttyS0"
+#define CONFIG_BOOTARGS "console=ttyS0"
 /*
  * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
  *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
