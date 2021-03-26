@@ -708,6 +708,9 @@ void ota_ab_boot_bak_partition(void)
 
 	if (boot_flag == 1)
 		snprintf(boot_partition, sizeof(boot_partition), "boot_b");
+	ota_reverse_ab();
+	DEBUG_LOG("boot parition: %s, system partition: %s\n",
+			boot_partition, system_partition);
 }
 
 void ota_upgrade_flag_check(char *upmode, char *boot_reason)
