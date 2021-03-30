@@ -337,10 +337,21 @@ ulong board_get_usable_ram_top(ulong total_size)
 
 int init_io_vol(void)
 {
+	uint32_t value = 0;
+	uint32_t base_board_id = 0;
+	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
+
+	hb_board_id = bootinfo->board_id;
 	/* work around solution for xj3 bring up ethernet,
 	 * all io to v1.8 except bt1120
+	 * BIFSPI and I2C2 is 3.3v in J3DVB, the other is 1.8v
 	 */
-	writel(0xF0F, GPIO_BASE + 0x174);
+	value = 0xF0F;
+	base_board_id = hb_base_board_type_get();
+	if (base_board_id == BASE_BOARD_J3_DVB) {
+		value = 0xD0D;
+	}
+	writel(value, GPIO_BASE + 0x174);
 	writel(0xF, GPIO_BASE + 0x170);
 	return 0;
 }
