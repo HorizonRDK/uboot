@@ -63,6 +63,7 @@ struct f_ufu {
 	unsigned int		offset;
 	unsigned int		chunks;
 	u8			download_finish;
+	u8			flash_finish;
 	u8			md5_pass;
 
 	char			command[UFU_RUN_COMMNAD_MAX_LENGTH];

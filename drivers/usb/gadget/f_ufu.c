@@ -169,7 +169,7 @@ static lbaint_t ufu_mmc_blk_write(struct blk_desc *block_dev, lbaint_t start,
 /**
  * write_raw_image_to_addr - write raw image to addr
  */
-static void write_raw_image_to_addr(struct blk_desc *dev_desc, long addr,
+static int write_raw_image_to_addr(struct blk_desc *dev_desc, long addr,
 		int blksz, void *buffer, u32 download_bytes)
 {
 	lbaint_t blkcnt;
@@ -185,11 +185,13 @@ static void write_raw_image_to_addr(struct blk_desc *dev_desc, long addr,
 
 	if (blks != blkcnt) {
 		pr_err("failed writing to device %d\n", dev_desc->devnum);
-		return;
+		return -EFAULT;
 	}
 
 	printf("........ wrote " LBAFU " bytes to 0x%lx\n",
 			blkcnt * blksz, addr);
+
+	return 0;
 }
 
 /**
@@ -199,31 +201,37 @@ static void write_raw_image_to_addr(struct blk_desc *dev_desc, long addr,
  * @download_buffer: Pointer to image data
  * @download_bytes: Size of image data
  */
-static void ufu_mmc_flash_write(void *download_buffer, u32 download_bytes)
+static int ufu_mmc_flash_write(void *download_buffer, u32 download_bytes)
 {
 	struct blk_desc *dev_desc;
 	long start_addr = 0x0;
+	int r;
 
 	dev_desc = blk_get_dev("mmc", 0);
 	if (!dev_desc || dev_desc->type == DEV_TYPE_UNKNOWN) {
 		pr_err("invalid mmc device\n");
-		return;
+		return -EINVAL;
 	}
 
-	write_raw_image_to_addr(dev_desc, start_addr,
+	r = write_raw_image_to_addr(dev_desc, start_addr,
 			dev_desc->blksz, download_buffer,
 			download_bytes);
+
+	return r;
 }
 
-static void do_flash(void)
+static int do_flash(void)
 {
 	struct f_ufu		*f_ufu	= get_ufu();
+	int r;
 
 	void	*download_image = (void *)((u64)(f_ufu->loadinfo.addr));
 	u32	size = f_ufu->loadinfo.size;
 
 	/* if (emmc) */
-	ufu_mmc_flash_write(download_image, size);
+	r = ufu_mmc_flash_write(download_image, size);
+
+	return r;
 }
 
 static int cb_download_keep(struct fsg_common *common,
@@ -332,16 +340,14 @@ static int cb_get_result(struct fsg_common *common,
 	}
 
 	buf[0] = 0x0d;
-	if (f_ufu->download_finish) {
-		if (f_ufu->md5_pass) {
-			do_flash();
-			buf[1] = UFU_SUCCESS;
-		} else {
-			buf[1] = UFU_ERR_MD5;
-		}
-	} else {
-		buf[1] = UFU_ERR_NOT_IMPLEMENT;
-	}
+	if (f_ufu->download_finish && f_ufu->md5_pass &&
+			f_ufu->flash_finish)
+		buf[1] = UFU_SUCCESS;		/* download, md5 & flash ok */
+	else if (!f_ufu->md5_pass)
+		buf[1] = UFU_ERR_MD5;		/* md5 fail */
+	else
+		buf[1] = UFU_ERR_MAX;		/* unknown error*/
+
 	buf[2] = 0x00;
 	buf[3] = 0x00;
 
@@ -440,10 +446,21 @@ static int cb_download_end(struct fsg_common *common,
 				common->short_packet_received = 1;
 
 			f_ufu->download_finish = 1;
+			printf("download end...\n");
+
 			if (md5sum_check() < 0)
 				f_ufu->md5_pass = 0;
 			else
 				f_ufu->md5_pass = 1;
+
+			printf("%s\n", f_ufu->md5_pass ? "md5 checksum pass"
+					: "md5 checksum fail");
+
+			if (f_ufu->md5_pass)
+				f_ufu->flash_finish = do_flash() ? 0 : 1;
+
+			printf("%s\n", f_ufu->flash_finish ? "flash succeed"
+					: "flash failed");
 
 			break;	/* Command done */
 		}
