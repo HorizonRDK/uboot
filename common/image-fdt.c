@@ -132,23 +132,23 @@ void boot_fdt_add_mem_rsv_regions(struct lmb *lmb, void *fdt_blob)
 	}
 }
 
-static void hb_add_dts_bootargs() {
+static void hb_add_dts_bootargs(void) {
 	char cmd[2048] = { 0 };
 	int   nodeoffset = -1, err = 0;
-	void *fdt = NULL;
+	void *fdt = (void *)FDT_ADDR;
 	const struct fdt_property *fdt_prop;
-	char *bootargs_from_dts, *bootargs_env;
+	const char *bootargs_from_dts, *bootargs_env;
 	/* configure bootargs according to Kernel DTS */
-	err = fdt_check_header(FDT_ADDR);
+	err = fdt_check_header(fdt);
 	if (err < 0) {
 		printf("fdt_chosen: %s\n", fdt_strerror(err));
-		return err;
+		return;
 	}
 
 	/* find "/chosen" node. */
-	nodeoffset = fdt_subnode_offset(FDT_ADDR, 0, "chosen");
+	nodeoffset = fdt_subnode_offset(fdt, 0, "chosen");
 	if (nodeoffset != -FDT_ERR_NOTFOUND) {
-		fdt_prop = fdt_get_property(FDT_ADDR, nodeoffset, "bootargs", NULL);
+		fdt_prop = fdt_get_property(fdt, nodeoffset, "bootargs", NULL);
 		bootargs_from_dts = fdt_prop->data;
 		/* process bootargs from dts and add it to bootargs */
 		memset(cmd, 0, sizeof(cmd));
