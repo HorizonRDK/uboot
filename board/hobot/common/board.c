@@ -45,6 +45,7 @@
 #define HB_IO_OUT_CTL_REG(p)    (GPIO_BASE + ((p) / 16) * 0x10 + 0x8)
 #define HB_IO_IN_VAL_REG(p)     (GPIO_BASE + ((p) / 16) * 0x10 + 0xc)
 
+
 #ifdef CONFIG_HBOT_SECURE_ENGINE
 #include <hb_spacc.h>
 #include <hb_pka.h>
@@ -844,7 +845,10 @@ static void hb_usb_dtb_config(void) {
 static void hb_usb_env_init(void)
 {
 	char *tmp = "send_id;run ddrboot";
-	env_set("bootargs", CONFIG_BOOTARGS);
+	char usb_bootargs[128] = {0};
+	snprintf(usb_bootargs, sizeof(usb_bootargs), "%s,%d",
+		       CONFIG_BOOTARGS, detect_baud());
+	env_set("bootargs", usb_bootargs);
 	/* set bootcmd */
 	env_set("bootcmd", tmp);
 }
