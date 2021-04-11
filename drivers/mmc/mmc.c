@@ -2075,7 +2075,8 @@ static int mmc_select_mode_and_width(struct mmc *mmc, uint card_caps)
 	const struct mode_width_tuning *mwt;
 	const struct ext_csd_bus_width *ecbw;
 
-	if (((api_efuse_read_data(28) >> 20) & 0xF) == 1) {
+	if (((api_efuse_read_data(HB_BANK) >> 20) & 0xF) == EMMC_BW_4 &&
+	      (api_efuse_read_data(HB_BANK) & 0xF) == HORIZON_BOARD) {
 		mmc->host_caps &= (~MMC_MODE_8BIT);
 		mmc->host_caps |= MMC_MODE_4BIT;
 	}

@@ -101,6 +101,9 @@ enum EFS_TPE {
 #define AES_UNIQUE_KEY_127_96_BANK  13
 #define PRODUCT_CUSTOMER_ID_BANK    26
 
+#define HORIZON_BOARD        0x01
+#define EMMC_BW_4            0x01
+#define HB_BANK              28
 /********************************************
  * define non-secure efuse field
  ********************************************

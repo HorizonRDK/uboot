@@ -1349,7 +1349,12 @@ static int do_fix_mmc_buswidth(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	if (argc == 2)
 		mmc_buswidth = argv[1];
-	else if (((api_efuse_read_data(28) >> 20) & 0xF) != 1)
+	/*
+	 * efuse bank28 bit[0:3] and bit[20:23] is 1
+	 * to set emmc width is 4
+	 */
+	else if (((api_efuse_read_data(HB_BANK) >> 20) & 0xF) != EMMC_BW_4 ||
+		 (api_efuse_read_data(HB_BANK) & 0xF) != HORIZON_BOARD)
 		return 0;
 
 	snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
