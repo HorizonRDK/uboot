@@ -67,6 +67,8 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
         {"/cpu_pd_reg_dc"};
     char cnn_regu_path[][DTB_PATH_MAX_LEN] =
         {"/cnn0_pd_reg_dc@2", "/cnn1_pd_reg_dc@3"};
+    char *usb_path = "/soc/usb@0xB2000000/";
+    char *usb_prop = "usb_0v8-supply";
 
     if (hb_som_type_get() != SOM_TYPE_X3)
          return 0;
@@ -105,11 +107,14 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     /*
      * detect axp1506 failed, switch to dc-dc regulator
      */
-    printf("PMIC invalid, Disable it\n");
+    printf("PMIC invalid, Disable it and delete usb_0v8-supply node\n");
     /* diable axp1506 if read register failed */
     snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", pathp);
     run_command(cmd, 0);
 
+    memset(cmd, 0, sizeof(cmd));
+    snprintf(cmd, sizeof(cmd), "fdt rm %s %s", usb_path, usb_prop);
+    run_command(cmd, 0);
     /* enable dc-dc regulator dts */
     for (i = 0; i < ARRAY_SIZE(cpu_regu_path); ++i) {
         snprintf(cmd, sizeof(cmd), "fdt set %s status okay",
