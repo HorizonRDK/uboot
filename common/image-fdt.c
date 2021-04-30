@@ -8,15 +8,16 @@
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  */
 
+#include <asm/io.h>
 #include <common.h>
-#include <fdt_support.h>
+#include <configs/xj3.h>
 #include <errno.h>
+#include <fdt_support.h>
+#include <fdtdec.h>
+#include <hb_info.h>
 #include <image.h>
 #include <linux/libfdt.h>
 #include <mapmem.h>
-#include <asm/io.h>
-#include <fdtdec.h>
-#include <configs/xj3.h>
 
 #ifndef CONFIG_SYS_FDT_PAD
 #define CONFIG_SYS_FDT_PAD 0x3000
@@ -171,7 +172,23 @@ static void hb_dts_node_modify(void) {
     snprintf(cmd, sizeof(cmd), "detect_pmic");
 	run_command(cmd, 0);
 
-	/* enable/disable node */
+	/*
+	 * enable/disable node
+	 * check if current boot is nand/nor, if so, enable them
+	*/
+	switch (hb_boot_mode_get()) {
+	case PIN_2ND_NAND:
+		snprintf(cmd, sizeof(cmd), "fdt_enable enable /soc/nand");
+		run_command(cmd, 0);
+		break;
+	case PIN_2ND_NOR:
+		snprintf(cmd, sizeof(cmd), "fdt_enable enable /soc/nor");
+		run_command(cmd, 0);
+		break;
+	default:
+		break;
+	}
+	/* take user set nodes and change them */
 	snprintf(cmd, sizeof(cmd), "fdt_enable ${change_node}");
 	run_command(cmd, 0);
 
