@@ -120,38 +120,8 @@ function choose()
     mv $conftmp .config
 }
 
-function change_dts_flash_config()
-{
-    local dts_file="$cur_dir/arch/arm/dts/hobot-xj3-soc.dts"
-    local key_value="qspi {"
-
-    declare -i nline
-
-    getline()
-    {
-        cat -n $dts_file|grep "${key_value}"|awk '{print $1}'
-    }
-
-    getlinenum()
-    {
-        awk "BEGIN{a=`getline`;b="1";c=(a+b);print c}";
-    }
-
-    nline=`getlinenum`
-
-    if [ x"$bootmode" = x"nor" ] || [ x"$bootmode" = x"nand" ] \
-       || [ ! -z "$FLASH_ENABLE" ];then
-        sed -i "${nline}s#disabled#okay#g" $dts_file
-    else
-        sed -i "${nline}s#okay#disabled#g" $dts_file
-    fi
-}
-
 function build()
 {
-    # config dts
-    # change_dts_flash_config
-
     local uboot_image="u-boot.bin"
     prefix=$TARGET_UBOOT_DIR
     config=$UBOOT_DEFCONFIG
