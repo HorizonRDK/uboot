@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-#ifdef CONFIG_HB_MMC_BOOT
+#ifdef HB_MMC_BOOT
 
 #define EMMC_BLOCK_SIZE			512
 #define EMMC_BLOCK_MASK			(EMMC_BLOCK_SIZE - 1)
@@ -155,7 +155,6 @@ typedef struct emmc_csd {
 
 emmc_ops_t *config_dw_mmc_ops(dw_mmc_params_t * params);
 
-#endif /* CONFIG_HB_MMC_BOOT */
+#endif /* HB_MMC_BOOT */
 
 #endif /* __DW_MMC_SPL_H__ */
-

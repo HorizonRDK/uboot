@@ -83,11 +83,11 @@ void board_init_f(ulong dummy)
 	spl_ap_init();
 #elif defined(CONFIG_HB_YMODEM_BOOT)
 	spl_hb_ymodem_init();
-#elif defined(CONFIG_HB_MMC_BOOT)
+#elif defined(HB_MMC_BOOT)
 	spl_emmc_init(g_binfo.emmc_cfg);
-#elif defined(CONFIG_HB_NOR_BOOT)
+#elif defined(HB_NOR_BOOT)
 	spl_nor_init(g_binfo.qspi_cfg);
-#elif defined(CONFIG_HB_NAND_BOOT)
+#elif defined(HB_NAND_BOOT)
 	spl_nand_init();
 	udelay(40);
 #endif
@@ -98,7 +98,7 @@ void board_init_f(ulong dummy)
 	hb_wdt_start();
 #endif
 
-#if defined(CONFIG_HB_MMC_BOOT)
+#if defined(HB_MMC_BOOT)
 	veeprom_read(VEEPROM_PERI_PLL_OFFSET, pllswitch,VEEPROM_PERI_PLL_SIZE);
 #endif
 
@@ -113,8 +113,8 @@ void board_init_f(ulong dummy)
 
 	spl_dram_init();
 
-#if defined(CONFIG_HB_MMC_BOOT) || defined(CONFIG_HB_NOR_BOOT) \
-				|| defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_MMC_BOOT) || defined(HB_NOR_BOOT) \
+				|| defined(HB_NAND_BOOT)
 	/* write bootinfo to ddr HB_BOOTINFO_ADDR */
 	hb_bootinfo_init();
 #endif
@@ -137,9 +137,9 @@ void spl_board_init(void)
 unsigned int spl_boot_device(void)
 {
 #if defined(CONFIG_HB_AP_BOOT) \
-	|| defined(CONFIG_HB_MMC_BOOT) \
-	|| defined(CONFIG_HB_NOR_BOOT) \
-	|| defined(CONFIG_HB_NAND_BOOT)
+	|| defined(HB_MMC_BOOT) \
+	|| defined(HB_NOR_BOOT) \
+	|| defined(HB_NAND_BOOT)
 
 	return BOOT_DEVICE_RAM;
 #elif defined(CONFIG_HB_YMODEM_BOOT)

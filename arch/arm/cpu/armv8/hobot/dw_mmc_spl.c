@@ -2,7 +2,7 @@
 #include "hb_mmc_spl.h"
 #include "dw_mmc_spl.h"
 
-#ifdef CONFIG_HB_MMC_BOOT
+#ifdef HB_MMC_BOOT
 #define DWMMC_CTRL				(0x00)
 #define CTRL_IDMAC_EN			(1 << 25)
 #define CTRL_DMA_EN				(1 << 5)
@@ -517,4 +517,4 @@ emmc_ops_t *config_dw_mmc_ops(dw_mmc_params_t * params)
 	memcpy(&dw_params, params, sizeof(dw_mmc_params_t));
 	return &dw_mmc_ops;
 }
-#endif /* CONFIG_HB_MMC_BOOT */
+#endif /* HB_MMC_BOOT */

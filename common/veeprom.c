@@ -12,11 +12,11 @@
 #include <veeprom.h>
 #include <mtd.h>
 #include <ubi_uboot.h>
-#include <configs/hb_config.h>
+
 #include <hb_info.h>
 
 #define SECTOR_SIZE (512)
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef HB_NAND_BOOT
 #define BUFFER_SIZE 2048
 #else
 #define BUFFER_SIZE SECTOR_SIZE
@@ -262,7 +262,7 @@ int veeprom_read(int offset, char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef HB_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_read("veeprom", buffer, sizeof(buffer));
 	flush_cache((ulong)buffer, sizeof(buffer));
@@ -315,7 +315,7 @@ int veeprom_write(int offset, const char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef HB_NAND_BOOT
 	printf("In nand veeprom write!\n");
 	memset(buffer, 0, sizeof(buffer));
 	printf("In nand veeprom write buffer set success!\n");
@@ -378,7 +378,7 @@ int veeprom_clear(int offset, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef HB_NAND_BOOT
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_write("veeprom", buffer, sizeof(buffer));
 #else

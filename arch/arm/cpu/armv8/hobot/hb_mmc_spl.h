@@ -3,7 +3,7 @@
 
 #include <common.h>
 
-#ifdef CONFIG_HB_MMC_BOOT
+#ifdef HB_MMC_BOOT
 
 #define EMMC_DESC_BASE			0x1000000
 #define EMMC_DESC_SIZE			4096	// 0x1000

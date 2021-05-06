@@ -12,7 +12,7 @@
 #include "hb_nand_spl.h"
 #include "hb_info.h"
 
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef HB_NAND_BOOT
 static const struct spinand_manufacturer spinand_manufacturers[] = {
 	{0xC8, "GigaDev"},
 	{0xEF, "Winbond"},
@@ -695,4 +695,4 @@ void spl_nand_init(void)
 	return;
 }
 
-#endif /* CONFIG_HB_NAND_BOOT */
+#endif /* HB_NAND_BOOT */

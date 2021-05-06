@@ -1,4 +1,4 @@
-#if defined(CONFIG_HB_NOR_BOOT) || defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_NOR_BOOT) || defined(HB_NAND_BOOT)
 #include <common.h>
 #include <asm/io.h>
 #include <asm/arch/hb_reg.h>

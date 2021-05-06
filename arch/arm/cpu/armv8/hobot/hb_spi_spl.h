@@ -1,7 +1,7 @@
 #ifndef __HOBOT_SPI_H__
 #define __HOBOT_SPI_H__
 
-#if defined(CONFIG_HB_NOR_BOOT) || defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_NOR_BOOT) || defined(HB_NAND_BOOT)
 
 #include <spi.h>
 

@@ -1,7 +1,7 @@
 #ifndef __HB_NOR_SPL_H__
 #define __HB_NOR_SPL_H__
 
-#ifdef CONFIG_HB_NOR_BOOT
+#ifdef HB_NOR_BOOT
 
 #define SPI_FLASH_MAX_ID_LEN	8
 

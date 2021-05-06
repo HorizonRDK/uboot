@@ -13,7 +13,7 @@
 #include <mtd.h>
 #include "../cmd/legacy-mtd-utils.h"
 
-#if defined CONFIG_HB_NOR_BOOT
+#if defined HB_NOR_BOOT
 extern struct spi_flash *flash;
 #endif
 
@@ -217,7 +217,7 @@ char *avb_set_enforce_verity(const char *cmdline)
 	return newargs;
 }
 
-#if defined CONFIG_HB_NOR_BOOT
+#if defined HB_NOR_BOOT
 /**
  * ============================================================================
  * IO(spi nor) auxiliary functions
@@ -353,7 +353,7 @@ static AvbIOResult sf_byte_io(AvbOps *ops,
 	return AVB_IO_RESULT_OK;
 }
 
-#elif defined CONFIG_HB_NAND_BOOT
+#elif defined HB_NAND_BOOT
 /**
  * ============================================================================
  * IO(spi nand) auxiliary functions
@@ -749,10 +749,10 @@ static AvbIOResult read_from_partition(AvbOps *ops,
 				       void *buffer,
 				       size_t *out_num_read)
 {
-#if defined CONFIG_HB_NOR_BOOT
+#if defined HB_NOR_BOOT
 	return sf_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, buffer, out_num_read, IO_READ);
-#elif defined CONFIG_HB_NAND_BOOT
+#elif defined HB_NAND_BOOT
 	return nand_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, buffer, out_num_read, IO_READ);
 #else
@@ -784,10 +784,10 @@ static AvbIOResult write_to_partition(AvbOps *ops,
 				      size_t num_bytes,
 				      const void *buffer)
 {
-#if defined CONFIG_HB_NOR_BOOT
+#if defined HB_NOR_BOOT
 	return sf_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, (void *)buffer, NULL, IO_WRITE);
-#elif defined CONFIG_HB_NAND_BOOT
+#elif defined HB_NAND_BOOT
 	return nand_byte_io(ops, partition_name, offset_from_partition,
 			   num_bytes, (void *)buffer, NULL, IO_WRITE);
 #else
@@ -920,7 +920,7 @@ static AvbIOResult get_unique_guid_for_partition(AvbOps *ops,
 						 char *guid_buf,
 						 size_t guid_buf_size)
 {
-#if defined (CONFIG_HB_NOR_BOOT) || defined (CONFIG_HB_NAND_BOOT)
+#if defined (HB_NOR_BOOT) || defined (HB_NAND_BOOT)
 	memset(guid_buf, 0xff, guid_buf_size);
 #else
 	struct mmc_part *part;
@@ -961,12 +961,12 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
 	if (!out_size_num_bytes)
 		return AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE;
 
-#if defined CONFIG_HB_NOR_BOOT
+#if defined HB_NOR_BOOT
 	struct mtd_info *cur_part = sf_get_partition(partition);
 	if (!cur_part)
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 	*out_size_num_bytes = cur_part->size;
-#elif defined CONFIG_HB_NAND_BOOT
+#elif defined HB_NAND_BOOT
 	struct ubi_volume *cur_part = nand_get_partition(partition);
 	if (!cur_part)
 		return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
@@ -994,7 +994,7 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 	enum if_type if_type = IF_TYPE_UNKNOWN;
 	struct AvbOpsData *ops_data;
 
-#ifdef CONFIG_HB_NOR_BOOT
+#ifdef HB_NOR_BOOT
 	avb_debug("Hobot SPI-NOR AVB Verify\n");
 	if (strcmp(if_typename, "sf")) {
 		avb_error("Wrong interface passed in, please use sf!\n");
@@ -1009,7 +1009,7 @@ AvbOps *avb_ops_alloc(const char *if_typename, int boot_device)
 		if (ret)
 			return NULL;
 	}
-#elif defined CONFIG_HB_NAND_BOOT
+#elif defined HB_NAND_BOOT
 	avb_debug("Hobot SPI-NAND AVB Verify\n");
 	if_type = IF_TYPE_COUNT + 2;
 	if (strcmp(if_typename, "nand")) {

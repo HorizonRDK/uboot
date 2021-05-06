@@ -12,7 +12,7 @@
 #include <mmc.h>
 #include <spi_flash.h>
 #include <ubi_uboot.h>
-#include <configs/hb_config.h>
+
 #include <hb_info.h>
 
 #define AVB_MAX_ARGS			1024

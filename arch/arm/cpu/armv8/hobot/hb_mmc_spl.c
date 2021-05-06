@@ -9,7 +9,7 @@
 #include "dw_mmc_spl.h"
 
 
-#ifdef CONFIG_HB_MMC_BOOT
+#ifdef HB_MMC_BOOT
 #define HB_EMMC_RE_CFG		(1 << 24)
 #define HB_EMMC_RE_WIDTH	(1 << 20)
 #define HB_EMMC_RE_SEQ		(1 << 16)
@@ -538,4 +538,4 @@ void spl_emmc_init(unsigned int emmc_config)
 	return;
 }
 
-#endif /* CONFIG_HB_MMC_BOOT */
+#endif /* HB_MMC_BOOT */

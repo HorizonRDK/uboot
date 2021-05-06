@@ -14,8 +14,8 @@
 #include <asm/arch/hb_share.h>
 #include <asm/arch/hb_dev.h>
 
-#if defined(CONFIG_HB_MMC_BOOT) || defined(CONFIG_HB_NOR_BOOT) \
-				|| defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_MMC_BOOT) || defined(HB_NOR_BOOT) \
+				|| defined(HB_NAND_BOOT)
 struct dram_cfg_param lpddr4_ddrc_mono[] = {
 	{ DDRP_DBYTE0_DQ0LNSEL, 0x0 },
 	{ DDRP_DBYTE0_DQ1LNSEL, 0x1 },
@@ -127,8 +127,8 @@ static void lpddr4_cfg_umctl2(struct dram_cfg_param *ddrc_cfg, int num)
 	}
 }
 
-#if defined(CONFIG_HB_MMC_BOOT) || defined(CONFIG_HB_NOR_BOOT) \
-				|| defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_MMC_BOOT) || defined(HB_NOR_BOOT) \
+				|| defined(HB_NAND_BOOT)
 
 static int spl_board_id_verify(unsigned int board_id)
 {
@@ -176,8 +176,8 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 #if defined(CONFIG_SPL_GPIO_ID)
 	unsigned int gpio_id = 0;
 #endif
-#if defined(CONFIG_HB_MMC_BOOT) || defined(CONFIG_HB_NOR_BOOT) \
-				|| defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_MMC_BOOT) || defined(HB_NOR_BOOT) \
+				|| defined(HB_NAND_BOOT)
 	unsigned int size = 0;
 	unsigned int board_id = g_binfo.board_id;
 #endif
@@ -187,8 +187,8 @@ static void lpddr4_cfg_phy(struct dram_timing_info *dram_timing)
 		reg32_write(ddrp_cfg->reg, ddrp_cfg->val);
 		ddrp_cfg++;
 	}
-#if defined(CONFIG_HB_MMC_BOOT) || defined(CONFIG_HB_NOR_BOOT) \
-				|| defined(CONFIG_HB_NAND_BOOT)
+#if defined(HB_MMC_BOOT) || defined(HB_NOR_BOOT) \
+				|| defined(HB_NAND_BOOT)
 
 #if defined(CONFIG_SPL_GPIO_ID)
 	gpio_id = spl_gpio_get();

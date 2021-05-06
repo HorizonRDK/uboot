@@ -7,7 +7,7 @@
 #ifndef __HB_NAND_SPL_H__
 #define __HB_NAND_SPL_H__
 
-#ifdef CONFIG_HB_NAND_BOOT
+#ifdef HB_NAND_BOOT
 
 #include <spi.h>
 #include <linux/mtd/spinand.h>
@@ -81,5 +81,5 @@ struct spinand_chip {
 void spl_nand_init(void);
 void hb_bootinfo_init(void);
 
-#endif /* CONFIG_HB_NAND_BOOT */
+#endif /* HB_NAND_BOOT */
 #endif /* __HB_NAND_SPL_H__ */

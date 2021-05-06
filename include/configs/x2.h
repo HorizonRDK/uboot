@@ -63,7 +63,7 @@
 /* The option for som board */
 /* #define CONFIG_X2_SOM_BOARD */
 /* #define CONFIG_X2_MONO_BOARD */
-#ifdef CONFIG_HB_MMC_BOOT
+#ifdef HB_MMC_BOOT
 #define CONFIG_X2_PM
 #endif
 
@@ -213,4 +213,3 @@
 #define CONFIG_UDP_CHECKSUM
 
 #endif /* __X2_H__ */
-

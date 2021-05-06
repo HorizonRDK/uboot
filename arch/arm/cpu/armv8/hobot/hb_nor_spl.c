@@ -1,4 +1,4 @@
-#ifdef CONFIG_HB_NOR_BOOT
+#ifdef HB_NOR_BOOT
 #include <asm/io.h>
 #include <asm/arch/hb_dev.h>
 #include <asm/arch/hb_pinmux.h>
@@ -349,7 +349,7 @@ static int spi_flash_write_common(struct spi_flash *flash, const u8 * cmd,
 	}
 
 	spl_spi_claim_bus(spi);
-	ret = spi_flash_wait_till_ready(flash, timeout);	
+	ret = spi_flash_wait_till_ready(flash, timeout);
 	spl_spi_release_bus(spi);
 	if (ret < 0) {
 		return ret;

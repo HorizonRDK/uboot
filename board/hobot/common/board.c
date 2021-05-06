@@ -31,7 +31,7 @@
 #include <asm/arch/hb_pmu.h>
 #include <asm/arch-xj3/hb_pinmux.h>
 #include <asm/arch/hb_share.h>
-#include <configs/hb_config.h>
+
 #include <hb_info.h>
 #include <ubi_uboot.h>
 #include <asm/arch-xj3/hb_reg.h>
@@ -622,7 +622,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		if (!if_secure || (if_secure && boot_mode != PIN_2ND_EMMC)) {
 			/* Add Rootfstype, passed from Macro during build */
 			memset(tmp, 0, sizeof(tmp));
-			snprintf(tmp, sizeof(tmp), " rootfstype=%s", ROOTFS_TYPE);
+			snprintf(tmp, sizeof(tmp), " rootfstype="__stringify(ROOTFS_TYPE));
 			strncat(bootargs_str, tmp,
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}

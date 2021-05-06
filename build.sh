@@ -49,112 +49,77 @@ function cal_mtdparts
 
 function choose()
 {
-    local tmp="$cur_dir/include/configs/.hb_config.h"
-    local target="$cur_dir/include/configs/hb_config.h"
-    local conftmp="$cur_dir/.config_tmp"
+    local conftmp="${BUILD_OUTPUT_PATH}/.config_tmp"
     local line=`sed -n '/system/p; /system/q' ${GPT_CONFIG}`
     local arr=(${line//:/ })
     local fs_type=${arr[2]}
     echo "*********************************************************************"
     echo "boot mode = $bootmode"
     echo "*********************************************************************"
-    cp $cur_dir/.config $conftmp
+    cp ${BUILD_OUTPUT_PATH}/.config $conftmp
 
-    echo "#ifndef __HB_CONFIG_H__" > $tmp
-    echo "#define __HB_CONFIG_H__" >> $tmp
-
-    if [ "$bootmode" = "nor" ]|| [[ "$FLASH_ENABLE" = "nor" ]];then
-        mtdids_str="spi-nor1=hr_nor.0"
-        if [[ "$bootmode" = "nor" ]];then
-            echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
-            echo "#define CONFIG_HB_NOR_BOOT" >> $tmp
-            echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-            sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-            echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
-            sed -i 's/# CONFIG_ENV_IS_IN_SPI_FLASH is not set/CONFIG_ENV_IS_IN_SPI_FLASH=y/g' $conftmp
-        fi
-        # Create mtdparts string according to gpt.conf
+    # Create mtdparts string according to gpt.conf
+    if [ "$bootmode" = "nor" ];then
         cal_mtdparts
-        sed -i "s/CONFIG_MTDIDS_DEFAULT=.*/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
         sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
+        KCFLAGS=${KCFLAGS}" -DHB_NOR_BOOT"
     elif [[ "$bootmode" = *"nand"* ]];then
-        mtdids_str="spi-nand0=hr_nand.0"
-        if [[ "$bootmode" = "nand" ]];then
-            echo "#define CONFIG_HB_NAND_BOOT" >> $tmp
-            echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
-            echo "/* #define CONFIG_HB_MMC_BOOT */" >> $tmp
-            sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-            echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-            sed -i 's/CONFIG_ENV_IS_IN_MMC=y/# CONFIG_ENV_IS_IN_MMC is not set/g' $conftmp
-            sed -i 's/# CONFIG_ENV_IS_IN_UBI is not set/CONFIG_ENV_IS_IN_UBI=y/g' $conftmp
-        fi
-        # Create mtdparts string according to gpt.conf
         cal_mtdparts
-        sed -i "s/CONFIG_MTDIDS_DEFAULT=.*/CONFIG_MTDIDS_DEFAULT=\"${mtdids_str}\"/g"  $conftmp
         sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
-    elif [ "$bootmode" = "emmc" ];then
-        echo "/* #define CONFIG_HB_NAND_BOOT */" >> $tmp
-        echo "/* #define CONFIG_HB_NOR_BOOT */" >> $tmp
-        echo "#define CONFIG_HB_MMC_BOOT" >> $tmp
-        sed -i "/CONFIG_SPL_YMODEM_SUPPORT/d" $conftmp
-        echo "CONFIG_SPL_YMODEM_SUPPORT=n" >> $conftmp
-    else
-        echo "Unknown BOOT_MODE value: $bootmode"
-        exit 1
+        KCFLAGS=${KCFLAGS}" -DHB_NAND_BOOT"
     fi
     # Here, ROOTFS_TYPE is passed to UBoot for bootargs
     # TODO: Integrate UBIFS in gpt.conf to the build process for partition.sh
     if ! inList "$fs_type" "ext4 squashfs" ;then
         if [ "$bootmode" = "emmc" ]; then
-            echo "#define ROOTFS_TYPE \"ext4\"" >> $tmp
+            KCFLAGS=${KCFLAGS}" -DROOTFS_TYPE=ext4"
         elif [ "$bootmode" = "nand" -o "$bootmode" = "nor" ];then
-            echo "#define ROOTFS_TYPE \"ubifs\"" >> $tmp
+            KCFLAGS=${KCFLAGS}" -DROOTFS_TYPE=ubifs"
         fi
     else
-        echo "#define ROOTFS_TYPE \"$fs_type\"" >> $tmp
+        KCFLAGS=${KCFLAGS}" -DROOTFS_TYPE=${fs_type}"
     fi
-    echo "#endif /* __HB_CONFIG_H__ */" >> $tmp
-
-    mv $tmp $target
-    mv $conftmp .config
+    mv $conftmp ${BUILD_OUTPUT_PATH}/.config
 }
 
 function build()
 {
     local uboot_image="u-boot.bin"
     prefix=$TARGET_UBOOT_DIR
-    config=$UBOOT_DEFCONFIG
+    config=${UBOOT_DEFCONFIG}
+    if [ "${BOOT_MODE}" != "emmc" ];then
+        config=${config}_${BOOT_MODE}
+    fi
     echo "uboot config: $config"
 
     if [ x"$OPTIMIZE_BOOT_LOG" = x"true" ];then
-        OPTIMIZE_LOG="-DUBOOT_LOG_OPTIMIZE"
+        KCFLAGS=${KCFLAGS}"-DUBOOT_LOG_OPTIMIZE"
     fi
 
     # real build
-    ARCH=$ARCH_KERNEL
-    make $config || {
+    make ARCH=${ARCH_UBOOT} O=${BUILD_OUTPUT_PATH} $config || {
         echo "make $config failed"
         exit 1
     }
 
     choose
 
-    make KCFLAGS="$OPTIMIZE_LOG" -j${N} || {
+    make ARCH=${ARCH_UBOOT} O=${BUILD_OUTPUT_PATH} KCFLAGS="${KCFLAGS}" -j${N} || {
         echo "make failed"
         exit 1
     }
 
     # put binaries to dest directory
     if [ x"$OPTIMIZE_BOOT_LOG" = x"true" ];then
-        cp -rf $uboot_image $prefix/u-boot-optimize.bin
+        cp -rf ${BUILD_OUTPUT_PATH}/$uboot_image $prefix/u-boot-optimize.bin
         if [ ! -f $prefix/$uboot_image ];then
-            cpfiles "$uboot_image" "$prefix/"
+            cpfiles "${BUILD_OUTPUT_PATH}/$uboot_image" "$prefix/"
         fi
     else
-        cpfiles "$uboot_image" "$prefix/"
+        cpfiles "${BUILD_OUTPUT_PATH}/$uboot_image" "$prefix/"
     fi
 
+    # Creating standalone UBoot partition image and ota package
     if [ "$pack_img" = "true" ];then
         local path_otatool="$SRC_BUILD_DIR/ota_tools/uboot_package_maker"
         if [ -d "$prefix/" ];then
@@ -247,7 +212,7 @@ done
 shift $[ $OPTIND - 1 ]
 
 cmd=$1
-mtdids_str=""
+KCFLAGS=""
 mtdparts_str=""
 
 function clean()
@@ -258,7 +223,6 @@ function clean()
 # include
 . $INCLUDE_FUNCS
 # include end
-cur_dir=${OUT_BUILD_DIR}/uboot
 
 cd $(dirname $0)
 
