@@ -88,7 +88,7 @@ function build()
     prefix=$TARGET_UBOOT_DIR
     config=${UBOOT_DEFCONFIG}
     if [ "${BOOT_MODE}" != "emmc" ];then
-        config=${config}_${BOOT_MODE}
+        config=${config%_defconfig}_${BOOT_MODE}_defconfig
     fi
     echo "uboot config: $config"
 
