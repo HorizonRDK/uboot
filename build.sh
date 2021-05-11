@@ -227,12 +227,14 @@ function clean()
 cd $(dirname $0)
 
 if [ "$bootmode" = "nand" ];then
+    mtdids_str="spi-nand0=hr_nand.0"
     if [ "$PAGE_SIZE" = "2048" ];then
         export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-gpt.conf"
     elif [ "$PAGE_SIZE" = "4096" -o "$PAGE_SIZE" = "all" ];then
         export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-4096-gpt.conf"
     fi
 elif [ "$bootmode" = "nor" ];then
+    mtdids_str="spi-nor1=hr_nor.0"
     export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nor-gpt-ubifs.conf"
 else
     arg="emmc"
