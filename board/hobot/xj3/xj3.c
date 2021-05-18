@@ -24,6 +24,7 @@ phys_size_t sys_sdram_size = 0x80000000; /* 2G */
 uint32_t hb_board_id = 1;
 bool recovery_sys_enable = true;
 #define MHZ(x) ((x) * 1000000UL)
+#define HB_RESET_BIT_OFFSET 28
 
 /* Update Peri PLL */
 void switch_sys_pll(ulong pll_val)
@@ -197,6 +198,7 @@ unsigned int detect_baud(void)
 char *hb_reset_reason_get()
 {
 	uint32_t value;
+	uint32_t wdt_flag = 0;
 	char *reason = NULL;
 
 	value =  readl(HB_PMU_WAKEUP_STA);
@@ -212,11 +214,30 @@ char *hb_reset_reason_get()
                         reason = "ASYNC_WAKEUP";
                         break;
                 case 3:
-                        reason = "WTD_RESET";
+			wdt_flag = 1;
                         break;
                 default:
                         break;
         }
+	if (wdt_flag) {
+		/*Get more detailed reset reasons*/
+		value =  (readl(HB_PMU_SW_REG_05) >> HB_RESET_BIT_OFFSET) & 0x0f;
+		switch (value) {
+			case 0:
+				reason = "WTD_RESET";
+				break;
+			case 1:
+				reason = "PANIC_RESET";
+				break;
+			case 2:
+				reason = "NORMAL_RESET";
+				break;
+			default:
+				break;
+		}
+		value = readl(HB_PMU_SW_REG_05) & ~(0xf << HB_RESET_BIT_OFFSET);
+		writel(value, HB_PMU_SW_REG_05);
+	}
         return reason;
 }
 
