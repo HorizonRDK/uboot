@@ -12,6 +12,7 @@
 #include <part.h>
 #include <stdlib.h>
 #include <mapmem.h>
+#include <image-sparse.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -21,6 +22,11 @@ DECLARE_GLOBAL_DATA_PTR;
  * image_size - final fastboot image size
  */
 static u32 image_size;
+
+/**
+ * raw_image_size - original image size
+ */
+static u32 raw_image_size = 0;
 
 /**
  * fastboot_bytes_received - number of bytes received in the current download
@@ -287,7 +293,6 @@ void fastboot_download_complete(char *response)
 	fastboot_okay(NULL, response);
 	printf("\ndownloading of %d bytes finished\n", fastboot_bytes_received);
 	image_size = fastboot_bytes_received;
-	env_set_hex("filesize", image_size);
 	fastboot_bytes_expected = 0;
 	fastboot_bytes_received = 0;
 }
@@ -320,6 +325,15 @@ void fastboot_upload_complete(char *response)
  */
 static void flash(char *cmd_parameter, char *response)
 {
+	u32 cur_size = image_size;
+	if (is_sparse_image(fastboot_buf_addr))	{
+		sparse_header_t *sparse_header = (sparse_header_t *)fastboot_buf_addr;
+		cur_size = sparse_header->blk_sz * sparse_header->total_blks;
+	}
+	if (cur_size != raw_image_size) {
+		raw_image_size = cur_size;
+		env_set_hex("filesize", raw_image_size);
+	}
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
 	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
 			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
@@ -518,14 +532,14 @@ static void oem_gpt_extend(char *cmd_parameter, char *response)
 static void oem_verify_write(char *cmd_parameter, char *response)
 {
 	char cmdbuf[128], *result;
-	uint32_t load_addr = gd->ram_size - image_size - 0x100000;
+	uint32_t load_addr = gd->ram_size - raw_image_size - 0x100000;
 	if (!cmd_parameter) {
 		fastboot_response("FAIL Image md5sum missing!",
 							response, "%s", "");
 		return;
 	}
 
-	if (image_size == 0) {
+	if (raw_image_size == 0) {
 		fastboot_response("FAIL Must fastboot flash first!",
 							response, "%s", "");
 		return;
@@ -536,15 +550,15 @@ static void oem_verify_write(char *cmd_parameter, char *response)
 	}
 
 	snprintf(cmdbuf, sizeof(cmdbuf), "mtd read spi-nand0 %x 0x0 %x",
-							   load_addr, image_size);
+							   load_addr, raw_image_size);
 	if (run_command(cmdbuf, 0)) {
-		fastboot_fail("mtd read failed!\n", response);
+		fastboot_fail("mtd read failed!", response);
 		return;
 	}
 
 
 	snprintf(cmdbuf, sizeof(cmdbuf), "md5sum %x %x fb_md5sum",
-							   load_addr, image_size);
+							   load_addr, raw_image_size);
 
 	if (run_command(cmdbuf, 0)) {
 		fastboot_response("FAIL md5sum execute failed!",
