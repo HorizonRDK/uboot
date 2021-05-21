@@ -23,6 +23,8 @@ uint32_t x3_ddr_part_num = 0xffffffff;
 phys_size_t sys_sdram_size = 0x80000000; /* 2G */
 uint32_t hb_board_id = 1;
 bool recovery_sys_enable = true;
+extern struct hb_uid_hdr hb_unique_id;
+
 #define MHZ(x) ((x) * 1000000UL)
 #define HB_RESET_BIT_OFFSET 28
 
@@ -147,17 +149,60 @@ void set_dfu_alt_info(char *interface, char *devstr)
 }
 #endif
 
+int hb_get_socuid(char *socuid)
+{
+	int read_flag = 0;
+	u32 val, word;
+    char tmp[10] = {0};
+
+	for (word = 0; word < 4; word++) {
+        val = hb_unique_id.bank[word];
+        if (val != 0) {
+            read_flag = 1;
+        }
+        snprintf(tmp, sizeof(tmp), "%.8x", val);
+        snprintf(socuid + strlen(socuid), sizeof(tmp), tmp);
+	}
+	if (read_flag == 0) {
+        snprintf(socuid, sizeof(tmp), "%.8x", 0);
+        for (word = 0; word < 3; word++) {
+            val = api_efuse_read_data(word + SOCNID_BANK);
+            if (val != 0) {
+                read_flag = 1;
+            }
+            snprintf(tmp, sizeof(tmp), "%.8x", val);
+            snprintf(socuid + strlen(socuid), sizeof(tmp), tmp);
+        }
+	}
+
+	return read_flag;
+}
+
 void hb_set_serial_number(void)
 {
+	uint32_t serial_src = 0;
 	char serial_number[32] = {0, };
-	char *env_serial = env_get("serial#");;
-	struct mmc *mmc = find_mmc_device(0);
+	char *env_serial = env_get("serial#");
+	char efuse_uid[32] __aligned(4) = { 0 };
+	char *efuse_uid_half;
+	int efuse_uid_not_zero = hb_get_socuid(efuse_uid);
 
-	if(!mmc)
+	/* If socuid present, use it as device identifier and quit */
+	if (efuse_uid_not_zero) {
+		/* Since Host has limit, use half of it */
+		efuse_uid_half = &efuse_uid[16];
+		env_set("serial#", efuse_uid_half);
 		return;
+	}
 
-	snprintf(serial_number, 32, "0x%04x%04x", mmc->cid[2] & 0xffff,
-				(mmc->cid[3] >> 16) & 0xffff);
+	struct mmc *mmc = find_mmc_device(0);
+	/* In case of neither socuid nor mmc present, use random number */
+	if(!mmc)
+		serial_src = rand();
+	else
+		serial_src = (((uint32_t)(mmc->cid[2] & 0xffff) << 16) | ((mmc->cid[3] >> 16) & 0xffff));
+
+	snprintf(serial_number, sizeof(serial_number), "0x%08x", serial_src);
 	if (env_serial) {
 		if(!strcmp(serial_number, env_serial))
 			return;

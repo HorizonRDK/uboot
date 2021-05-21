@@ -138,6 +138,8 @@ enum EFS_TPE {
 #define SHA_256_SIZE   32
 #define SHA_256_BLK_SIZE   64
 #define RSA_VERIFY_OFF 0x1e0
+#define SOCUID_BANK 2
+#define SOCNID_BANK 28
 
 //MPU register define
 #define MPU_BPU0_FETCH_S_RANGE        0x200

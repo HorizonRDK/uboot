@@ -281,6 +281,7 @@ uint32_t hb_board_type_get(void);
 uint32_t hb_base_board_type_get(void);
 uint32_t hb_board_type_get_by_pin(int pin_nums);
 char *hb_reset_reason_get(void);
+int hb_get_socuid(char* socuid);
 int init_io_vol(void);
 
 #endif /* __HB_INFO_H__ */

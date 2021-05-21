@@ -18,8 +18,6 @@
 #include <scomp.h>
 
 #define SCRATCHPAD	1024
-#define SOCUID_BANK 2
-#define SOCNID_BANK 28
 
 static uint32_t x3_ddr_vender;
 static uint32_t x3_ddr_size;
@@ -117,35 +115,6 @@ static int socuid_read(u32 word, u32 *val)
 }
 #endif
 
-static int get_socuid(char *socuid)
-{
-	int read_flag = 0;
-	u32 val, word;
-    char tmp[10] = {0};
-
-	for (word = 0; word < 4; word++) {
-        val = hb_unique_id.bank[word];
-        if (val != 0) {
-            read_flag = 1;
-        }
-        snprintf(tmp, sizeof(tmp), "%.8x", val);
-        snprintf(socuid + strlen(socuid), sizeof(tmp), tmp);
-	}
-	if (read_flag == 0) {
-        snprintf(socuid, sizeof(tmp), "%.8x", 0);
-        for (word = 0; word < 3; word++) {
-            val = api_efuse_read_data(word + SOCNID_BANK);
-            if (val != 0) {
-                read_flag = 1;
-            }
-            snprintf(tmp, sizeof(tmp), "%.8x", val);
-            snprintf(socuid + strlen(socuid), sizeof(tmp), tmp);
-        }
-	}
-
-	return 0;
-}
-
 static int hb_set_socuid(int offset)
 {
 	int  len;		/* new length of the property */
@@ -165,7 +134,7 @@ static int hb_set_socuid(int offset)
 		memcpy(node_data, ptmp, len);
 
 	memset(node_data, 0, sizeof(node_data));
-	ret = get_socuid(node_data);
+	ret = hb_get_socuid(node_data);
 	if(ret < 0) {
 		printf("get_socuid error\n");
 		return 1;
