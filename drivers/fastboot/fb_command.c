@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <mapmem.h>
 #include <image-sparse.h>
+#include <linux/mtd/mtd.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -27,6 +28,11 @@ static u32 image_size;
  * raw_image_size - original image size
  */
 static u32 raw_image_size = 0;
+
+/**
+ * part_name - partition name passed to write to
+ */
+static char part_name[32] = { 0 };
 
 /**
  * fastboot_bytes_received - number of bytes received in the current download
@@ -334,6 +340,7 @@ static void flash(char *cmd_parameter, char *response)
 		raw_image_size = cur_size;
 		env_set_hex("filesize", raw_image_size);
 	}
+	snprintf(part_name, sizeof(part_name), "%s", cmd_parameter);
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
 	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
 			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
@@ -532,6 +539,9 @@ static void oem_gpt_extend(char *cmd_parameter, char *response)
 static void oem_verify_write(char *cmd_parameter, char *response)
 {
 	char cmdbuf[128], *result;
+	struct mtd_info *mtd = NULL;
+	char *mtd_name = "spi-nand0";
+	char *verify_part_name = NULL;
 	uint32_t load_addr = gd->ram_size - raw_image_size - 0x100000;
 	if (!cmd_parameter) {
 		fastboot_response("FAIL Image md5sum missing!",
@@ -549,8 +559,14 @@ static void oem_verify_write(char *cmd_parameter, char *response)
 		fastboot_response("FAIL Wrong flash type", response, "%s", "");
 	}
 
-	snprintf(cmdbuf, sizeof(cmdbuf), "mtd read spi-nand0 %x 0x0 %x",
-							   load_addr, raw_image_size);
+	mtd = get_mtd_device_nm(part_name);
+	if (IS_ERR(mtd))
+		verify_part_name = mtd_name;
+	else
+		verify_part_name = part_name;
+
+	snprintf(cmdbuf, sizeof(cmdbuf), "mtd read %s %x 0x0 %x",
+							   verify_part_name, load_addr, raw_image_size);
 	if (run_command(cmdbuf, 0)) {
 		fastboot_fail("mtd read failed!", response);
 		return;
