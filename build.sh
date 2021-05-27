@@ -217,7 +217,8 @@ mtdparts_str=""
 
 function clean()
 {
-    make clean
+    make mrproper
+    make ARCH=${ARCH_UBOOT} O=${BUILD_OUTPUT_PATH} distclean
 }
 
 # include
