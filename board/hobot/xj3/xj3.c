@@ -191,18 +191,18 @@ void hb_set_serial_number(void)
 	if (efuse_uid_not_zero) {
 		/* Since Host has limit, use half of it */
 		efuse_uid_half = &efuse_uid[16];
-		env_set("serial#", efuse_uid_half);
-		return;
+		snprintf(serial_number, sizeof(serial_number), "0x%s", efuse_uid_half);
+	} else {
+		struct mmc *mmc = find_mmc_device(0);
+		/* In case of neither socuid nor mmc present, use random number */
+		if(!mmc)
+			serial_src = rand();
+		else
+			serial_src = (((uint32_t)(mmc->cid[2] & 0xffff) << 16) | ((mmc->cid[3] >> 16) & 0xffff));
+
+		snprintf(serial_number, sizeof(serial_number), "0x%08x", serial_src);
 	}
 
-	struct mmc *mmc = find_mmc_device(0);
-	/* In case of neither socuid nor mmc present, use random number */
-	if(!mmc)
-		serial_src = rand();
-	else
-		serial_src = (((uint32_t)(mmc->cid[2] & 0xffff) << 16) | ((mmc->cid[3] >> 16) & 0xffff));
-
-	snprintf(serial_number, sizeof(serial_number), "0x%08x", serial_src);
 	if (env_serial) {
 		if(!strcmp(serial_number, env_serial))
 			return;
