@@ -34,4 +34,6 @@
 #define HB_PMU_SW_REG_30               (PMU_SYS_BASE + 0x0278)
 #define HB_PMU_SW_REG_31               (PMU_SYS_BASE + 0x027c)
 
+
+#define SLEEP_TIME			0x75300 //20ms when 24M
 #endif /* __HB_PMU_H__ */

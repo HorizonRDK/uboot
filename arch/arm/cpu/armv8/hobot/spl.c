@@ -92,12 +92,6 @@ void board_init_f(ulong dummy)
 	udelay(40);
 #endif
 
-#if defined(CONFIG_HB_WATCHDOG) && \
-	!(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT))
-	hb_wdt_init_hw();
-	hb_wdt_start();
-#endif
-
 #if defined(HB_MMC_BOOT)
 	veeprom_read(VEEPROM_PERI_PLL_OFFSET, pllswitch,VEEPROM_PERI_PLL_SIZE);
 #endif

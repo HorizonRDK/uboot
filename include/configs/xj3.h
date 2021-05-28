@@ -129,8 +129,14 @@
  * #define CONFIG_BOOTCOMMAND "run mmcload;send_id;run unzipimage;" \
  *		"ion_modify ${ion_size};mem_modify ${mem_size};run ddrboot;"
  */
+#if defined(CONFIG_HB_WATCHDOG) && \
+    !(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT))
+#define HB_SET_WDT     "watchdog on;"
+#else
+#define HB_SET_WDT     ""
+#endif
 
-#define CONFIG_BOOTCOMMAND "part size mmc 0 %s bootimagesize;"\
+#define CONFIG_BOOTCOMMAND HB_SET_WDT "part size mmc 0 %s bootimagesize;"\
 	"part start mmc 0 %s bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
 	" ${bootimageblk} ${bootimagesize};bootm "__stringify(BOOTIMG_ADDR)";"
 

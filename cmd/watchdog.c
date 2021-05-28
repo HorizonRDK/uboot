@@ -23,7 +23,7 @@ static int do_watchdog_config(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	if (strcmp(config, "on") == 0) {
 		hb_wdt_init_hw();
-		hb_wdt_start();
+		hb_wdt_start(NORMAL_WDT);
 		printf("enable watchdog success !\n");
 	} else if (strcmp(config, "off") == 0) {
 		hb_wdt_stop();

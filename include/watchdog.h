@@ -80,8 +80,12 @@ int init_func_watchdog_reset(void);
 #endif
 
 #if defined(CONFIG_HB_WATCHDOG)
+enum wdt_type {
+    NORMAL_WDT = 0,
+    RESET_WDT
+};
 	void hb_wdt_init_hw(void);
-	void hb_wdt_start(void);
+	void hb_wdt_start(enum wdt_type type);
 	void hb_wdt_stop(void);
 #endif
 

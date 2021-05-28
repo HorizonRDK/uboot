@@ -51,6 +51,10 @@
 #include <hb_pka.h>
 #endif
 
+#if defined(CONFIG_HB_WATCHDOG) && \
+		!(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT))
+#include <watchdog.h>
+#endif
 extern struct spi_flash *flash;
 #ifndef CONFIG_FPGA_HOBOT
 extern unsigned int sys_sdram_size;
@@ -717,9 +721,9 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		}
 
 		if (if_secure) {
-			env_set("bootcmd", "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
+			env_set("bootcmd", HB_SET_WDT "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
 		} else {
-			env_set("bootcmd", "bootm "__stringify(BOOTIMG_ADDR));
+			env_set("bootcmd", HB_SET_WDT "bootm "__stringify(BOOTIMG_ADDR));
 		}
 	}
 }
@@ -1819,6 +1823,10 @@ static void hb_swinfo_boot(void)
 	}
 #endif
 	if (stored_bootdelay == 0 && s) {
+#if defined(CONFIG_HB_WATCHDOG) && \
+		!(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT))
+		hb_wdt_stop();
+#endif
 		retc = run_command_list(s, -1, 0);
 #if defined(HB_SWINFO_DUMP_OFFSET)
 		if(stored_dumptype)
@@ -1846,7 +1854,15 @@ int setup_boot_action(int boot_mode)
 
 	/* Clear boot mode */
 	writel(BOOT_NORMAL, reg);
-
+	if (boot_action == BOOT_FASTBOOT ||
+	    boot_action == BOOT_UMS ||
+	    boot_action == BOOT_DFU ||
+	    boot_action == BOOT_UFU) {
+#if defined(CONFIG_HB_WATCHDOG) && \
+		!(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT))
+		hb_wdt_stop();
+#endif
+	}
 	switch (boot_action) {
 	case BOOT_FASTBOOT:
 		/* currently only nand boot to flash nand, others all flash emmc */
