@@ -26,7 +26,6 @@ bool recovery_sys_enable = true;
 extern struct hb_uid_hdr hb_unique_id;
 
 #define MHZ(x) ((x) * 1000000UL)
-#define HB_RESET_BIT_OFFSET 28
 
 /* Update Peri PLL */
 void switch_sys_pll(ulong pll_val)
@@ -276,6 +275,9 @@ char *hb_reset_reason_get()
 				break;
 			case 2:
 				reason = "NORMAL_RESET";
+				break;
+			case 3:
+				reason = "UBOOT_RESET";
 				break;
 			default:
 				break;

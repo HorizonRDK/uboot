@@ -36,4 +36,6 @@
 
 
 #define SLEEP_TIME			0x75300 //20ms when 24M
+#define HB_RESET_BIT_OFFSET             28
+#define HB_UBOOT_RESET                  3
 #endif /* __HB_PMU_H__ */
