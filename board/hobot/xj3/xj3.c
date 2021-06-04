@@ -326,7 +326,7 @@ int dram_init_banksize(void)
 		gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
 		 ? PHYS_SDRAM_2 : 0;
 
-	if (ddr_ecc == 1)
+	if (ddr_ecc)
 		gd->bd->bi_dram[1].size =
 			gd->ram_size > (CONFIG_SYS_SDRAM_SIZE + CONFIG_SYS_SDRAM_BASE)
 			? (sys_sdram_size - PHYS_SDRAM_2_SIZE) : 0;
