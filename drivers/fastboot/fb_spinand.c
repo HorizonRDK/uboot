@@ -134,7 +134,7 @@ static int _fb_spinand_erase_part(struct mtd_info *mtd, struct part_info *part)
 	erase_op.mtd = mtd;
 	erase_op.addr = off;
 	erase_op.len = len;
-	erase_op.scrub = 1;
+	erase_op.scrub = 0;
 
 	while (erase_op.len) {
 		ret = mtd_erase(mtd, &erase_op);
@@ -186,7 +186,7 @@ static int _fb_spinand_erase_offset(struct mtd_info *mtd,
 	erase_op.mtd = mtd;
 	erase_op.addr = off;
 	erase_op.len = len;
-	erase_op.scrub = 1;
+	erase_op.scrub = 0;
 
 	while (erase_op.len) {
 		ret = mtd_erase(mtd, &erase_op);

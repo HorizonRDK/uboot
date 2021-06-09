@@ -126,12 +126,13 @@ EXPORT_SYMBOL_GPL(nanddev_isreserved);
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
-int nanddev_erase(struct nand_device *nand, const struct nand_pos *pos)
+int nanddev_erase(struct nand_device *nand, const struct nand_pos *pos, const struct erase_info *einfo)
 {
 	if (nanddev_isbad(nand, pos) || nanddev_isreserved(nand, pos)) {
-		pr_warn("attempt to erase a bad/reserved block @%llx\n",
+		debug("attempt to erase a bad/reserved block @%llx\n",
 			nanddev_pos_to_offs(nand, pos));
-		return -EIO;
+		if (!einfo->scrub)
+			return -EIO;
 	}
 
 	return nand->ops->erase(nand, pos);
@@ -162,13 +163,22 @@ int nanddev_mtd_erase(struct mtd_info *mtd, struct erase_info *einfo)
 	nanddev_offs_to_pos(nand, einfo->addr, &pos);
 	nanddev_offs_to_pos(nand, einfo->addr + einfo->len - 1, &last);
 	while (nanddev_pos_cmp(&pos, &last) <= 0) {
-		ret = nanddev_erase(nand, &pos);
+		ret = nanddev_erase(nand, &pos, einfo);
 		if (ret) {
 			einfo->fail_addr = nanddev_pos_to_offs(nand, &pos);
 
 			return ret;
 		}
+		/* since scrub will erase bad blks, change bbt cache status to unknown */
+		if(einfo->scrub) {
+			if (nanddev_bbt_is_initialized(nand)) {
+				unsigned int entry;
 
+				entry = nanddev_bbt_pos_to_entry(nand, &pos);
+				nanddev_bbt_set_block_status(nand, entry,
+									NAND_BBT_BLOCK_STATUS_UNKNOWN);
+			}
+		}
 		nanddev_pos_next_eraseblock(nand, &pos);
 	}
 

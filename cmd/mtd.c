@@ -432,11 +432,46 @@ static int do_mtd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			printf("Only NAND-based devices can have bad blocks\n");
 			return CMD_RET_SUCCESS;
 		}
-
-		printf("MTD device %s bad blocks list:\n", mtd->name);
+		/* For now, corner case fix will mark block as reserved, consider them bad */
+		printf("MTD device %s bad/reserved blocks list:\n", mtd->name);
 		for (off = 0; off < mtd->size; off += mtd->erasesize)
-			if (mtd_block_isbad(mtd, off))
+			if (mtd_block_isbad(mtd, off) || mtd_block_isreserved(mtd, off))
 				printf("\t0x%08llx\n", off);
+	}  else if (!strcmp(cmd, "markbad")) {
+		u32 blk_scanned = 0, count = 0;
+		u64 start_off;
+		loff_t off;
+		if(argc < 2)
+			return CMD_RET_USAGE;
+
+		if (!mtd_can_have_bb(mtd)) {
+			printf("Only NAND-based devices can have bad blocks\n");
+			return CMD_RET_SUCCESS;
+		}
+
+		start_off = simple_strtoul(argv[0], NULL, 16);
+		if (!mtd_is_aligned_with_block_size(mtd, start_off)) {
+			printf("Offset not aligned with a erase blksz (0x%x)\n",
+			       mtd->erasesize);
+			return CMD_RET_FAILURE;
+		}
+
+		count = simple_strtol(argv[1], NULL, 10);
+		printf("Forcing MTD device %s bad blocks:\n", mtd->name);
+		for (off = start_off; off < mtd->size; off += mtd->erasesize) {
+			if(blk_scanned >= count)
+				break;
+			if (mtd_block_isbad(mtd, off)) {
+				printf("\t0x%08llx is already bad, skip\n", off);
+			} else {
+				if (mtd_block_markbad(mtd, off))
+					printf("\t0x%llx Failed!\n", off);
+				else
+					printf("\t0x%llx Okay!\n", off);
+			}
+			blk_scanned++;
+		}
+		printf("Done!\n");
 	} else {
 		return CMD_RET_USAGE;
 	}
@@ -455,6 +490,7 @@ static char mtd_help_text[] =
 	"\n"
 	"Specific functions:\n"
 	"mtd bad                               <name>\n"
+	"mtd markbad                           <name> <off> <count>\n"
 	"\n"
 	"With:\n"
 	"\t<name>: NAND partition/chip name\n"
@@ -467,6 +503,7 @@ static char mtd_help_text[] =
 	"\t\t* must be a multiple of a page otherwise (special case: default is a page with dump)\n"
 	"\n"
 	"The .dontskipff option forces writing empty pages, don't use it if unsure.\n"
+	"The .dontskipbad option forces erasing all pages, including bad block marks don't use it if unsure.\n"
 #endif
 	"";
 
