@@ -704,7 +704,7 @@ exec_end:
 static bool hb_supports_op(struct spi_slave *slave,
 						   const struct spi_mem_op *op)
 {
-	struct hb_qspi_platdata *slave_plat = dev_get_parent_platdata(slave->dev);
+	struct hb_qspi_platdata *slave_plat = plat;
 	if (op->cmd.buswidth > 1
 		|| op->addr.buswidth > slave_plat->bus_width
 		|| op->dummy.buswidth > slave_plat->bus_width
