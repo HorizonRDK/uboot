@@ -594,7 +594,7 @@ static int eqos_set_mii_speed_100(struct udevice *dev)
 
     return 0;
 }
-
+#if 0
 static int eqos_set_mii_speed_10(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
@@ -606,7 +606,7 @@ static int eqos_set_mii_speed_10(struct udevice *dev)
 
     return 0;
 }
-
+#endif
 static int eqos_set_tx_clk_speed_tegra186(struct udevice *dev)
 {
     /* X2 fpga not support clk setting */

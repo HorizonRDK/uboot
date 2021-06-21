@@ -28,14 +28,14 @@ struct fb_spinand_sparse {
 	struct mtd_info		*mtd;
 	struct part_info	*part;
 };
-
+#if 0
 static uint mtd_len_to_pages(struct mtd_info *mtd, u64 len)
 {
 	do_div(len, mtd->writesize);
 
 	return len;
 }
-
+#endif
 static bool mtd_is_aligned_with_min_io_size(struct mtd_info *mtd, u64 size)
 {
 	return !do_div(size, mtd->writesize);

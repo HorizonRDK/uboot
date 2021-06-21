@@ -5,8 +5,6 @@
 		compatible = "hobot,x3-clk";
 		reg = <0x0 0xA1000000 0x0 0x500
          0x0 0xA4300000 0x0 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		osc_clk: osc_clk {
 			u-boot,dm-pre-reloc;
