@@ -738,7 +738,9 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 
 	ret = clk_get_by_index(bus, 0, &hbqspi_clk);
 	if (!(ret < 0)) {
-		plat->hclk = clk_get_rate(&hbqspi_clk);
+		/* plat->hclk = clk_get_rate(&hbqspi_clk); */
+		/* FIXME: Since clk_get_rate does not return the correct value, use predefined Speed */
+		plat->hclk = HB_QSPI_DEF_HCLK;
 	}
 	if ((ret < 0) || (plat->hclk <= 0)) {
 		printf("Failed to get clk!\n");

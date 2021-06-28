@@ -12,6 +12,7 @@
 #define HB_QSPI_MAX_CS      8
 #define HB_QSPI_DEF_CS      0
 #define HB_QSPI_DEF_BR      50000000
+#define HB_QSPI_DEF_HCLK      500000000
 /* X2 QSPI register offsets */
 #define HB_QSPI_DAT_REG     0x00   /* Transmit/Receive data buffer */
 #define HB_QSPI_BDR_REG     0x04   /* Master mode baud-rate control*/
