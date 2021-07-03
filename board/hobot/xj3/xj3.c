@@ -10,7 +10,7 @@
 #include <asm/io.h>
 
 #include <asm/armv8/mmu.h>
-#include <asm/arch-x2/hb_reg.h>
+#include <asm/arch-xj3/hb_reg.h>
 #include <asm/arch-xj3/hb_pinmux.h>
 #include <asm/arch/hb_pmu.h>
 #include <asm/arch/hb_sysctrl.h>
@@ -26,6 +26,37 @@ bool recovery_sys_enable = true;
 extern struct hb_uid_hdr hb_unique_id;
 
 #define MHZ(x) ((x) * 1000000UL)
+#define DEBUG_SECURE_BOOT_PIN  0
+
+int get_pin_input_value(char pin)
+{
+	unsigned int reg = 0;
+	unsigned int offset = 0;
+	unsigned int value = 0;
+
+	if (pin <= 0 || pin > HB_PIN_MAX_NUMS) {
+		printf("set pin is error\n");
+		return 0;
+	}
+
+	/* set pin to gpio*/
+	offset = pin * 4;
+	reg = reg32_read(X2A_PIN_SW_BASE + offset);
+	reg |= 3;
+	reg32_write(X2A_PIN_SW_BASE + offset, reg);
+
+	/* set pin to input */
+	offset = (pin / 16) * 0x10 + 0x08;
+	reg = reg32_read(X2_GPIO_BASE + offset);
+	reg &= (~(1 << ((pin % 16) + 16)));
+	reg32_write(X2_GPIO_BASE + offset, reg);
+
+	/* get input value */
+	offset = (pin / 16) * 0x10 + 0x0c;
+	value = reg32_read(X2_GPIO_BASE + offset);
+	value = (value >>(pin %16)) & 0x01;
+	return value;
+}
 
 /* Update Peri PLL */
 void switch_sys_pll(ulong pll_val)
@@ -216,11 +247,13 @@ int hb_check_secure(void) {
 	char *if_secure_env = env_get("secure_en");
 	int ret = 0;
 
-	reg = reg32_read(X2_GPIO_BASE + X2_STRAP_PIN_REG);
-	ret |= PIN_SECURE_SEL(reg);
-		/*
-		 * use "secure_en" to control avb functionality
-		 */
+	if (DEBUG_SECURE_BOOT_PIN > 0  &&
+	    DEBUG_SECURE_BOOT_PIN < DEBUG_SECURE_BOOT_PIN) {
+		ret = get_pin_input_value(DEBUG_SECURE_BOOT_PIN);
+	}
+	/*
+	 * use "secure_en" to control avb functionality
+	 */
 	if (if_secure_env) {
 		if (!strcmp(if_secure_env, "false"))
 			ret = 0;
