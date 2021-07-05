@@ -127,6 +127,86 @@ ulong mmc_berase(struct blk_desc *block_dev, lbaint_t start, lbaint_t blkcnt)
 	return blk;
 }
 
+#if CONFIG_IS_ENABLED(TARGET_XJ3)
+static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
+		lbaint_t blkcnt, const void *src)
+{
+	struct mmc_cmd cmd;
+	struct mmc_data data;
+	int timeout_ms = 1000;
+	char *bc_buf = NULL;
+
+	if ((start + blkcnt) > mmc_get_blk_desc(mmc)->lba) {
+		printf("MMC: block number 0x" LBAF " exceeds max(0x" LBAF ")\n",
+		       start + blkcnt, mmc_get_blk_desc(mmc)->lba);
+		return 0;
+	}
+
+	if (blkcnt == 0)
+		return 0;
+	else if (blkcnt == 1)
+		cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
+	else
+		cmd.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK;
+
+	if (mmc->high_capacity)
+		cmd.cmdarg = start;
+	else
+		cmd.cmdarg = start * mmc->write_bl_len;
+
+	cmd.resp_type = MMC_RSP_R1;
+
+	/* use bouncing buffer since mmc dma doesn't support address over 4G */
+	if ((uint64_t)src >= 0x100000000) {
+		bc_buf = malloc(blkcnt * mmc->write_bl_len);
+		if (bc_buf == NULL) {
+			printf("%s: failed to allocate %ldB bouncing buffer\n",
+				__func__, blkcnt * mmc->write_bl_len);
+			return 0;
+		}
+		memcpy(bc_buf, src, blkcnt * mmc->write_bl_len);
+	}
+
+	if (bc_buf != NULL)
+		data.src = bc_buf;
+	else
+		data.src = src;
+	data.blocks = blkcnt;
+	data.blocksize = mmc->write_bl_len;
+	data.flags = MMC_DATA_WRITE;
+
+	if (mmc_send_cmd(mmc, &cmd, &data)) {
+		printf("mmc write failed\n");
+		goto failed;
+	}
+
+	/* SPI multiblock writes terminate using a special
+	 * token, not a STOP_TRANSMISSION request.
+	 */
+	if (!mmc_host_is_spi(mmc) && blkcnt > 1) {
+		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
+		cmd.cmdarg = 0;
+		cmd.resp_type = MMC_RSP_R1b;
+		if (mmc_send_cmd(mmc, &cmd, NULL)) {
+			printf("mmc fail to send stop cmd\n");
+			goto failed;
+		}
+	}
+
+	/* Waiting for the ready status */
+	if (mmc_poll_for_busy(mmc, timeout_ms))
+		goto failed;
+
+	if (bc_buf != NULL)
+		free(bc_buf);
+	return blkcnt;
+
+failed:
+	if (bc_buf != NULL)
+		free(bc_buf);
+	return 0;
+}
+#else
 static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 		lbaint_t blkcnt, const void *src)
 {
@@ -183,6 +263,8 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 
 	return blkcnt;
 }
+
+#endif
 
 #if CONFIG_IS_ENABLED(BLK)
 ulong mmc_bwrite(struct udevice *dev, lbaint_t start, lbaint_t blkcnt,
