@@ -576,14 +576,14 @@ uint32_t hb_board_type_get_by_pin(int pin_nums)
         writel(reg, addr);
     }
 
-    /* set Board type pin to GPIO output function */
+    /* set Board type pin to GPIO input function */
     for (i = 0; i < pin_nums; ++i) {
         addr = HB_IO_OUT_CTL_REG(pin_no[i]);
         reg = readl(addr);
-        reg &= (0x1) << (16 + pin_no[i] % 16);
+        reg &= ~((0x1) << (16 + pin_no[i] % 16));
         writel(reg, addr);
     }
-
+    udelay(500);
     for (i = 0; i < pin_nums; ++i) {
         addr = HB_IO_IN_VAL_REG(pin_no[i]);
         reg = readl(addr);
