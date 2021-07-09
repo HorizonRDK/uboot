@@ -747,6 +747,8 @@ static int hb_qspi_ofdata_to_platdata(struct udevice *bus)
 		plat->hclk = fdtdec_get_int(blob, node,
 									"spi-max-frequency", HB_QSPI_DEF_BR);
 	}
+	debug("%s:%d plat: sclk:%d hclk:%d, buswidth:%d\n", __func__, __LINE__,
+				plat->sclk, plat->hclk, plat->bus_width);
 	// TODO: Chip Select Define
 	return 0;
 }
