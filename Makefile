@@ -949,7 +949,13 @@ u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 u-boot.bin: u-boot-dtb.bin FORCE
 	$(call if_changed,copy)
 else
-u-boot.bin: u-boot-nodtb.bin FORCE
+qos/qos.bin: qos/qos
+	@:
+qos/qos:
+	$(Q)$(MAKE) obj=qos -f $(srctree)/scripts/Makefile.qos all
+qos_hex: qos/qos.bin
+	$(srctree)/tools/bin2c qos/qos.bin $(srctree)/board/hobot/xj3/qos_hex.h qos_hex
+u-boot.bin: u-boot-nodtb.bin qos_hex FORCE
 	$(call if_changed,copy)
 endif
 
@@ -1598,7 +1604,8 @@ CLEAN_DIRS  += $(MODVERDIR) \
 			$(filter-out include, $(shell ls -1 $d 2>/dev/null))))
 
 CLEAN_FILES += include/bmp_logo.h include/bmp_logo_data.h \
-	       boot* u-boot* MLO* SPL System.map fit-dtb.blob
+	       boot* u-boot* MLO* SPL System.map fit-dtb.blob \
+	       board/hobot/xj3/qos_hex.h qos/qos qos/qos.bin
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config include/generated spl tpl \

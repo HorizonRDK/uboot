@@ -27,7 +27,7 @@
 *.su
 *.swp
 *.tab.[ch]
-
+board/hobot/xj3/qos_hex.h
 # Build tree
 /build-*
 

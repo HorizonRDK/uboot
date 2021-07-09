@@ -17,6 +17,7 @@
 #include <asm/arch-x2/ddr.h>
 #include <hb_info.h>
 #include <scomp.h>
+#include "qos_hex.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 uint32_t x3_ddr_part_num = 0xffffffff;
@@ -456,6 +457,23 @@ int init_io_vol(void)
 	writel(0xF, GPIO_BASE + 0x170);
 	return 0;
 }
+
+#ifdef SET_QOS_IN_UBOOT
+int update_qos(void)
+{
+#define WRITE_QOS_VALUE   0x0302000c
+#define READ_QOS_VALUE    0x0302000c
+#define WRITE_QOS_ADDR    0xA2D10004
+#define READ_QOS_ADDR     0xA2D10000
+#define QOS_BIN_ADDR      0x8000A000
+	if (readl(READ_QOS_ADDR) == READ_QOS_VALUE &&
+	    readl(WRITE_QOS_ADDR) == WRITE_QOS_VALUE)
+		return 0;
+	memcpy((void *)QOS_BIN_ADDR, qos_hex, sizeof(qos_hex));
+	((void(*)(unsigned int, unsigned int))QOS_BIN_ADDR)(WRITE_QOS_VALUE, READ_QOS_VALUE);
+	return 0;
+}
+#endif
 
 void change_sys_pclk_250M(void)
 {

@@ -1,0 +1,59 @@
+
+src := $(obj)
+
+# Create output directory if not already present
+_dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
+
+QOS_BIN := qos
+
+include $(srctree)/scripts/Kbuild.include
+#-include include/config/auto.conf
+#-include $(obj)/include/autoconf.mk
+
+#include $(srctree)/config.mk
+#include $(srctree)/arch/$(ARCH)/Makefile
+#include $(srctree)/scripts/Makefile.lib
+
+KBUILD_CFLAGS += -ffunction-sections -fdata-sections
+LDFLAGS_FINAL += --gc-sections
+
+cpp_flags := -D__KERNEL__ -D__UBOOT__ -D__ASSEMBLY__ -fno-PIE -g -D__ARM__ -fno-pic -mstrict-align -ffunction-sections -fdata-sections -fno-common -ffixed-x18 -pipe -march=armv8-a -D__LINUX_ARM_ARCH__=8
+c_flags := $(KBUILD_CFLAGS) $(cpp_flags) \
+	-I $(srctree)/include/ \
+	-I $(srctree)/arch/arm/include/
+
+LDSCRIPT := $(srctree)/$(obj)/qos.lds
+
+head-y          := $(addprefix $(obj)/,$(head-y))
+qos-init := $(head-y)
+
+ALL-y   += $(obj)/$(QOS_BIN).bin
+
+quiet_cmd_ddr_qos = SET_QOS    $@
+cmd_ddr_qos = $(CC) $(c_flags) -c $< -o $@
+
+$(obj)/set_qos.o: $(obj)/set_qos.c
+	$(CC) $(c_flags) -c $< -o $@
+
+$(obj)/setup.o: $(obj)/setup.S
+	$(CC) $(c_flags) -c $< -o $@
+
+qos-main += $(obj)/set_qos.o
+qos-main += $(obj)/setup.o
+
+OBJCOPYFLAGS_$(QOS_BIN) =  -O binary
+qos_objcopy := (cd $(obj) && $(OBJCOPY)  $(OBJCOPYFLAGS_$(QOS_BIN)) qos qos.bin)
+
+LDFLAGS_$(QOS_BIN) += -T $(srctree)/$(obj)/qos.lds $(LDFLAGS_FINAL)
+
+qos := (cd $(obj) && $(LD) $(LDFLAGS) $(LDFLAGS_$(QOS_BIN)) \
+		$(patsubst $(obj)/%,%,$(qos-main))  \
+		-Map $(QOS_BIN).map -o $(QOS_BIN))
+$(info "src tree:$(srctree), obj:$(obj)")
+$(obj)/$(QOS_BIN): $(qos-main) $(srctree)/$(obj)/qos.lds
+	$(qos)
+
+$(obj)/$(QOS_BIN).bin : $(obj)/$(QOS_BIN)
+	$(qos_objcopy)
+
+all:    $(ALL-y)

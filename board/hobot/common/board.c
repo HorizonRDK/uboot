@@ -1914,6 +1914,9 @@ int board_early_init_r(void)
 int board_early_init_f(void)
 {
 #ifdef CONFIG_TARGET_XJ3
+#ifdef SET_QOS_IN_UBOOT
+	update_qos();
+#endif // SET_QOS_IN_UBOOT
 	init_io_vol();
 #endif
 	bif_change_reset2gpio();

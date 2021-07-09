@@ -21,6 +21,7 @@
 #define DEBUG_LOG(fmt, ...)
 #endif
 
+//#define SET_QOS_IN_UBOOT
 #define HB_SWINFO_MEM_ADDR		0x020ff000
 #define HB_SWINFO_MEM_MAGIC		0x57534248
 #define HB_SWINFO_BOOT_OFFSET		0x4
@@ -283,5 +284,6 @@ uint32_t hb_board_type_get_by_pin(int pin_nums);
 char *hb_reset_reason_get(void);
 int hb_get_socuid(char* socuid);
 int init_io_vol(void);
+int update_qos(void);
 
 #endif /* __HB_INFO_H__ */
