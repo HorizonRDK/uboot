@@ -1,5 +1,26 @@
 #!/bin/bash
 
+function trans_unit() {
+    local num=$1
+    local c=${num:0-1}
+    num=$(echo $num | tr "[A-Z]" "[a-z]")
+
+    if [ -z "$(echo $c | sed 's#[0-9]##g')" ]; then
+        echo "$((${num}))"
+    elif [ "$c" = "k" ]; then
+        echo "${num:0:0-1}*1024"
+    elif [ "$c" = "m" ]; then
+        echo "${num:0:0-1}*1024*1024"
+    elif [ "$c" = "g" ]; then
+        echo "${num:0:0-1}*1024*1024*1024"
+    elif [ "$c" = "s" ]; then
+        echo "${num:0:0-1}*512"
+    else
+        echo "Error: Unknown size [$1]"
+        exit 1
+    fi
+}
+
 function cal_mtdparts
 {
     local total_parts=0
@@ -12,6 +33,8 @@ function cal_mtdparts
     local arr=""
     local _name=${arr[1]}
     local part=${_name%/*}
+    local part_start=0
+    local part_size_total=0
 
     for line in $(cat ${GPT_CONFIG})
     do
@@ -29,22 +52,45 @@ function cal_mtdparts
 
         if [ "${needparted}" = "1" ];then
             if [ "${total_parts}" != "0" ];then
-                part_size=$(( (${part_stop} - ${part_start} + 1) * 512 ))
+                if [ ! -z "${arr[5]}" ];then
+                    part_size=$(( (${part_stop} - ${part_start} + 1) * 512 ))
+                    part_start=${start}
+                else
+                    # Handle files configured in sizes not start:end pairs
+                    if [ "$part_added" = "1" ];then
+                        part_added=0
+                        part_size=${part_size_total}
+                    else
+                        part_size=$prev_part_size
+                    fi
+                    part_size_total=$(($(trans_unit ${starts})))
+                    prev_part_size=${part_size_total}
+                    part_start=$(($part_start + $part_size))
+                fi
                 mtdparts_str="${mtdparts_str}${part_size}@0x${part_offset_str}(${part_name}),"
                 part_offset=$(( ${part_offset} + ${part_size} ))
                 part_offset_str=$(echo "obase=16; ${part_offset}" | bc)
-                part_start=${start}
                 part_name=${part}
             else
+                # Initialize when first line is read
                 part_name=${part}
                 mtdparts_str="mtdparts=${mtdids_str##*=}:"
                 let total_parts=$(( ${total_parts} + 1 ))
+                part_size_total=$(($(trans_unit ${starts})))
+                prev_part_size=$part_size_total
+            fi
+        else
+            # Calculating partition size with seperate parts
+            if [ -z "${arr[5]}" ];then
+                part_size_total=$(( $part_size_total + $(trans_unit ${starts}) ))
+                part_added=1
             fi
         fi
         part_stop=${stop}
     done
 
     mtdparts_str="${mtdparts_str}-@0x${part_offset_str}(${part})"
+    echo "Using: $mtdparts_str"
 }
 
 function choose()
@@ -182,10 +228,13 @@ do
             arg="$OPTARG"
             if [ "$arg" = "nand" ];then
                 export PAGE_SIZE="2048"
+                export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-gpt.conf"
             elif [ "$arg" = "nand_4096" ];then
                 export PAGE_SIZE="4096"
+                export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nand-4096-gpt.conf"
             elif [ "$arg" = "nor" ];then
                 arg="nor"
+                export GPT_CONFIG="$SRC_DEVICE_DIR/$TARGET_VENDOR/$TARGET_PROJECT/debug-xj3-nor-gpt.conf"
             else
                 arg="emmc"
             fi
