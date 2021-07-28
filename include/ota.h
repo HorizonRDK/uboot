@@ -9,6 +9,26 @@
 
 #define NOR_SECTOR_SIZE (64*1024)
 
+#define RECOVERY_PARTITION_NAME "recovery"
+
+#define BOOT_PARTITION_FRONT_HALF_NAME "boot"
+#define BOOT_PARTITION_NAME "boot"
+#define BOOT_BAK_PARTITION_NAME "boot_b"
+
+#define SYSTEM_PARTITION_FRONT_HALF_NAME "system"
+#define SYSTEM_PARTITION_NAME "system"
+#define SYSTEM_BAK_PARTITION_NAME "system_b"
+
+#define PARTITION_SUFFIX_NAME ""
+#define BAK_PARTITION_SUFFIX_NAME "_b"
+
+typedef enum {
+    APP_SUCCESS_OFFSET,
+    FIRST_TRY_OFFSET,
+    FLASH_SUCCESS_OFFSET,
+    UPDATE_SUCCESS_OFFSET,
+} UP_FLAG;
+
 extern char boot_partition[64];
 extern char system_partition[64];
 

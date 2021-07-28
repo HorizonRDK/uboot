@@ -687,8 +687,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
                                    allow_verification_error,
                                    0 /* toplevel_vbmeta_flags */,
                                    0 /* rollback_index_location */,
-                                   "boot",
-                                   avb_strlen("boot"),
+                                   BOOT_PARTITION_FRONT_HALF_NAME,
+                                   avb_strlen(BOOT_PARTITION_FRONT_HALF_NAME),
                                    NULL /* expected_public_key */,
                                    0 /* expected_public_key_length */,
                                    slot_data,
@@ -1272,7 +1272,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   if (result_should_continue(ret)) {
     if (avb_strcmp(slot_data->vbmeta_images[0].partition_name, "vbmeta") != 0) {
       avb_assert(
-          avb_strcmp(slot_data->vbmeta_images[0].partition_name, "boot") == 0);
+          avb_strcmp(slot_data->vbmeta_images[0].partition_name,
+            BOOT_PARTITION_FRONT_HALF_NAME) == 0);
       using_boot_for_vbmeta = true;
     }
 
@@ -1340,18 +1341,20 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL && hb_boot_mode_get() == PIN_2ND_EMMC) {
       strncpy(cmd, env_get("bootargs"), sizeof(cmd));
-      if ((strcmp(boot_partition, "boot") == 0) ||
-           strcmp(boot_partition, "boot_b") == 0)
+      if ((strcmp(boot_partition, BOOT_PARTITION_NAME) == 0) ||
+           strcmp(boot_partition, BOOT_BAK_PARTITION_NAME) == 0)
           snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
       /* check AB and update bootargs */
-      if (!strncmp(ab_suffix, "_b", strlen("_b"))) {
-        snprintf(system_partition, sizeof(system_partition), "system%s",
+      if (!strncmp(ab_suffix, BAK_PARTITION_SUFFIX_NAME,
+          strlen(BAK_PARTITION_SUFFIX_NAME))) {
+        snprintf(system_partition, sizeof(system_partition), "%s%s",
+                SYSTEM_PARTITION_FRONT_HALF_NAME,
                 ab_suffix);
         snprintf(system_dev, sizeof(system_dev),
                 "/dev/mmcblk0p%d", get_partition_id(system_partition));
       } else {
         snprintf(system_dev, sizeof(system_dev),
-                 "/dev/mmcblk0p%d", get_partition_id("system"));
+                 "/dev/mmcblk0p%d", get_partition_id(SYSTEM_PARTITION_NAME));
       }
       bootargs_del_ptr = strtok(cmd, " ");
       while (bootargs_del_ptr != NULL) {

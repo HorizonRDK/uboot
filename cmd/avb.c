@@ -21,13 +21,13 @@ extern char boot_partition[64];
 static struct AvbOps *avb_ops;
 
 static const char * const requested_partitions[] = {
-					     "boot",
-					     "system",
+					     BOOT_PARTITION_FRONT_HALF_NAME,
+					     SYSTEM_PARTITION_FRONT_HALF_NAME,
 					     NULL};
 
 static const char * const requested_recovery_partitions[] = {
-					     "recovery",
-					     "system",
+					     RECOVERY_PARTITION_NAME,
+					     SYSTEM_PARTITION_NAME,
 					     NULL};
 
 int do_avb_init(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
@@ -256,11 +256,12 @@ int do_avb_verify_part(cmd_tbl_t *cmdtp, int flag,
 		return CMD_RET_FAILURE;
 	}
 
-	if (strcmp(boot_partition, "boot") == 0) {
+	if (strcmp(boot_partition, BOOT_PARTITION_NAME) == 0) {
 		verity_partitions = requested_partitions;
-	} else if (strcmp(boot_partition, "boot_b") == 0) {
+		ab_suffix = PARTITION_SUFFIX_NAME;
+	} else if (strcmp(boot_partition, BOOT_BAK_PARTITION_NAME) == 0) {
 		verity_partitions = requested_partitions;
-		ab_suffix = "_b";
+		ab_suffix = BAK_PARTITION_SUFFIX_NAME;
 	} else {
 		verity_partitions = requested_recovery_partitions;
 	}
