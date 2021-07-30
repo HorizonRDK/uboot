@@ -10,12 +10,27 @@
 #include <i2c.h>
 #include <hb_info.h>
 #include <linux/libfdt.h>
+#include <configs/xj3.h>
 
 #define DEFAULT_PMIC_ADDR 0xFF
 #define DTB_PATH_MAX_LEN (50)
 
 extern struct fdt_header *working_fdt;
 extern int hb_get_cpu_num(void);
+
+
+static void rm_pmic(void)
+{
+    char *pathp  = DTS_POWER_MANAGEMENT_PATH;
+    char cmd[128] = { 0 };
+
+    snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
+    run_command(cmd, 0);
+
+    memset(cmd, 0, sizeof(cmd));
+    snprintf(cmd, sizeof(cmd), "fdt rm %s %s", pathp, "pmic");
+    run_command(cmd, 0);
+}
 
 static int switch_to_dc(const char *pathp, const char *set_prop,
                 const char *get_prop)
@@ -144,6 +159,9 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
 			"operating-points-v2-dc");
 	}
     }
+
+    /* Removing pmic label，If there is no PMIC on SOM . */
+    rm_pmic();
 
     return 0;
 }

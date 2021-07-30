@@ -240,4 +240,7 @@
 
 #define CONFIG_PREBOOT
 
+#define DTS_POWER_MANAGEMENT_PATH   \
+    "/soc/syscon@0xA6000000/power-management"
+
 #endif /* __X3_H__ */
