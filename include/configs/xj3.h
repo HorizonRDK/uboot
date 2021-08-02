@@ -68,8 +68,9 @@
 #endif
 
 #ifdef CONFIG_ENV_IS_IN_SPI_FLASH
-/* if nor xip is enabled, CONFIG_ENV_OFFSET should be moved */
-#define CONFIG_ENV_OFFSET 0x30000
+/* TODO: The offset of uboot environment is located at the end 64KiB of */
+/* UBoot partition. Please Adjust as Needed */
+#define CONFIG_ENV_OFFSET 0x280000
 #ifdef CONFIG_ENV_SIZE
 #undef CONFIG_ENV_SIZE
 #endif
