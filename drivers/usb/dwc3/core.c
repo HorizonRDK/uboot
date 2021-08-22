@@ -130,7 +130,27 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 	if (!evt->buf)
 		return ERR_PTR(-ENOMEM);
 
-	dwc3_flush_cache((uintptr_t)evt->buf, evt->length);
+	/*
+	 * Move event buffer flush operation to the end of dwc3_init,
+	 * to avoid the cache coherency problem for dcache pre-fetch.
+	 *
+	 * As the actual next time for dwc3 device write and cpu read is far away from
+	 * here, we can't guarantee the event buffer won't be loaded to cache line
+	 * for some reason. And the actual situation is that before the next time cpu read,
+	 * event buffer is already in cache line, by the reason of cortex a53 dcache prefetch
+	 * mechanism.
+	 *
+	 * According to DDI0500H_cortex_a53_r0p4_trm.pdf, chapter 6.6.2
+	 * "Data prefetching and monitoring", and chapter 4.5.76 "CPU Auxiliary Control Register",
+	 * dcache could be prefetch by below 2 cases:
+	 * 1. manually by PLD and PRFM instructions.
+	 * 2. Automatic prefetch in a strict condition. The prefetcher recognizes a sequence of data
+	 * cache misses at a fixed stride pattern that lies in four cache lines, plus or minus.
+	 *
+	 * Anyway, even though above case 2 - automatic prefetch condition is very strict,
+	 * we need to move flush operation near the next time device write!!
+	 */
+	// dwc3_flush_cache((uintptr_t)evt->buf, evt->length);
 
 	return evt;
 }
@@ -184,6 +204,24 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 	}
 
 	return 0;
+}
+
+/**
+ * dwc3_event_buffers_flush - flush dwc3 event buffers.
+ * @dwc: pointer to our controller context structure
+ *
+ * Flush(clean + invalidate) dwc3 event buffers from cache to dram,.
+ */
+static void dwc3_event_buffers_flush(struct dwc3 *dwc)
+{
+	int i;
+	struct dwc3_event_buffer *evt;
+
+	/* Clean + Invalidate the buffers after touching them */
+	for (i = 0; i < dwc->num_event_buffers; i++) {
+		evt = dwc->ev_buffs[i];
+		dwc3_flush_cache((uintptr_t)evt->buf, evt->length);
+	}
 }
 
 /**
@@ -1226,6 +1264,16 @@ int dwc3_init(struct dwc3 *dwc)
 	ret = dwc3_core_init_mode(dwc);
 	if (ret)
 		goto mode_fail;
+
+	/*
+	 * Flush dwc3 event buffers in the end of dwc3_init,
+	 * be near to the next time dwc3 device write,
+	 * to avoid the cache coherency problem.
+	 *
+	 * For detail, please check above comment in function
+	 * dwc3_alloc_one_event_buffer
+	 */
+	dwc3_event_buffers_flush(dwc);
 
 	return 0;
 
