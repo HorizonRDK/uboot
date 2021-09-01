@@ -445,6 +445,13 @@ int is_valid_dos_buf(void *buf);
  */
 int write_mbr_partition(struct blk_desc *dev_desc, void *buf);
 
+/**
+ * get_dos_firstpartition_id - get first valid partition id
+ *
+ *
+ * @return - first valid dos partition id
+ */
+int get_dos_firstpartition_id(void);
 #endif
 
 

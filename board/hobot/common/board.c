@@ -1666,7 +1666,7 @@ static int hb_swinfo_dump_check(void)
 	char dump[128];
 	char *s = dump;
 	const char *dcmd, *ddev;
-	uint32_t dmmc, dpart, dusb;
+	uint32_t dmmc, dpart, dusb, dusbpart;
 	unsigned int dump_sdram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
 	char *dir = "";
 
@@ -1711,9 +1711,13 @@ static int hb_swinfo_dump_check(void)
 		printf("swinfo dump ddr 0x%x -> %s\n", dump_sdram_size, ddev);
 		s += sprintf(s, "usb start; ");
 		s += sprintf(s, "usb part %d; ", dusb);
-		s += sprintf(s, "%s usb %d:1 0x%x dump_ddr_%x.img 0x%x;fatls usb %d:1 /",
-				dcmd, dusb, CONFIG_SYS_SDRAM_BASE,
-				dump_sdram_size, dump_sdram_size, dusb);
+		run_command(dump, 0);
+		dusbpart = get_dos_firstpartition_id();
+		memset(dump, 0, 128);
+		s = dump;
+		s += sprintf(s, "%s usb %d:%d 0x%x dump_ddr_%x.img 0x%x;fatls usb %d:%d /",
+				dcmd, dusb, dusbpart, CONFIG_SYS_SDRAM_BASE,
+				dump_sdram_size, dump_sdram_size, dusb, dusbpart);
 
 		env_set("dumpcmd", dump);
 	} else if (s_boot == HB_SWINFO_BOOT_UDUMPFASTBOOT) {

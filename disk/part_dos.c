@@ -23,6 +23,8 @@
 
 #define DOS_PART_DEFAULT_SECTOR 512
 
+static int s_firstPart;
+
 /* Convert char[4] in little endian format to the host format integer
  */
 static inline unsigned int le32_to_int(unsigned char *le32)
@@ -153,6 +155,8 @@ static void print_partition_extended(struct blk_desc *dev_desc,
 		if ((pt->sys_ind != 0) &&
 		    (ext_part_sector == 0 || !is_extended (pt->sys_ind)) ) {
 			print_one_part(pt, ext_part_sector, part_num, disksig);
+			if(!s_firstPart)
+				s_firstPart = part_num;
 		}
 
 		/* Reverse engr the fdisk part# assignment rule! */
@@ -304,6 +308,11 @@ int write_mbr_partition(struct blk_desc *dev_desc, void *buf)
 	}
 
 	return 0;
+}
+
+int get_dos_firstpartition_id(void)
+{
+	return s_firstPart;
 }
 
 U_BOOT_PART_TYPE(dos) = {
