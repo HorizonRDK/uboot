@@ -763,7 +763,8 @@ static void hb_mmc_env_init(void)
 			} else {
 				ota_upgrade_flag_check(hb_upmode, hb_bootreason);
 			}
-		} else if (strcmp(hb_bootreason, REASON_RECOVERY) == 0) {
+		} else if ((strcmp(hb_bootreason, REASON_RECOVERY) == 0) &&
+			(strcmp(hb_upmode, UPMODE_GOLDEN) == 0)) {
 			/* boot_reason is 'recovery', enter recovery mode */
 			env_set("bootdelay", "0");
 			ota_recovery_mode_set(false);
