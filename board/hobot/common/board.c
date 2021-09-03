@@ -75,8 +75,8 @@ extern int hb_get_cpu_num(void);
 #endif
 int32_t hb_som_type = -1;
 int32_t hb_base_board_type = -1;
-char hb_upmode[32] = "golden";
-char hb_bootreason[32] = "normal";
+char hb_upmode[32] = UPMODE_GOLDEN;
+char hb_bootreason[32] = REASON_NORMAL;
 char hb_partstatus = 0;
 uint16_t ion_cma_status = 1;
 bool custom_bootargs = false;
@@ -743,8 +743,9 @@ static void hb_mmc_env_init(void)
 	char cmd[256] = { 0 };
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
-	if ((strcmp(hb_upmode, "AB") == 0) || (strcmp(hb_upmode, "golden") == 0)) {
-		if (strcmp(hb_bootreason, "normal") == 0) {
+	if ((strcmp(hb_upmode, UPMODE_AB) == 0) ||
+		(strcmp(hb_upmode, UPMODE_GOLDEN) == 0)) {
+		if (strcmp(hb_bootreason, REASON_NORMAL) == 0) {
 			/* boot_reason is 'normal', normal boot */
 			DEBUG_LOG("uboot: normal boot \n");
 
@@ -752,7 +753,7 @@ static void hb_mmc_env_init(void)
 				VEEPROM_COUNT_SIZE);
 
 			if ((count >= bootinfo->reserved[0]) && (bootinfo->reserved[0] != 0)) {
-				if (strcmp(hb_upmode, "AB") == 0) {
+				if (strcmp(hb_upmode, UPMODE_AB) == 0) {
 					/* AB mode, boot system backup partition */
 					ota_ab_boot_bak_partition();
 				} else {
@@ -762,7 +763,7 @@ static void hb_mmc_env_init(void)
 			} else {
 				ota_upgrade_flag_check(hb_upmode, hb_bootreason);
 			}
-		} else if (strcmp(hb_bootreason, "recovery") == 0) {
+		} else if (strcmp(hb_bootreason, REASON_RECOVERY) == 0) {
 			/* boot_reason is 'recovery', enter recovery mode */
 			env_set("bootdelay", "0");
 			ota_recovery_mode_set(false);
@@ -770,7 +771,7 @@ static void hb_mmc_env_init(void)
 			ota_upgrade_flag_check(hb_upmode, hb_bootreason);
 
 			/* auto extend last emmc partition */
-			if (strcmp(hb_bootreason, "all") == 0) {
+			if (strcmp(hb_bootreason, REASON_ALL) == 0) {
 				s = "gpt extend mmc 0";
 				run_command_list(s, -1, 0);
 			}
@@ -883,8 +884,8 @@ static void hb_env_and_boardid_init(void)
 		/* config resetreason */
 		veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
 			VEEPROM_RESET_REASON_SIZE);
-		if (strcmp(boot_reason, "recovery") == 0)
-			veeprom_write(VEEPROM_RESET_REASON_OFFSET, "normal",
+		if (strcmp(boot_reason, REASON_RECOVERY) == 0)
+			veeprom_write(VEEPROM_RESET_REASON_OFFSET, REASON_NORMAL,
 			VEEPROM_RESET_REASON_SIZE);
 	}
 	/* init hb_bootreason */

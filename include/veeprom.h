@@ -44,6 +44,16 @@
 
 #define VEEPROM_MAX_SIZE			256
 
+#define UPMODE_AB "AB"
+#define UPMODE_GOLDEN "golden"
+
+#define REASON_RECOVERY "recovery"
+#define REASON_NORMAL "normal"
+#define REASON_UBOOT "uboot"
+#define REASON_BOOT "boot"
+#define REASON_SYSTEM "system"
+#define REASON_ALL "all"
+
 struct mmc *init_mmc_device(int dev, bool force_init);
 int veeprom_init(void);
 

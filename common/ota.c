@@ -522,7 +522,7 @@ static void ota_uboot_upflag_check(char up_flag, char *upmode)
 {
 	bool update_success = (up_flag >> UPDATE_SUCCESS_OFFSET) & 0x1;
 
-	if ((update_success == 0) && (strcmp(upmode, "golden") == 0)) {
+	if ((update_success == 0) && (strcmp(upmode, UPMODE_GOLDEN) == 0)) {
 		/* when update uboot failed in golden mode, into recovery system */
 		ota_recovery_mode_set(true);
 	}
@@ -558,7 +558,7 @@ static void ota_kernel_upflag_check(char *upmode, char up_flag,
 		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
 			VEEPROM_UPDATE_FLAG_SIZE);
 
-		if (strcmp(upmode, "golden") == 0) {
+		if (strcmp(upmode, UPMODE_GOLDEN) == 0) {
 			/* update failed, enter recovery mode */
 			ota_recovery_mode_set(true);
 		} else if (boot_flag == 1) {
@@ -596,7 +596,7 @@ static void ota_system_upflag_check(char *upmode,
 		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
 			VEEPROM_UPDATE_FLAG_SIZE);
 
-		if (strcmp(upmode, "golden") == 0) {
+		if (strcmp(upmode, UPMODE_GOLDEN) == 0) {
 			/* update failed, enter recovery mode */
 			ota_recovery_mode_set(true);
 		} else if (boot_flag == 1) {
@@ -613,7 +613,7 @@ static void ota_reverse_ab(void)
 
 	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
 		VEEPROM_UPDATE_MODE_SIZE);
-	if (strcmp(upmode, "AB") == 0) {
+	if (strcmp(upmode, UPMODE_AB) == 0) {
 		veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
 				VEEPROM_ABMODE_STATUS_SIZE);
 		partstatus ^= 0xff;
@@ -656,13 +656,13 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 
 	/* If update failed, using backup partition */
 	if (boot_flag != boot_stat) {
-		ota_error("all");
+		ota_error(REASON_ALL);
 
 		up_flag = up_flag & 0x7;
 		veeprom_write(VEEPROM_UPDATE_FLAG_OFFSET, &up_flag,
 			VEEPROM_UPDATE_FLAG_SIZE);
 
-		if (strcmp(upmode, "golden") == 0) {
+		if (strcmp(upmode, UPMODE_GOLDEN) == 0) {
 			/* update failed, enter recovery mode */
 			ota_recovery_mode_set(true);
 		} else {
@@ -731,26 +731,26 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 	root_stat = (partstatus >> partition_status_flag("system")) & 0x1;
 
 	/* update: setting delay 0 */
-	if (strcmp(boot_reason, "normal") != 0)
+	if (strcmp(boot_reason, REASON_NORMAL) != 0)
 		env_set("bootdelay", "0");
 
 	/* normal boot */
-	if ((strcmp(upmode, "AB") == 0) &&
-		((strcmp(boot_reason, "system") == 0) ||
-		(strcmp(boot_reason, "boot") == 0) ||
-		(strcmp(boot_reason, "all") == 0) ||
-		strcmp(boot_reason, "normal") == 0))  {
+	if ((strcmp(upmode, UPMODE_AB) == 0) &&
+		((strcmp(boot_reason, REASON_SYSTEM) == 0) ||
+		(strcmp(boot_reason, REASON_BOOT) == 0) ||
+		(strcmp(boot_reason, REASON_ALL) == 0) ||
+		strcmp(boot_reason, REASON_NORMAL) == 0))  {
 			ota_normal_boot(root_stat, boot_stat);
 	}
 
 	/* check flag: uboot, kernel, system or all */
-	if (strcmp(boot_reason, "uboot") == 0) {
+	if (strcmp(boot_reason, REASON_UBOOT) == 0) {
 		ota_uboot_upflag_check(up_flag, upmode);
-	} else if (strcmp(boot_reason, "boot") == 0) {
+	} else if (strcmp(boot_reason, REASON_BOOT) == 0) {
 		ota_kernel_upflag_check(upmode, up_flag, boot_stat);
-	} else if (strcmp(boot_reason, "system") == 0) {
+	} else if (strcmp(boot_reason, REASON_SYSTEM) == 0) {
 		ota_system_upflag_check(upmode, up_flag, root_stat);
-	} else if (strcmp(boot_reason, "all") == 0) {
+	} else if (strcmp(boot_reason, REASON_ALL) == 0) {
 		ota_all_update(upmode, up_flag, boot_stat, root_stat);
 	}
 	DEBUG_LOG("boot partition: %s, system partition: %s\n",
