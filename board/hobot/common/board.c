@@ -164,11 +164,17 @@ static int boot_stage_mark(int stage)
 static int bif_change_reset2gpio(void)
 {
 	unsigned int reg_val;
-
 	/*set gpio1[15] GPIO function*/
+#ifdef CONFIG_TARGET_XJ3
+	reg_val = readl(PIN_MUX_BASE + 0x7c);
+	reg_val = PIN_CONFIG_GPIO(reg_val);
+	writel(reg_val, PIN_MUX_BASE + 0x7c);
+#else
+	/* XJ2 GPIO REG */
 	reg_val = readl(GPIO1_CFG);
 	reg_val |= 0xc0000000;
 	writel(reg_val, GPIO1_CFG);
+#endif
 	return 0;
 }
 
@@ -202,6 +208,7 @@ static int  disable_cnn(void)
 }
 #endif
 
+#ifdef ENABLE_BIFSPI
 static int bif_recover_reset_func(void)
 {
 	unsigned int reg_val;
@@ -256,6 +263,7 @@ static int apbooting(void)
 	bif_recover_reset_func();
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_AP_CP_COMN_MODE
 struct hb_ap_comn_handle{
@@ -1924,7 +1932,9 @@ int board_early_init_f(void)
 	init_io_vol();
 #endif
 	bif_change_reset2gpio();
+#ifdef ENABLE_BIFSPI
 	writel(0xFED10000, BIF_SHARE_REG_BASE);
+#endif
 #ifdef HB_AUTOBOOT
         boot_stage_mark(0);
 #endif
@@ -2005,8 +2015,10 @@ int last_stage_init(void)
 			return 0;
 		}
 	}
+#ifdef ENABLE_BIFSPI
 	bif_recover_reset_func();
 	apbooting();
+#endif
 #ifdef	CONFIG_AP_CP_COMN_MODE
 	hb_ap_communication();
 #endif
