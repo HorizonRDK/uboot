@@ -497,7 +497,7 @@ wr_err:
 static inline int hb_qspi_read(struct hb_qspi_priv *hbqspi,
 						void *pbuf, uint32_t len)
 {
-	u32 ret = 0;
+	int32_t ret = 0;
 	u32 remainder = len % HB_QSPI_TRIG_LEVEL;
 	u32 residue   = len - remainder;
 
@@ -514,7 +514,7 @@ static inline int hb_qspi_read(struct hb_qspi_priv *hbqspi,
 static inline int hb_qspi_write(struct hb_qspi_priv *hbqspi,
 						 const void *pbuf, uint32_t len)
 {
-	u32 ret = 0;
+	int32_t ret = 0;
 	u32 remainder = len % HB_QSPI_TRIG_LEVEL;
 	u32 residue   = len - remainder;
 
@@ -691,7 +691,7 @@ static int hb_qspi_exec_mem_op(struct spi_slave *slave,
 
 exec_end:
 	if (non_data_buf)
-		kfree(non_data_buf);
+		free(non_data_buf);
 	hb_qspi_wr_reg(hbqspi, HB_QSPI_CS_REG, 0);
 	hb_qspi_set_wire(hbqspi, 1);
 
