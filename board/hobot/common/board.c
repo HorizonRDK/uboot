@@ -44,7 +44,7 @@
 #define HB_PIN_FUNC_CFG_REG(p)  (PIN_MUX_BASE + ((p) * 0x4))
 #define HB_IO_OUT_CTL_REG(p)    (GPIO_BASE + ((p) / 16) * 0x10 + 0x8)
 #define HB_IO_IN_VAL_REG(p)     (GPIO_BASE + ((p) / 16) * 0x10 + 0xc)
-
+#define ARRAY_LEN(a) 			(sizeof(a) / sizeof((a)[0]))
 
 #ifdef CONFIG_HBOT_SECURE_ENGINE
 #include <hb_spacc.h>
@@ -569,13 +569,17 @@ uint32_t hb_board_type_get(void)
 	return board_type;
 }
 
-uint32_t hb_board_type_get_by_pin(int pin_nums)
+int32_t hb_board_type_get_by_pin(int pin_nums)
 {
 	int16_t i = 0;
     uint32_t board_type = 0;
     uint32_t pin_no[] = {BOARD_TYPE_PIN_0, BOARD_TYPE_PIN_1, BOARD_TYPE_PIN_2};
     uint64_t addr = 0, reg = 0;
 
+	if (pin_nums > ARRAY_LEN(pin_no)) {
+		printf("pin_nums passed is greater than largest pin config!\n");
+		return -1;
+	}
     /* set Board type pin func to GPIO*/
     for (i = 0; i < pin_nums; ++i) {
         addr = HB_PIN_FUNC_CFG_REG(pin_no[i]);
@@ -588,14 +592,14 @@ uint32_t hb_board_type_get_by_pin(int pin_nums)
     for (i = 0; i < pin_nums; ++i) {
         addr = HB_IO_OUT_CTL_REG(pin_no[i]);
         reg = readl(addr);
-        reg &= ~((0x1) << (16 + pin_no[i] % 16));
+        reg &= ~((uint64_t)(0x1) << (16 + pin_no[i] % 16));
         writel(reg, addr);
     }
     udelay(500);
     for (i = 0; i < pin_nums; ++i) {
         addr = HB_IO_IN_VAL_REG(pin_no[i]);
         reg = readl(addr);
-        if (reg & (0x1 << (pin_no[i] % 16))) {
+        if (reg & ((uint64_t)(0x1) << (pin_no[i] % 16))) {
             board_type |= 0x1 << i;
         }
     }
@@ -678,7 +682,8 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			if (boot_mode == PIN_2ND_NAND) {
 				/* For nand, page size must also be specified */
 				memset(tmp, 0, sizeof(tmp));
-				snprintf(tmp, sizeof(tmp), ",%d", root_mtd->writesize);
+				snprintf(tmp, sizeof(tmp), ",%d",
+						 (root_mtd == NULL) ? 2048 : root_mtd->writesize);
 				strncat(bootargs_str, tmp,
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			}
@@ -1072,7 +1077,7 @@ static int do_change_model_reserved_size(cmd_tbl_t *cmdtp, int flag,
 	memset(data, 0, sizeof(data));
 	snprintf(data, sizeof(data), "model_rsv@0x%x", rsv_nodeoffset);
 	model_nodeoffset = fdt_add_subnode(fdt, rsv_nodeoffset, data);
-	if (ret < 0) {
+	if (model_nodeoffset < 0) {
 		printf("%s:%d add memory reserved error\n", __func__, __LINE__);
 		return 0;
 	}
@@ -1558,6 +1563,11 @@ static int do_burn_flash(cmd_tbl_t *cmdtp, int flag,
 			}
 		}
 		mtd = __mtd_next_device(0);
+	}
+
+	if (mtd == NULL) {
+		printf("No MTD device found!\n");
+		return -ENODEV;
 	}
 
 	if (!strcmp(flash_type, "nand")) {
