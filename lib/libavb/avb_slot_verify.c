@@ -190,7 +190,7 @@ static uint8_t *x3_calculate_hash(uint8_t *image_buf,
 	/* calculate hash tree */
 	if (blk_num !=0) {
 		for (i = 0; i < blk_num + 1; i++) {
-			image_offset = i * block_size;
+			image_offset = (uint64_t)i * (uint64_t)block_size;
 			avb_sha256_init(&sha256_ctx);
 
 			if (i < blk_num) {
@@ -898,6 +898,11 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
    */
   descriptors =
       avb_descriptor_get_all(vbmeta_buf, vbmeta_num_read, &num_descriptors);
+  if (descriptors == NULL) {
+    avb_errorv(full_partition_name, ": Descriptor get failed\n", NULL);
+    ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
+    goto out;
+  }
   for (n = 0; n < num_descriptors; n++) {
     AvbDescriptor desc;
 
@@ -1340,10 +1345,11 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
 
     /* config kernel cmdline: using vbmeta cmdline */
     if (slot_data != NULL && hb_boot_mode_get() == PIN_2ND_EMMC) {
-      strncpy(cmd, env_get("bootargs"), sizeof(cmd));
+      strncpy(cmd, env_get("bootargs"), sizeof(cmd) - 1);
+      strncat(cmd, " ", sizeof(cmd) - strlen(cmd) - 1);
       if ((strcmp(boot_partition, BOOT_PARTITION_NAME) == 0) ||
            strcmp(boot_partition, BOOT_BAK_PARTITION_NAME) == 0)
-          snprintf(cmd, sizeof(cmd), "%s %s", cmd, slot_data->cmdline);
+          strncat(cmd, slot_data->cmdline, sizeof(cmd) - strlen(cmd) - 1);
       /* check AB and update bootargs */
       if (!strncmp(ab_suffix, BAK_PARTITION_SUFFIX_NAME,
           strlen(BAK_PARTITION_SUFFIX_NAME))) {
