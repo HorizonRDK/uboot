@@ -733,10 +733,10 @@ int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 0;
 	}
 
-	if (d_length <= SECURE_KEY_LEN) {
+	if (d_length <= SECURE_KEY_LEN - PACK_LEN) {
 		memcpy(&secure_key[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
 	} else {
-		printf("burn_key_length_error, length > 1k\n");
+		printf("burn_key_length_error, length > %dbyte\n", SECURE_KEY_LEN - PACK_LEN);
 		printf("burn_key_failed\n");
 		return 0;
 	}
@@ -840,11 +840,11 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 0;
 	}
 
-	if (d_length <= SN_LEN) {
+	if (d_length <= SN_LEN - PACK_LEN) {
 		//memcpy(&board_sn[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
 		memcpy(buf + 1,(uint8_t *)(p_pack + DATA_INDEX),d_length);
 	} else {
-		printf("burn_sn_length_error,sn > 1k\n");
+		printf("burn_sn_length_error,sn > %dbyte\n", SN_LEN - PACK_LEN);
 		printf("burn_sn_failed\n");
 		return 0;
 	}
@@ -1025,14 +1025,14 @@ int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 		return 0;
 	}
 
-	if (d_length <= SECURE_KEY_LEN) {
+	if (d_length <= SECURE_KEY_LEN - PACK_LEN) {
 		page = *(p_pack + DATA_INDEX);
 		encrytion = *(p_pack + DATA_INDEX + 1);
 		old_password = *(p_pack + DATA_INDEX + 2);
 		new_password = *(p_pack + DATA_INDEX + 3);
 		memcpy(&secure_key[0], (uint8_t *)(p_pack + DATA_INDEX + 4), d_length - 4*4);
 	} else {
-		printf("burn_key_length_error, length > 1k\n");
+		printf("burn_key_length_error, length > %dbyte\n", SECURE_KEY_LEN - PACK_LEN);
 		printf("burn_key_failed\n");
 		return 0;
 	}
