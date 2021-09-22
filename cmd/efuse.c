@@ -124,6 +124,10 @@ static int do_fuse(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	u32 bank, cnt, val;
 	int ret, i;
 
+	if (op == NULL) {
+		printf("please add efuse parameter\n");
+		goto err;
+	}
 	if (!strcmp(op, "read")) {
 		argc -= 2;
 		argv += 2;
