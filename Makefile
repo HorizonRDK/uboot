@@ -949,12 +949,9 @@ u-boot-dtb.bin: u-boot-nodtb.bin dts/dt.dtb FORCE
 u-boot.bin: u-boot-dtb.bin FORCE
 	$(call if_changed,copy)
 else
-qos/qos.bin: qos/qos
-	@:
-qos/qos:
+src-qos=$(wildcard $(srctree)/qos/*.c $(srctree)/qos/*.S $(srctree)/qos/*.lds)
+qos_hex_obj: $(src-qos)
 	$(Q)$(MAKE) obj=qos -f $(srctree)/scripts/Makefile.qos all
-qos_hex: qos/qos.bin
-	$(srctree)/tools/bin2c qos/qos.bin $(srctree)/board/hobot/xj3/qos_hex.h qos_hex
 u-boot.bin: u-boot-nodtb.bin FORCE
 	$(call if_changed,copy)
 endif
@@ -1445,7 +1442,7 @@ prepare0: archprepare FORCE
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
-prepare: qos_hex prepare0
+prepare: qos_hex_obj prepare0
 
 # Generate some files
 # ---------------------------------------------------------------------------

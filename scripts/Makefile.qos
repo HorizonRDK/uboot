@@ -55,5 +55,6 @@ $(obj)/$(QOS_BIN): $(qos-main) $(srctree)/$(obj)/qos.lds
 
 $(obj)/$(QOS_BIN).bin : $(obj)/$(QOS_BIN)
 	$(qos_objcopy)
+	$(srctree)/tools/bin2c qos/qos.bin $(srctree)/board/hobot/xj3/qos_hex.h qos_hex
 
 all:    $(ALL-y)

@@ -198,8 +198,6 @@ function build()
 
 function all()
 {
-    make mrproper
-    make ARCH=${ARCH_UBOOT} O=${BUILD_OUTPUT_PATH} distclean
     build
 }
 
