@@ -50,7 +50,7 @@ static int switch_to_dc(const char *pathp, const char *set_prop,
     }
 
     nodep = fdt_getprop(working_fdt, nodeoffset, get_prop, &len);
-    if (len <= 0) {
+    if (len <= 0 || nodep == NULL) {
         printf("get nodep of %s %s failed\n", pathp, get_prop);
         return 1;
     }
