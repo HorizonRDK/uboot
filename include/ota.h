@@ -22,12 +22,23 @@
 #define PARTITION_SUFFIX_NAME ""
 #define BAK_PARTITION_SUFFIX_NAME "_b"
 
+#define MMC_WRITE_CMD "mmc write "
+
 typedef enum {
     APP_SUCCESS_OFFSET,
     FIRST_TRY_OFFSET,
     FLASH_SUCCESS_OFFSET,
     UPDATE_SUCCESS_OFFSET,
 } UP_FLAG;
+
+typedef enum {
+    SPL_OFFSET_FLAG = 0,
+    UBOOT_OFFSET_FLAG,
+    BOOT_OFFSET_FLAG,
+    SYSTEM_OFFSET_FLAG,
+    APP_OFFSET_FLAG,
+    USERDATA_OFFSET_FLAG,
+} PAR_OFFSET_FLAG;
 
 extern char boot_partition[64];
 extern char system_partition[64];

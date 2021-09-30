@@ -219,21 +219,6 @@ void uint32_to_char(unsigned int temp, char *s)
 	s[i + 2] = '\0';
 }
 
-static unsigned int partition_status_flag(char *partition)
-{
-	unsigned int flag = 0;
-
-	char parts[10][16] = {"spl", "uboot", "boot", "system", "app",
-		"userdata"};
-
-	for (unsigned int i = 0; i < 16; i++) {
-		if (strcmp(parts[i], partition) == 0) {
-			flag = i;
-			break;
-		}
-	}
-	return flag;
-}
 
 int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
 				char *const argv[])
@@ -304,7 +289,7 @@ static int ota_flash_update_image(char *flash_type, char *partition,
 static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 {
 	unsigned int start_lba = 0, end_lba = 0, kernel_end = 0;
-	char command[256] = "mmc write ";
+	char command[256];
 	char lba_size[64] = { 0 };
 	char *s;
 	int ret;
@@ -324,7 +309,7 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 			return CMD_RET_FAILURE;
 		}
 		snprintf(command, sizeof(command), "%s %s 0 %x",
-				 command, addr, 34);
+				 MMC_WRITE_CMD, addr, 34);
 	} else if (strcmp(name, "gpt-backup") == 0) {
 		printf("in gpt-backup\n");
 		if (bytes != 33*512) {
@@ -335,12 +320,12 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 		get_patition_lba("userdata", &start_lba, &end_lba);
 		uint32_to_char(end_lba+1, lba_size);
 		snprintf(command, sizeof(command), "%s %s %s %x",
-				 command, addr, lba_size, 33);
+				 MMC_WRITE_CMD, addr, lba_size, 33);
 	} else if (strcmp(name, "all") == 0) {
 		printf("in all\n");
 
 		snprintf(command, sizeof(command), "%s %s 0 %x",
-				 command, addr, sector);
+				 MMC_WRITE_CMD, addr, sector);
 	} else if (strcmp(name, "kernel") == 0) {
 		get_patition_lba("vbmeta", &start_lba, &end_lba);
 		get_patition_lba("boot", &end_lba, &kernel_end);
@@ -358,7 +343,7 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 		}
 
 		snprintf(command, sizeof(command), "%s %s %x %x",
-				 command, addr, start_lba, sector);
+				 MMC_WRITE_CMD, addr, start_lba, sector);
 	} else {
 		get_patition_lba(name, &start_lba, &end_lba);
 		part_size = end_lba - start_lba + 1;
@@ -375,7 +360,7 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 		}
 
 		snprintf(command, sizeof(command), "%s %s %x %x",
-				 command, addr, start_lba, sector);
+				 MMC_WRITE_CMD, addr, start_lba, sector);
 
 		if (strcmp(name, "sbl") == 0) {
 			realaddr = (void *)simple_strtoul(addr, NULL, 16);
@@ -695,14 +680,14 @@ void ota_ab_boot_bak_partition(void)
 			VEEPROM_ABMODE_STATUS_SIZE);
 
 	/* get system backup partition id */
-	part_status = (partstatus >> partition_status_flag("system")) & 0x1;
+	part_status = (partstatus >> SYSTEM_OFFSET_FLAG) & 0x1;
 	boot_flag = part_status ^ 1;
 
 	if (boot_flag == 1)
 		snprintf(system_partition, sizeof(system_partition),
 			SYSTEM_BAK_PARTITION_NAME);
 	/* get kernel backup partition id */
-	part_status = (partstatus >> partition_status_flag("boot")) & 0x1;
+	part_status = (partstatus >> BOOT_OFFSET_FLAG) & 0x1;
 	boot_flag = part_status ^ 1;
 
 	if (boot_flag == 1)
@@ -727,8 +712,8 @@ void ota_upgrade_flag_check(char *upmode, char *boot_reason)
 	hb_partstatus = partstatus;
 
 	/* get rootfs and kernel partition status */
-	boot_stat = (partstatus >> partition_status_flag("boot")) & 0x1;
-	root_stat = (partstatus >> partition_status_flag("system")) & 0x1;
+	boot_stat = (partstatus >> BOOT_OFFSET_FLAG) & 0x1;
+	root_stat = (partstatus >> SYSTEM_OFFSET_FLAG) & 0x1;
 
 	/* update: setting delay 0 */
 	if (strcmp(boot_reason, REASON_NORMAL) != 0)
