@@ -28,6 +28,10 @@ enum {
 	FASTBOOT_COMMAND_FLASH,
 	FASTBOOT_COMMAND_ERASE,
 #endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FETCH)
+	FASTBOOT_COMMAND_LOAD,
+	FASTBOOT_COMMAND_FETCH,
+#endif
 	FASTBOOT_COMMAND_BOOT,
 	FASTBOOT_COMMAND_CONTINUE,
 	FASTBOOT_COMMAND_REBOOT,
@@ -198,7 +202,7 @@ void fastboot_data_download(const void *fastboot_data,
  * Writes to response. fastboot_bytes_send is updated to indicate the number
  * of bytes that have been transferred.
  */
-void fastboot_data_upload(void *fastboot_data,
+void fastboot_data_upload(void *fastboot_data,  void *src_buf,
 			    unsigned int fastboot_data_len, char *response);
 /**
  * fastboot_download_complete() - Mark current transfer complete
@@ -238,6 +242,14 @@ int fastboot_tx_write_more(const char *buffer);
  * used for oem ramdump feature..
  */
 void fastboot_upload_ramdump(void);
+
+/**
+ * fastboot_fetch_data() - wrapper function for upload mmc image/partition to host
+ *
+ * wrapper function to upload requested mmc partition or image to host pc,
+ * used for fastboot fetch command..
+ */
+void fastboot_fetch_data(void);
 
 /**
  * fastboot_upload_complete() - Mark current transfer complete

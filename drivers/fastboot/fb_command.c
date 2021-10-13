@@ -56,6 +56,10 @@ static void download(char *, char *);
 static void flash(char *, char *);
 static void erase(char *, char *);
 #endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FETCH)
+static void load(char *, char *);
+static void fetch(char *, char *);
+#endif
 static void reboot_bootloader(char *, char *);
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 static void oem_format(char *, char *);
@@ -90,6 +94,16 @@ static const struct {
 	[FASTBOOT_COMMAND_ERASE] =  {
 		.command = "erase",
 		.dispatch = erase
+	},
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FETCH)
+	[FASTBOOT_COMMAND_LOAD] = {
+		.command = "load",
+		.dispatch = load
+	},
+	[FASTBOOT_COMMAND_FETCH] = {
+		.command = "fetch",
+		.dispatch = fetch
 	},
 #endif
 	[FASTBOOT_COMMAND_BOOT] =  {
@@ -312,7 +326,7 @@ void fastboot_download_complete(char *response)
  */
 void fastboot_upload_complete(char *response)
 {
-	/* Download complete. Respond with "OKAY" */
+	/* Upload complete. Respond with "OKAY" */
 	fastboot_okay(NULL, response);
 	printf("\nuploading of %d bytes finished\n", fastboot_bytes_send);
 	fastboot_bytes_expected = 0;
@@ -389,6 +403,79 @@ static void erase(char *cmd_parameter, char *response)
 }
 #endif
 
+#if CONFIG_IS_ENABLED(FASTBOOT_FETCH)
+/**
+ * load() - load partition image to indicated buffer.
+ *
+ * @cmd_parameter: Pointer to partition name
+ * @response: Pointer to fastboot response buffer
+ *
+ * Loads the partition image to the indicated buffer, for following
+ * partition fetch/backup.
+ */
+static void load(char *cmd_parameter, char *response)
+{
+	int32_t bytes_loaded = -1;
+
+	if (!cmd_parameter) {
+		fastboot_fail("Expected command parameter", response);
+		return;
+	}
+
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_MMC)
+	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
+			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
+		bytes_loaded = fastboot_mmc_flash_read(cmd_parameter, fastboot_buf_addr,
+				fastboot_buf_size, response);
+	}
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
+	if (fastboot_get_flash_type() == FLASH_TYPE_NAND)
+		bytes_loaded = fastboot_nand_flash_read(cmd_parameter, fastboot_buf_addr,
+				fastboot_buf_size, response);
+#endif
+#if CONFIG_IS_ENABLED(FASTBOOT_FLASH_SPINAND)
+#if 0
+	if (fastboot_get_flash_type() == FLASH_TYPE_SPINAND)
+		fastboot_spinand_flash_read(cmd_parameter, fastboot_buf_addr,
+				fastboot_buf_size, response);
+#endif
+
+	if (bytes_loaded > 0)
+		fastboot_response("DATA", response, "%08x", bytes_loaded);
+#endif
+}
+
+/**
+ * fetch() - Start a transfer to fetch partition image buffer
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ */
+static void fetch(char *cmd_parameter, char *response)
+{
+	char *tmp;
+
+	if (!cmd_parameter) {
+		fastboot_fail("Expected command parameter", response);
+		return;
+	}
+
+	fastboot_bytes_expected = simple_strtoul(cmd_parameter, &tmp, 16);
+	if (fastboot_bytes_expected == 0 || fastboot_bytes_expected < 0) {
+		fastboot_fail("Expected invalid image size", response);
+		return;
+	}
+
+	fastboot_response("DATA", response, "%08x", fastboot_bytes_expected);
+	fastboot_tx_write_more(response);
+
+	fastboot_fetch_data();
+
+	fastboot_none_resp(response);
+}
+#endif
+
 /**
  * fastboot_upload_remaining() - return bytes remaining in current transfer
  *
@@ -403,17 +490,18 @@ u32 fastboot_upload_remaining(void)
  * fastboot_data_upload() - Copy indicated data to in_ep->buf.
  *
  * @fastboot_data: Pointer to fastboot data need be sent
+ * @src_buf: Source buffer need to be uploaded.
+ *	if src_buf is NULL, use default fastboot_buf_addr
  * @fastboot_data_len: Length of fastboot data need be sent
  * @response: Pointer to fastboot response buffer
- *
  */
 void fastboot_data_upload(void *fastboot_data,
+			    void *src_buf,
 			    unsigned int fastboot_data_len,
 			    char *response)
 {
 #define BYTES_PER_DOT	0x20000
 	u32 pre_dot_num, now_dot_num;
-	void *dram_start_addr = (void *)CONFIG_SYS_SDRAM_BASE;	// 0~2M bl31, not maped
 
 	if (fastboot_data_len == 0 ||
 	    (fastboot_bytes_send + fastboot_data_len) >
@@ -423,9 +511,16 @@ void fastboot_data_upload(void *fastboot_data,
 		return;
 	}
 
-	/* Upload data to fastboot_data */
-	memcpy(fastboot_data, dram_start_addr + fastboot_bytes_send,
-			fastboot_data_len);
+	/*
+	 * src_buffer fastboot data to be uploaded. if src_buf is NULL,
+	 * upload default fastboot_buf_addr
+	 */
+	if (src_buf)
+		memcpy(fastboot_data, src_buf + fastboot_bytes_send,
+				fastboot_data_len);
+	else
+		memcpy(fastboot_data, fastboot_buf_addr + fastboot_bytes_send,
+				fastboot_data_len);
 
 	pre_dot_num = fastboot_bytes_send / BYTES_PER_DOT;
 	fastboot_bytes_send += fastboot_data_len;
