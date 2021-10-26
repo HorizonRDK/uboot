@@ -493,7 +493,6 @@ i2c_exit:
         ctl_reg.bit.rfifo_clr = 1;
         ctl_reg.bit.tfifo_clr = 1;
         writel(ctl_reg.all, &priv->regs->ctl);
-        writel(0x0, &priv->regs->fifo_ctl);
 
         return err;
 
