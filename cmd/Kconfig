@@ -1033,6 +1033,16 @@ config CMD_SF_TEST
 	  equal the SPI bus speed for a single-bit-wide SPI bus, assuming
 	  everything is working properly.
 
+config CMD_KEROS
+	bool "keros - Command to burn keros secure chip"
+	help
+	  burn keros secure chip
+
+config CMD_W1
+	bool "w1 - Command to burn w1 secure chip"
+	help
+	  burn w1 secure chip
+
 config CMD_SPI
 	bool "sspi"
 	help

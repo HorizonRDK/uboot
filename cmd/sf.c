@@ -24,18 +24,6 @@
 #include <dm/device-internal.h>
 #include <veeprom.h>
 
-#include "w1/aes.h"
-#include "w1/aes_locl.h"
-#include "w1/hobot_aes.h"
-#include "w1/modes.h"
-#include "w1/w1_ds28e1x_sha256.h"
-#include "w1/w1_family.h"
-#include "w1/w1_gpio.h"
-#include "w1/w1.h"
-#include "w1/w1_int.h"
-#include "w1/x1_gpio.h"
-
-#include "keros/keros.h"
 #include "legacy-mtd-utils.h"
 
 struct spi_flash *flash;
@@ -401,7 +389,6 @@ enum {
 	STAGE_CHECK,
 	STAGE_WRITE,
 	STAGE_READ,
-
 	STAGE_COUNT,
 };
 
@@ -453,7 +440,7 @@ static void spi_test_next_stage(struct test_info *test)
  * @return 0 if ok, -1 on error
  */
 static int spi_flash_test(struct spi_flash *flash, uint8_t *buf, ulong len,
-			   ulong offset, uint8_t *vbuf)
+		ulong offset, uint8_t *vbuf)
 {
 	struct test_info test;
 	int i;
@@ -558,7 +545,7 @@ static int do_spi_flash_test(int argc, char *const argv[])
 #endif /* CONFIG_CMD_SF_TEST */
 
 static int do_spi_flash(cmd_tbl_t *cmdtp, int flag, int argc,
-			char *const argv[])
+		char *const argv[])
 {
 	const char *cmd;
 	int ret;
@@ -611,12 +598,9 @@ usage:
 #define SF_TEST_HELP
 #endif
 
-#define  SECURE_IC_ID     0x4B
 #define  HEADER_FIX       0x31764750
-#define  SECURE_KEY_TYPE  0x00000003
 #define  SN_TYPE          0x00000001
 #define  PACK_LEN         16
-#define  SECURE_KEY_LEN   1024    //
 #define  SN_LEN           64    //
 #define  SN_OFFSET   66    /* veeprom // 0x4400 + 66*/
 #define SECURE_SN_LEN       (32)
@@ -633,173 +617,25 @@ enum pack_index {
     MAX_STATES = 0x0F
 };
 
-struct w1_master                 *master_total = NULL;
-struct w1_bus_master              bus_master;
-struct w1_gpio_platform_data      pdata_sf;
-
-
-char aes_key[HOBOT_AES_BLOCK_SIZE] = { 0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
-
-static int mark_register_cnt =0;
-
-int  check_Crc(uint16_t crc_start, unsigned char * Data, int len)
+static int check_Crc(uint16_t crc_start, unsigned char *Data, unsigned int len)
 {
-   uint32_t  mCrc = crc_start;
-   uint32_t  i,j;
+	uint32_t mCrc = crc_start;
+	uint32_t i, j;
 
-   for(j = 0; j < len; j++){
-       mCrc = mCrc^(uint16_t)(Data[j]) << 8;    //       mCrc = mCrc^(uint16_t)(Data.at(j)) << 8;
-       for (i=8; i!=0; i--){
-           if (mCrc & 0x8000)
-               mCrc = mCrc << 1 ^ 0x1021;
-           else
-               mCrc = mCrc << 1;
-       }
-   }
-   return mCrc;
-}
-
-
-int w1_init_setup(void)
-{
-    if (w1_ds28e1x_init() < 0) {
-        printf("ds28e1x init fail !!!\n");
-        return -1;
-    }
-
-    memset(&bus_master,0x0,sizeof(struct w1_bus_master));
-    memset(&pdata_sf,0x0,sizeof(struct w1_gpio_platform_data));
-    master_total = w1_gpio_probe(&bus_master, &pdata_sf);
-
-    if (!master_total) {
-        printf("w1_gpio_probe fail !!!\n");
-        return -1;
-    }
-
-    if (w1_process(master_total) < 0) {
-        printf("ds28e1x read ID fail !!!\n");
-        return -1;
-    }
-
-    if (w1_master_setup_slave(master_total,SECURE_IC_ID,NULL,NULL) < 0) {
-        printf("ds28e1x setup_device fail !!!\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-
-int do_burn_secure(cmd_tbl_t *cmdtp, int flag, int argc,
-                char * const argv[])
-{
-	int ret = 0, has_auth;
-	unsigned long offset;
-	uint32_t header,type,d_length,crc,c_crc;
-	uint8_t  package[SECURE_KEY_LEN] = {0};
-	uint8_t  secure_key[SECURE_KEY_LEN] ={0};
-	uint32_t *p_pack = (uint32_t *)package;
-	uint8_t key_note[HOBOT_AES_BLOCK_SIZE] = {0x3f, 0x48, 0x15, 0x16, 0x6f, 0xae, 0xd2, 0xa6, 0xe6, 0x27, 0x15, 0x69, 0x09, 0xcf, 0x7a, 0x3c};
-	uint8_t real_key[32] = {0};
-
-	if (!mark_register_cnt)
-	ret = w1_init_setup();
-
-	if (ret < 0) {
-		printf("burn_key_w1_init_setup_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-	mark_register_cnt =1;
-
-	offset = simple_strtoul(argv[1], NULL, 16);    /* secure data addr in ddr*/
-
-	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
-
-	header = *p_pack;
-	type =  *(p_pack + TYPE_INDEX);
-	d_length =  *(p_pack + LENGTH_INDEX);
-	crc = *(p_pack + CRC_INDEX);
-
-	if (header != HEADER_FIX) {
-		printf("burn_key_header_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	if (type != SECURE_KEY_TYPE) {
-		printf("burn_key_type_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	if (d_length <= SECURE_KEY_LEN - PACK_LEN) {
-		memcpy(&secure_key[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
-	} else {
-		printf("burn_key_length_error, length > %dbyte\n", SECURE_KEY_LEN - PACK_LEN);
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	c_crc=check_Crc(0,&package[PACK_LEN],d_length);
-	if (crc !=c_crc){
-		printf("burn_key_crc_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	ret = w1_master_is_write_auth_mode(master_total, SECURE_IC_ID, &has_auth);
-	if (ret != 0) {
-		printf("w1_master_is_write_auth_mode failed\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	/* decrypt to realy key */
-	hb_aes_decrypt((char *)&secure_key[32], (char *)key_note, (char *)real_key, 32);
-	memcpy(&secure_key[32], real_key, 32);
-
-	/* load the secure key only */
-	ret = w1_master_load_key(master_total, SECURE_IC_ID, (char *)secure_key, NULL);
-	if (ret != 0) {
-		printf("burn_key_w1_master_load_key_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	/* load the usr_data */
-	ret = w1_master_auth_write_usr_mem(master_total, SECURE_IC_ID,
-	    (char *)secure_key);
-	if (ret != 0) {
-		printf("burn_key_w1_master_auth_write_usr_mem_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	if (has_auth) {
-		ret = w1_master_auth_write_block_protection(master_total, SECURE_IC_ID, real_key);
-		if (ret != 0) {
-			printf("w1_master_auth_write_block_protection\n");
-			printf("burn_key_failed\n");
-			return 0;
-		}
-	} else {
-		/* first set the auth mode */
-		ret = w1_master_set_write_auth_mode(master_total, SECURE_IC_ID);
-		if (ret != 0) {
-			printf("burn_w1_master_set_write_auth_mode_error\n");
-			printf("burn_key_failed\n");
-			return 0;
+	for (j = 0; j < len; j++) {
+		mCrc = mCrc ^ (uint16_t)(Data[j]) << 8;
+		for (i = 8; i != 0; i--) {
+			if (mCrc & 0x8000)
+				mCrc = mCrc << 1 ^ 0x1021;
+			else
+				mCrc = mCrc << 1;
 		}
 	}
-
-	printf("burn_key_succeeded\n");
-
-	return 0;
+	return mCrc;
 }
 
-int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
-                    char * const argv[])
+static int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
+    	char * const argv[])
 {
 	unsigned int bus = CONFIG_SF_DEFAULT_BUS;
 	unsigned int cs = CONFIG_SF_DEFAULT_CS;
@@ -809,13 +645,14 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	uint32_t header,type,d_length,crc,c_crc;
 	uint8_t  package[SN_LEN] = {0};
 	uint32_t *p_pack = (uint32_t *)package;
-	unsigned long offset =0;
-	unsigned long *buf = (unsigned long *)&sn_buf[0];
+	uint32_t offset = 0;
+	uint8_t *addr = (uint8_t *)&offset;
+	uint32_t *buf = (uint32_t *)&sn_buf[0];
 	int boot_mode = hb_boot_mode_get();
 
 	memset(buf, 0, SN_LEN);
 	offset = simple_strtoul(argv[1], NULL, 16);    /* sn data addr in ddr*/
-	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
+	memcpy(&package[0], addr, sizeof(package));
 	if (boot_mode == PIN_2ND_NOR) {
 		flash = spi_flash_probe(bus, cs, speed, mode);
 		if (!flash) {
@@ -825,8 +662,8 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 		}
 	}
 	header = *p_pack;
-	type =	*(p_pack + TYPE_INDEX);
-	d_length =	*(p_pack + LENGTH_INDEX);
+	type = *(p_pack + TYPE_INDEX);
+	d_length = *(p_pack + LENGTH_INDEX);
 	crc = *(p_pack + CRC_INDEX);
 
 	if (header != HEADER_FIX) {
@@ -842,21 +679,21 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	if (d_length <= SN_LEN - PACK_LEN) {
 		//memcpy(&board_sn[0],(uint8_t *)(p_pack + DATA_INDEX),d_length);
-		memcpy(buf + 1,(uint8_t *)(p_pack + DATA_INDEX),d_length);
+		memcpy(buf + 1, (uint8_t *)(p_pack + DATA_INDEX), d_length);
 	} else {
 		printf("burn_sn_length_error,sn > %dbyte\n", SN_LEN - PACK_LEN);
 		printf("burn_sn_failed\n");
 		return 0;
 	}
 
-	c_crc=check_Crc(0,&package[PACK_LEN],d_length);
-	if (crc !=c_crc) {
+	c_crc = check_Crc(0, &package[PACK_LEN], d_length);
+	if (crc != c_crc) {
 		printf("burn_sn_crc_error\n");
 		printf("burn_sn_failed\n");
 		return 0;
 	}
 
-	memcpy((uint32_t*)buf,&d_length,sizeof(uint32_t));
+	memcpy((uint32_t*)buf, &d_length, sizeof(uint32_t));
 	/*
 	ret = spi_flash_erase(flash,SECURE_SNINFO_ADDR,flash->sector_size);
 	if (ret !=0) {
@@ -868,13 +705,13 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	ret = veeprom_clear(SN_OFFSET, SN_LEN);
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-		if (ret !=0) {
+		if (ret != 0) {
 			printf("burn_sn_erase_flash_error\n");
 			printf("burn_sn_failed\n");
 			return 0;
 		}
 	} else {
-		if (ret !=1) {
+		if (ret != 1) {
 			printf("burn_sn_erase_flash_error\n");
 			printf("burn_sn_failed\n");
 			return 0;
@@ -883,13 +720,13 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	ret = veeprom_write(SN_OFFSET, (const char *)buf, SN_LEN);
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-		if (ret !=0) {
+		if (ret != 0) {
 			printf("burn_sn_write_flash_error\n");
 			printf("burn_sn_failed\n");
 			return 0;
 		}
 	} else {
-		if (ret !=1) {
+		if (ret != 1) {
 			printf("burn_sn_write_flash_error\n");
 			printf("burn_sn_failed\n");
 			return 0;
@@ -909,9 +746,8 @@ int do_burn_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-
-int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
-										char * const argv[])
+static int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
+		char * const argv[])
 {
 	int ret =0;
 	unsigned int bus = CONFIG_SF_DEFAULT_BUS;
@@ -936,150 +772,26 @@ int do_get_sn(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	ret = veeprom_read(SN_OFFSET, (char *)buf, SN_LEN);
 	if ((boot_mode == PIN_2ND_NOR) || (boot_mode == PIN_2ND_NAND)) {
-		if (ret !=0) {
+		if (ret != 0) {
 			printf("read_sn_failed\n");
 			return 0;
 		}
 	} else {
-		if (ret !=1) {
+		if (ret != 1) {
 			printf("read_sn_failed\n");
 			return 0;
 		}
 	}
 	sn_len = *buf;
-	memcpy(&board_sn[0],(uint8_t *)(buf+1),sn_len);
+	memcpy(&board_sn[0], (uint8_t *)(buf+1), sn_len);
 
-	printf("len = %d, gsn:%send\n",sn_len, board_sn);
-
-	return 0;
-}
-
-int do_get_sid(cmd_tbl_t *cmdtp, int flag, int argc,
-										char * const argv[])
-{
-    unsigned char sec_id[8] = {0};
-    int i = 0;
-    int ret = 0;
-    unsigned char total = 0;
-
-    if (!mark_register_cnt) {
-        ret = w1_init_setup();
-        if (!ret)
-            mark_register_cnt =1;
-    }
-
-    if (mark_register_cnt)
-        w1_master_get_rom_id(master_total, SECURE_IC_ID, (char *)sec_id);
-
-    printf("gsid: ");
-    for (i=0; i<8; i++) {
-        printf("%d ", sec_id[i]);
-        total += sec_id[i];
-    }
-    printf("%d ", total);
-    printf("end\n");
+	printf("len = %d, gsn:%send\n", sn_len, board_sn);
 
 	return 0;
 }
 
-int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
-										char * const argv[])
-{
-	int ret = 0;
-	unsigned long offset;
-	uint8_t page, encrytion;
-	uint32_t old_password, new_password;
-	uint32_t header,type,d_length,crc,c_crc;
-	uint8_t  package[SECURE_KEY_LEN] = {0};
-	uint8_t  secure_key[SECURE_KEY_LEN] ={0};
-	uint32_t *p_pack = (uint32_t *)package;
-
-	if (!mark_register_cnt)
-		ret = keros_init();
-
-	if (ret < 0) {
-		printf("keros init failed\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-	mark_register_cnt =1;
-
-	offset = simple_strtoul(argv[1], NULL, 16);    /* secure data addr in ddr*/
-
-	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
-
-	header = *p_pack;
-	type =  *(p_pack + TYPE_INDEX);
-	d_length =  *(p_pack + LENGTH_INDEX);
-	crc = *(p_pack + CRC_INDEX);
-
-	if (header != HEADER_FIX) {
-		printf("burn_key_header_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	if (type != SECURE_KEY_TYPE) {
-		printf("burn_key_type_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	if (d_length <= SECURE_KEY_LEN - PACK_LEN) {
-		page = *(p_pack + DATA_INDEX);
-		encrytion = *(p_pack + DATA_INDEX + 1);
-		old_password = *(p_pack + DATA_INDEX + 2);
-		new_password = *(p_pack + DATA_INDEX + 3);
-		memcpy(&secure_key[0], (uint8_t *)(p_pack + DATA_INDEX + 4), d_length - 4*4);
-	} else {
-		printf("burn_key_length_error, length > %dbyte\n", SECURE_KEY_LEN - PACK_LEN);
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	debug("page： %d\n", page);
-	debug("encrytion: %d\n", encrytion);
-	debug("old password: %d\n", old_password);
-	debug("new password: %d\n", new_password);
-	debug("content:\n");
-	for (int i = 0; i < d_length; ++i) {
-		debug("%x", secure_key[i]);
-	}
-	debug("\n");
-
-	c_crc = check_Crc(0, &package[PACK_LEN], d_length);
-	if (crc !=c_crc){
-		printf("burn_key_crc_error\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	ret = keros_authentication();
-	if (ret != 0) {
-		printf("keros authentication failed\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	ret = keros_pwchg(page, old_password, new_password);
-	if (ret != 0) {
-		printf("keros password chang faild\n");
-		printf("burn_key_failed\n");
-	}
-
-	/* load the secure key only */
-	ret = keros_write_key(new_password, page, secure_key, encrytion);
-	if (ret != 0) {
-		printf("write key to eeprom failed\n");
-		printf("burn_key_failed\n");
-		return 0;
-	}
-
-	printf("burn_key_succeeded\n");
-	return 0;
-}
 U_BOOT_CMD(
-	sf,	5,	1,	do_spi_flash,
+	sf, 5, 1, do_spi_flash,
 	"SPI flash sub-system",
 	"probe [[bus:]cs] [hz] [mode]	- init flash device on given SPI bus\n"
 	"				  and chip select\n"
@@ -1101,13 +813,6 @@ U_BOOT_CMD(
 );
 
 U_BOOT_CMD(
-        burn, 2, 0, do_burn_secure,
-        "burn Secure data",
-        "burn addr\r\n"
-        ""
-);
-
-U_BOOT_CMD(
 	sn, 2, 0, do_burn_sn,
 	"sn SN data",
 	"sn addr\r\n"
@@ -1118,19 +823,5 @@ U_BOOT_CMD(
 	gsn, 2, 0, do_get_sn,
 	"get SN data",
 	"gsn \r\n"
-	""
-);
-
-U_BOOT_CMD(
-	gsid, 2, 0, do_get_sid,
-	"get secret-ic rom-id data",
-	"gsid \r\n"
-	""
-);
-
-U_BOOT_CMD(
-	keros, 2, 0, do_burn_keros,
-	"burn keros secure chip",
-	"keros \r\n"
 	""
 );
