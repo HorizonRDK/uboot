@@ -143,6 +143,20 @@
 		reg = <0x0 0xA5011000 0x0 0x1000>;
 		};
 
+	sdio:dwmmc@A5012000 {
+		compatible = "hobot,hb-dw-mshc";
+		bus-width = <4>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 20000000>;
+		clocks = <&sd2_div_clk>, <&sd2_div_cclk>, <&sd2_cclk>;
+		reg = <0x0 0xA5012000 0x0 0x1000>;
+		};
+
 	usb: usb {
 		#address-cells = <2>;
 		#size-cells = <2>;

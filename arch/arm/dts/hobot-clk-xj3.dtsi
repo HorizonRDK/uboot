@@ -475,7 +475,7 @@
 			offset = <0x340>;
 			bits = <0>;
 			field = <4>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sd2_div_cclk: sd2_div_cclk {
@@ -488,7 +488,7 @@
 			field = <4>;
 			clk-div = <8>;
 			clk-mult = <1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		sd2_cclk: sd2_cclk {
@@ -499,7 +499,7 @@
 			offset = <0x150 0x154 0x158 0x258>;
 			bits = <25 25 25 3>;
 			field = <1 1 1 1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		eth0_prediv_clk: eth0_prediv_clk {
