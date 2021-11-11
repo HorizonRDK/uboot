@@ -512,11 +512,10 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 
 	ret = dwmci_probe(dev);
 	if (ret)
-		debug("dwmci_probe fail\n");
+		debug("dwmci_probe fail for mmc%d\n", host->dev_index);
 
-	ret = mmc_init(host->mmc);
-	if (ret)
-		debug("mmc_init fail\n");
+	if (mmc_init(host->mmc))
+		debug("Device card not found for mmc%d\n", host->dev_index);
 
 	mmc_set_rst_n_function(host->mmc, 0x01);
 
