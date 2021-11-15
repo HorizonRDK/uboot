@@ -621,7 +621,6 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	struct mtd_info *root_mtd, *boot_mtd;
 	struct ubi_volume *vol;
 	int nr_cpus = 0;
-	char *selinux_args = " security=selinux selinux=1 enforcing=0";
 	int if_secure = hb_check_secure();
 #ifdef CONFIG_TARGET_XJ3
 	nr_cpus = hb_get_cpu_num();
@@ -644,10 +643,6 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			strncat(bootargs_str, tmp,
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
-
-		/* Add SElinux boot-args */
-		strncat(bootargs_str, selinux_args,
-				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 
 		/* Specific bootargs for each bootmode */
 		memset(tmp, 0, sizeof(tmp));
