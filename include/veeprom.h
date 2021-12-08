@@ -38,6 +38,9 @@
 #define VEEPROM_SOMID_SIZE    		1
 #define VEEPROM_PERI_PLL_OFFSET     40
 #define VEEPROM_PERI_PLL_SIZE       16
+/* 56-137 reserved */
+#define VEEPROM_UBUNTU_MAGIC_OFFSET 137
+#define VEEPROM_UBUNTU_MAGIC_SIZE   4
 #define VEEPROM_DUID_OFFSET         220
 #define VEEPROM_DUID_SIZE           32
 
@@ -53,6 +56,7 @@
 #define REASON_BOOT "boot"
 #define REASON_SYSTEM "system"
 #define REASON_ALL "all"
+#define UBUNTU_MAGIC "UBTU"
 
 struct mmc *init_mmc_device(int dev, bool force_init);
 int veeprom_init(void);

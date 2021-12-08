@@ -654,8 +654,15 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		memset(tmp, 0, sizeof(tmp));
 
 #if defined CONFIG_HB_BOOT_FROM_MMC
+		if (boot_mode == PIN_2ND_EMMC) {
+			char ubuntu_magic[4] = { 0 };
+			bool ubuntu_boot = false;
+			veeprom_read(VEEPROM_UBUNTU_MAGIC_OFFSET, ubuntu_magic, VEEPROM_UBUNTU_MAGIC_SIZE);
+			ubuntu_boot = (strncmp(UBUNTU_MAGIC, ubuntu_magic, sizeof(ubuntu_magic)) == 0);
 			if(!if_secure) {
-				strncat(bootargs_str, " ro rootwait",
+				strncat(bootargs_str, ubuntu_boot ? " rw systemd.gpt_auto=0" :" ro" ,
+						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+				strncat(bootargs_str, " rootwait",
 						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 				snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
 						get_partition_id(system_partition));
