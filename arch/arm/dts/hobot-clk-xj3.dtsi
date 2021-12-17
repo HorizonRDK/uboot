@@ -569,5 +569,100 @@
 			status = "disabled";
 		};
 
+		viopll_clk: viopll_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,laintpll-clk";
+                        clocks = <&osc_clk>;
+                        offset = <0x40 0x44 0x48>;
+			status = "okay";
+                };
+
+		vio_pllmux_clk: vio_pllmux_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,mux-clk";
+                        clocks = <&osc_clk>, <&viopll_clk>;
+                        offset = <0x300>;
+                        bits = <16>;
+                        field = <1>;
+			status = "okay";
+                };
+
+                viopll2_clk: viopll2_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,laintpll-clk";
+                        clocks = <&osc_clk>;
+                        offset = <0xB0 0xB4 0xB8>;
+			status = "okay";
+                };
+
+                vio2_pllmux_clk: vio2_pllmux_clk {
+                        u-boot,dm-pre-reloc;
+			#clock-cells = <0>;
+                        compatible = "hobot,mux-clk";
+                        clocks = <&osc_clk>, <&viopll2_clk>;
+                        offset = <0x300>;
+                        bits = <17>;
+                        field = <1>;
+			status = "okay";
+                };
+
+		mipi_phy_ref_1stdiv_clk: mipi_phy_ref_1stdiv_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,div-clk";
+                        clocks = <&vio_pllmux_clk>;
+                        offset = <0x244>;
+                        bits = <0>;
+                        field = <5>;
+			status = "okay";
+                };
+
+                mipi_dev_ref_clk: mipi_dev_ref_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,div-gate-clk";
+                        clocks = <&mipi_phy_ref_1stdiv_clk>;
+                        offset = <0x244 0x140 0x144 0x148>;
+                        bits = <5 3 3 3>;
+                        field = <3 1 1 1>;
+			status = "okay";
+                };
+
+		iar_pix_src_clk: iar_pix_src_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,mux-clk";
+                        clocks = <&vio_pllmux_clk>, <&vio2_pllmux_clk>;
+                        offset = <0x240>;
+                        bits = <31>;
+                        field = <1>;
+			status = "okay";
+                };
+
+                iar_pix_1stdiv_clk: iar_pix_1stdiv_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,div-clk";
+                        clocks = <&iar_pix_src_clk>;
+                        offset = <0x240>;
+                        bits = <16>;
+                        field = <5>;
+			status = "okay";
+                };
+
+		iar_pix_clk: iar_pix_clk {
+			u-boot,dm-pre-reloc;
+                        #clock-cells = <0>;
+                        compatible = "hobot,endiv-clk";
+                        clocks = <&iar_pix_1stdiv_clk>;
+                        offset = <0x240 0x140 0x144 0x148 0x248 0x310>;
+                        bits = <21 2 2 2 1 12>;
+                        field = <3 1 1 1 1 1>;
+			status = "okay";
+                };
+
 	};
 };

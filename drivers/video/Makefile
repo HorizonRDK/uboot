@@ -56,6 +56,7 @@ obj-$(CONFIG_VIDEO_SIMPLE) += simplefb.o
 obj-$(CONFIG_VIDEO_TEGRA20) += tegra.o
 obj-$(CONFIG_VIDEO_VCXK) += bus_vcxk.o
 obj-$(CONFIG_VIDEO_VESA) += vesa.o
+obj-y += hobot_xj3_lcd.o
 
 obj-y += bridge/
 obj-y += sunxi/

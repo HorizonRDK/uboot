@@ -39,6 +39,10 @@
 #error Unsupported LCD BPP.
 #endif
 
+#ifdef CONFIG_TARGET_XJ3
+#define FB_BASE_ADDR 0x2E000000
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 static int lcd_init(void *lcdbase);
@@ -149,7 +153,9 @@ int drv_lcd_init(void)
 {
 	struct stdio_dev lcddev;
 	int rc;
-
+#ifdef CONFIG_TARGET_XJ3
+	gd->fb_base = FB_BASE_ADDR;
+#endif
 	lcd_base = map_sysmem(gd->fb_base, 0);
 
 	lcd_init(lcd_base);
