@@ -132,6 +132,14 @@ static struct mm_region x3_mem_map[] = {
 			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
 	},
 	{
+		/* SDRAM-2 space */
+		.virt = PHYS_SDRAM_2,
+		.phys = PHYS_SDRAM_2,
+		.size = PHYS_SDRAM_2_SIZE,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_INNER_SHARE
+	},
+	{
 		/* List terminator */
 		0,
 	}
@@ -328,6 +336,7 @@ int dram_init(void)
 	unsigned int boardid = bootinfo->board_id;
 	phys_size_t ddr_size = (boardid >> 16) & 0xf;
 	unsigned int ddr_ecc = ECC_CONFIG_SEL(boardid);
+	uint32_t i = 0;
 
 	if (ddr_size == 0)
 		ddr_size = 1;
@@ -341,6 +350,17 @@ int dram_init(void)
 
 	gd->ram_size = sys_sdram_size - CONFIG_SYS_SDRAM_BASE;
 	x3_mem_map[0].size = get_effective_memsize();
+#if defined(CONFIG_NR_DRAM_BANKS) && defined(CONFIG_SYS_SDRAM_BASE)
+#if defined(PHYS_SDRAM_2) && defined(CONFIG_MAX_MEM_MAPPED)
+	if (ddr_size <= 2) {
+		for (i = 0; x3_mem_map[i].size || x3_mem_map[i].attrs; i++) {
+			if (x3_mem_map[i].phys >= PHYS_SDRAM_2) {
+				memset(&x3_mem_map[i], 0, sizeof(struct mm_region));
+			}
+		}
+	}
+#endif  // CONFIG_NR_DRAM_BANKS && CONFIG_SYS_SDRAM_BASE
+#endif  // PHYS_SDRAM_2 && CONFIG_MAX_MEM_MAPPED
 
 	hb_board_id = boardid;
 	x3_ddr_part_num = bootinfo->reserved[1];
