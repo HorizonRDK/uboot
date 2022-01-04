@@ -968,8 +968,11 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 * so HACK the request length
 	 */
 	if (dep->direction == 0 &&
-	    req->request.length < dep->endpoint.maxpacket)
-		req->request.length = dep->endpoint.maxpacket;
+	    req->request.length < dep->endpoint.maxpacket) {
+		/* if the last request.length is 512,keep it*/
+		if (req->request.length != 512)
+			req->request.length = dep->endpoint.maxpacket;
+	}
 
 	/*
 	 * We only add to our list of requests now and
