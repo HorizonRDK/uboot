@@ -75,12 +75,12 @@ static int keros_i2c_get_cur_bus_chip(uint chip_addr, struct udevice **devp)
     return i2c_get_chip(bus, chip_addr, 1, devp);
 }
 
-static int keros_i2c_report_err(int ret, int op)
+static uint8_t keros_i2c_report_err(int ret, int op)
 {
     printf("Error %s the chip: %d\n",
            op == 0 ? "reading" : "writing", ret);
 
-    return CMD_RET_FAILURE;
+    return (uint8_t)CMD_RET_FAILURE;
 }
 
 int keros_interface_i2c_init(void)
@@ -97,7 +97,7 @@ uint8_t I2CWrite(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
     int32_t offset_len = wAddrLen;
 
     if (wAddrLen > I2C_MAX_OFFSET_LEN)
-        return -1;
+        return CMD_RET_FAILURE;
     while (offset_len)
         offset += (uint32_t)(*pbAddr++) << (8 * (wAddrLen - offset_len--));
 
@@ -123,7 +123,7 @@ uint8_t I2CRead(uint8_t bDevAddr, uint8_t *pbAddr, uint8_t wAddrLen,
     int32_t offset_len = wAddrLen;
 
     if (wAddrLen > I2C_MAX_OFFSET_LEN)
-        return -1;
+        return CMD_RET_FAILURE;
     while (offset_len)
         offset += (uint32_t)(*pbAddr++) << (8 * (wAddrLen - offset_len--));
 
