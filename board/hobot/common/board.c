@@ -747,6 +747,7 @@ static void hb_mmc_env_init(void)
 	char count;
 	char cmd[256] = { 0 };
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
+	bool count_pmu_flag = 0;
 
 	if ((strcmp(hb_upmode, UPMODE_AB) == 0) ||
 		(strcmp(hb_upmode, UPMODE_GOLDEN) == 0)) {
@@ -756,7 +757,11 @@ static void hb_mmc_env_init(void)
 
 			veeprom_read(VEEPROM_COUNT_OFFSET, &count,
 				VEEPROM_COUNT_SIZE);
-
+			if (count == 'E') {
+				/* read count value from pmu register */
+				count_pmu_flag = true;
+				count = (readl(HB_PMU_SW_REG_23) >> 16) & 0xffff;
+			}
 			if ((count >= bootinfo->reserved[0]) && (bootinfo->reserved[0] != 0)) {
 				if (strcmp(hb_upmode, UPMODE_AB) == 0) {
 					/* AB mode, boot system backup partition */

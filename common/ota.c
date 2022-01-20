@@ -33,6 +33,8 @@
 #include <veeprom.h>
 #include <ota.h>
 #include <hb_info.h>
+#include <asm/arch/hb_pmu.h>
+#include <asm/io.h>
 
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 static void bootinfo_update_uboot(unsigned int uboot_size);
@@ -613,7 +615,8 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	bool flash_success, app_success, update_success;
 	bool root_flag = root_stat;
 	bool boot_flag = boot_stat;
-	char count;
+	uint32_t count = 0;
+	bool count_pmu_flag = false;
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 	/* uboot flag check */
@@ -623,15 +626,25 @@ static void ota_all_update(char *upmode, char up_flag, bool boot_stat,
 	update_success = (up_flag >> UPDATE_SUCCESS_OFFSET) & 0x1;
 	flash_success = (up_flag >> FLASH_SUCCESS_OFFSET) & 0x1;
 	app_success = up_flag & 0x1;
-	veeprom_read(VEEPROM_COUNT_OFFSET, &count, VEEPROM_COUNT_SIZE);
+	veeprom_read(VEEPROM_COUNT_OFFSET, (char *)&count, VEEPROM_COUNT_SIZE);
+	if (count == 'E') {
+		/* read count value from pmu register */
+		count_pmu_flag = true;
+		count = (readl(HB_PMU_SW_REG_23) >> 16) & 0xffff;
+	}
 	if (flash_success == 0 || update_success == 0) {
 		DEBUG_LOG("%s:%d:update_flag:%d\n", __func__, __LINE__, update_success);
 		boot_flag = boot_stat ^ 1;
 		root_flag = root_stat ^ 1;
 	} else if (count < bootinfo->reserved[0]) {
 		count = count + 2;
-		veeprom_write(VEEPROM_COUNT_OFFSET, &count,
-			VEEPROM_COUNT_SIZE);
+		if (count_pmu_flag == true) {
+			count = (count << 16) | (readl(HB_PMU_SW_REG_23) & 0xffff);
+			writel(count, HB_PMU_SW_REG_23);
+		} else {
+			veeprom_write(VEEPROM_COUNT_OFFSET, (char *)&count,
+				VEEPROM_COUNT_SIZE);
+		}
 	} else if (bootinfo->reserved[0] == 0) {
 		DEBUG_LOG("skip ota count check\n");
 	} else if(app_success == 0) {
