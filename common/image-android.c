@@ -9,6 +9,7 @@
 #include <malloc.h>
 #include <errno.h>
 #include <hb_info.h>
+#include <asm/unaligned.h>
 
 #define ANDROID_IMAGE_DEFAULT_KERNEL_ADDR	0x10008000
 
@@ -104,6 +105,24 @@ int android_image_get_kernel(const struct andr_img_hdr *hdr, int verify,
 int android_image_check_header(const struct andr_img_hdr *hdr)
 {
 	return memcmp(ANDR_BOOT_MAGIC, hdr->magic, ANDR_BOOT_MAGIC_SIZE);
+}
+
+/* Check Linux kernel compress algorithm (Image.lz4 or Image.gz) */
+ulong android_image_get_kcomp(const struct andr_img_hdr *hdr)
+{
+	const void *p = (void *)((uintptr_t)hdr + hdr->page_size);
+
+	DEBUG_LOG("Kernel compress with: ");
+	if (get_unaligned_le32(p) == LZ4F_MAGIC) {
+		DEBUG_LOG("lz4\n");
+		return IH_COMP_LZ4;
+	} else if (get_unaligned_le16(p) == GZIPF_MAGIC) {
+		DEBUG_LOG("gzip\n");
+		return IH_COMP_GZIP;
+	} else {
+		DEBUG_LOG("unknow\n");
+		return IH_COMP_NONE;
+	}
 }
 
 ulong android_image_get_end(const struct andr_img_hdr *hdr)

@@ -1273,7 +1273,8 @@ CONFIG_MD5=y
 #
 # Compression Support
 #
-# CONFIG_LZ4 is not set
+CONFIG_LZ4=y
+CONFIG_GZIP=y
 CONFIG_LZMA=y
 CONFIG_LZO=y
 # CONFIG_SPL_LZO is not set

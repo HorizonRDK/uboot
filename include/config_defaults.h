@@ -16,7 +16,8 @@
 #define CONFIG_BOOTM_RTEMS 1
 #define CONFIG_BOOTM_VXWORKS 1
 
-#define CONFIG_GZIP 1
+#ifdef CONFIG_GZIP
 #define CONFIG_ZLIB 1
+#endif
 
 #endif

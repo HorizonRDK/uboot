@@ -158,7 +158,7 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 #ifdef CONFIG_ANDROID_BOOT_IMAGE
 	case IMAGE_FORMAT_ANDROID:
 		images.os.type = IH_TYPE_KERNEL;
-		images.os.comp = IH_COMP_GZIP;
+		images.os.comp = android_image_get_kcomp(os_hdr);
 		images.os.os = IH_OS_LINUX;
 
 		images.os.end = android_image_get_end(os_hdr);
@@ -171,6 +171,9 @@ static int bootm_find_os(cmd_tbl_t *cmdtp, int flag, int argc,
 		puts("ERROR: unknown image format type!\n");
 		return 1;
 	}
+
+	debug("image info: type=%d,comp=%d,os=%d\n",
+		  images.os.type, images.os.comp, images.os.os);
 
 	/* If we have a valid setup.bin, we will use that for entry (x86) */
 	if (images.os.arch == IH_ARCH_I386 ||

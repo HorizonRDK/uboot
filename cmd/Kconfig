@@ -588,6 +588,7 @@ config CMD_LZMADEC
 
 config CMD_UNZIP
 	bool "unzip"
+	depends on GZIP
 	default y if CMD_BOOTI
 	help
 	  Uncompress a zip-compressed memory region.
