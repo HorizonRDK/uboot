@@ -325,6 +325,11 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 #endif
 
 		hb_dts_node_modify();
+#ifdef CONFIG_TARGET_XJ3
+		/* dump_pin_info(); */
+		xj3_set_pin_info();
+		/* dump_pin_info(); */
+#endif // CONFIG_TARGET_XJ3
 	}
 
 	*of_flat_tree = of_start;

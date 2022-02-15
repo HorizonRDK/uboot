@@ -285,5 +285,6 @@ char *hb_reset_reason_get(void);
 int hb_get_socuid(char* socuid);
 int init_io_vol(void);
 int update_qos(void);
+void xj3_set_pin_info(void);
 
 #endif /* __HB_INFO_H__ */
