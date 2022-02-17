@@ -677,4 +677,14 @@ config UPDATE_TFTP_MSEC_MAX
 
 endmenu
 
+menu "Horizon Quick Boot"
+
+config HB_QUICK_BOOT
+	bool "QUICK_BOOT"
+	default n
+	help
+	  XJ3 quick boot mode(emmc only), Optimize unnecessary startup procedures.
+
+endmenu # Horizon Quick Boot
+
 source "common/spl/Kconfig"

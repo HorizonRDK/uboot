@@ -1,0 +1,106 @@
+/*
+ * dts file for Hobot X3 soc
+ *
+ * (C) Copyright 2017 - 2018, Hobot, Inc.
+ *
+ * SPDX-License-Identifier:	GPL-2.0+
+ */
+
+/*
+* Quickboot Mode
+* NOTE: this file is copy from "hobot-xj3-soc.dts"
+* Autor ru.tang
+* Copy data:2022/02/17
+*/
+/dts-v1/;
+
+#include "hobot-xj3-quick.dtsi"
+
+/ {
+	model = "Hobot XJ3 Soc Board";
+	compatible = "hobot,x3";
+
+	aliases {
+		serial0 = &uart0;
+		spi0	= &qspi;
+		gmac0 	= &gmac;
+		mmc0    = &sdio0;
+		mmc1   	= &sdio1;
+		mmc2   	= &sdio2;
+		i2c0    = &i2c0;
+	};
+
+	chosen {
+		bootargs = "";
+//		stdout-path = "serial0:921600n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	gpio: gpio@a6003000 {
+		compatible = "hobot,x2-gpio-1.0";
+		status = "okay";
+		#gpio-cells = <0x2>;
+		reg = <0x0 0xa6003000 0x0 0x100>;
+	};
+
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&i2c0 {
+       status = "okay";
+};
+
+&qspi {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	spi-max-frequency = <62500000>;
+	spi-tx-bus-width = <4>;
+	spi-rx-bus-width = <4>;
+
+	is25wp512@0 {
+		u-boot,dm-pre-reloc;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+	};
+
+	5f1gq4rc9ig@0 {
+		u-boot,dm-pre-reloc;
+		compatible = "spi-nand";
+		reg = <0x0>;
+	};
+
+};
+
+&gmac {
+        status = "okay";
+        #address-cells = <0x1>;
+        #size-cells = <0x0>;
+        phyaddr = <0xe>; //for dvb
+        #phyaddr = <0x0>; //for cvb
+
+	phy-mode = "rgmii-id";
+	phy0: ethernet-phy@0 {
+		compatible = "marvell,88E1512","ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+	};
+};
+
+&sdio0 {
+	status = "okay";
+};
+
+&sdio1 {
+	status = "okay";
+};
+
+&sdio2 {
+	status = "okay";
+};

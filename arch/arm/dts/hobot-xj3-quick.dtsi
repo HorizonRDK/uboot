@@ -1,0 +1,174 @@
+/*
+* Quickboot Mode
+* NOTE: this file is copy from "hobot-xj3-soc.dts"
+* Autor ru.tang
+* Copy data:2022/02/17
+*/
+
+#include "hobot-clk-xj3.dtsi"
+/ {
+	compatible = "hobot,x3";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	uart0: serial@a5000000 {
+			u-boot,dm-pre-reloc;
+			compatible = "hobot,hb-uart";
+			status = "disabled";
+			clocks = <&uart0_mclk>;
+			reg = <0x0 0xA5000000 0x0 0x1000>;
+		};
+
+	i2c0:i2c@0xA5009000 {
+		compatible = "hobot,hb-i2c";
+		reg = <0 0xA5009000 0 0x100>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c1:i2c@0xA500A000 {
+		compatible = "hobot,hb-i2c";
+		reg = <0 0xA500A000 0 0x100>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c2:i2c@0xA500B000 {
+		compatible = "hobot,hb-i2c";
+		reg = <0 0xA500B000 0 0x100>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c3:i2c@0xA500C000 {
+		compatible = "hobot,hb-i2c";
+		reg = <0 0xA500C000 0 0x100>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c4:i2c@0xA5016000 {
+		compatible = "hobot,hb-i2c";
+		reg = <0 0xA5016000 0 0x100>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c5:i2c@0xA5017000 {
+		compatible = "hobot,hb-i2c";
+		reg = <0 0xA5017000 0 0x100>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	qspi: qspi@B0000000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hb,qspi";
+		status = "disabled";
+		num-cs = <1>;
+		clocks = <&sys_qspi_aclk>;
+		clock-names = "qspi_aclk";
+		reg = <0x0 0xB0000000 0x0 0x1000>;
+	};
+
+	gmac: ethernet@A5014000 {
+		compatible = "hobot,hb-gmac";
+		reg = <0x0 0xA5014000 0x0 0x2000>;
+		phy-mode = "rmii";
+		clocks = <&eth0_ephy_2nddiv_clk>, <&eth0_prediv_clk>, <&eth0_clk>;
+		clock-names = "phy_ref_clk", "mac_pre_div_clk", "mac_div_clk";
+		status = "disabled";
+	};
+
+	spi0: spi@A5004000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,hb-spi";
+		status = "disabled";
+		reg = <0x0 0xA5004000 0x0 0x1000>;
+	};
+
+	spi1: spi@A5005000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,hb-spi";
+		status = "disabled";
+		reg = <0x0 0xA5005000 0x0 0x1000>;
+	};
+
+	spi2: spi@A5006000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,hb-spi";
+		status = "disabled";
+		reg = <0x0 0xA5006000 0x0 0x1000>;
+	};
+
+	sdio0:dwmmc@A5010000 {
+		u-boot,dm-pre-reloc;
+		compatible = "hobot,hb-dw-mshc";
+		status = "disabled";
+		bus-width = <8>;
+		/* mmc-hs200-1_8v; */
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		non-removable;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 52000000>;
+		clock-frequency = <52000000>;
+		clocks = <&sd0_cclk>;
+		reg = <0x0 0xA5010000 0x0 0x1000>;
+		};
+
+	sdio1:dwmmc@A5011000 {
+		compatible = "hobot,hb-dw-mshc";
+		status = "disabled";
+		bus-width = <4>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 52000000>;
+		clock-frequency = <52000000>;
+		clocks = <&sd1_cclk>;
+		reg = <0x0 0xA5011000 0x0 0x1000>;
+		};
+
+	sdio2:dwmmc@A5012000 {
+		compatible = "hobot,hb-dw-mshc";
+		status = "disabled";
+		bus-width = <4>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+		card-detect-delay = <200>;
+		fifo-depth = <0x100>;
+		fifo-mode = <0>;
+		clock-freq-min-max = <100000 52000000>;
+		clock-frequency = <52000000>;
+		clocks = <&sd2_cclk>;
+		reg = <0x0 0xA5012000 0x0 0x1000>;
+	};
+
+	usb: usb {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		status = "okay";
+		compatible = "hobot,xj3-dwc3";
+
+		dwc3: dwc3@b2000000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0xb2000000 0x0 0x100000>,
+				<0x0 0xa1000000 0x0 0x1000>;
+			/* dr_mode: host, peripheral, otg, drd */
+			dr_mode = "drd";
+			/* phy_type = "utmi_wide"; */
+			/* snps,dis_u2_susphy_quirk; */
+			/* snps,dis_u3_susphy_quirk; */
+			maximum-speed = "super-speed";
+			status = "okay";
+			};
+		};
+	};
