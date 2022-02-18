@@ -160,6 +160,8 @@ config FASTBOOT_OEM_GPT_EXTEND
 
 config FASTBOOT_CMD_OEM_VERIFY_WRITE
 	bool "Enable 'oem verify_write' command"
+	depends on CMD_MTD
+	depends on CMD_MD5SUM
 	help
 	  check the written image's md5sum in fastboot, currently only support nand
 

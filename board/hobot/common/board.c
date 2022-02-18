@@ -612,14 +612,16 @@ static void hb_boot_args_cmd_set(int boot_mode)
 {
 	char bootargs_str[2048] = { 0 };
 	char tmp[256] = { 0 };
+	char *extra_bootargs = NULL;
+#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
 	/* rootfs_mtd_name is used for Flashes, now there is no B partition */
 	char *rootfs_mtd_name = "system";
 	char *rootfs_vol_name = "rootfs";
 	char *boot_mtd_name = "boot";
-	char *extra_bootargs = NULL;
 	int ret = 0, rootfs_mtdnm = -1;
 	struct mtd_info *root_mtd, *boot_mtd;
 	struct ubi_volume *vol;
+#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
 	int nr_cpus = 0;
 	int if_secure = hb_check_secure();
 #ifdef CONFIG_TARGET_XJ3
@@ -646,7 +648,8 @@ static void hb_boot_args_cmd_set(int boot_mode)
 
 		/* Specific bootargs for each bootmode */
 		memset(tmp, 0, sizeof(tmp));
-		if (boot_mode == PIN_2ND_EMMC) {
+
+#if defined CONFIG_HB_BOOT_FROM_MMC
 			if(!if_secure) {
 				strncat(bootargs_str, " ro rootwait",
 						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
@@ -655,7 +658,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 				strncat(bootargs_str, tmp,
 						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			}
-		} else {
+#elif defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
 			/* ro/rw judgement from volume type */
 			ubi_part(rootfs_mtd_name, NULL);
 			vol = ubi_find_volume(rootfs_vol_name);
@@ -691,7 +694,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			strncat(bootargs_str, env_get("mtdparts"),
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-		}
+#endif
 		/* Use extra_bootargs to append extra bootargs to bootargs when necessary */
 		extra_bootargs = env_get("extra_bootargs");
 		if (extra_bootargs != NULL) {
@@ -703,7 +706,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 
 	/* Set Bootcmd */
 	memset(tmp, 0, sizeof(tmp));
-	if (boot_mode == PIN_2ND_EMMC) {
+#if defined CONFIG_HB_BOOT_FROM_MMC
 		if (if_secure) {
 			snprintf(tmp, sizeof(tmp), "avb_verify; "CONFIG_BOOTCOMMAND,
 				 boot_partition, boot_partition);
@@ -713,9 +716,8 @@ static void hb_boot_args_cmd_set(int boot_mode)
 				 boot_partition, boot_partition);
 			env_set("bootcmd", tmp);
 		}
-	} else {
+#elif defined CONFIG_HB_BOOT_FROM_NOR
 		/* TODO: Unify bootcmd to get rid of function calls below loading boot */
-		if (boot_mode == PIN_2ND_NOR) {
 			boot_mtd = get_mtd_device_nm(boot_mtd_name);
 			ret = spi_flash_read(flash, boot_mtd->offset,
 						 boot_mtd->size, (void *) BOOTIMG_ADDR);
@@ -724,21 +726,22 @@ static void hb_boot_args_cmd_set(int boot_mode)
 				env_set("bootdelay", "-1");
 				return;
 			}
-		} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 			ubi_part(boot_mtd_name, NULL);
 			if (ubi_volume_read("boot", (void *) BOOTIMG_ADDR, 0)) {
 				printf("Error: Read Kernel from UBI Volume Boot failed!\n");
 				env_set("bootdelay", "-1");
 				return;
 			}
-		}
+#endif
 
+#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
 		if (if_secure) {
 			env_set("bootcmd", HB_SET_WDT "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
 		} else {
 			env_set("bootcmd", HB_SET_WDT "bootm "__stringify(BOOTIMG_ADDR));
 		}
-	}
+#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
 }
 
 static void hb_mmc_env_init(void)
@@ -801,12 +804,15 @@ static void hb_mmc_env_init(void)
 	}
 }
 
+#ifdef CONFIG_HB_BOOT_FROM_NAND
 static void hb_nand_env_init(void)
 {
 	/* reserve for future use */
 	return;
 }
+#endif /*CONFIG_HB_BOOT_FROM_NAND*/
 
+#ifdef CONFIG_HB_BOOT_FROM_NOR
 static void hb_nor_env_init(void)
 {
 	int ret = 0;
@@ -821,6 +827,7 @@ static void hb_nor_env_init(void)
 	}
 	return;
 }
+#endif /*CONFIG_HB_BOOT_FROM_NOR*/
 #endif
 
 static int hb_nor_dtb_handle(struct hb_kernel_hdr *config)
@@ -915,16 +922,16 @@ static void hb_env_and_boardid_init(void)
 						(strcmp(s, "true") == 0) ? true : false);
 
 	/* mmc or nor env init */
-	if (boot_mode == PIN_2ND_EMMC) {
+#if defined CONFIG_HB_BOOT_FROM_MMC
 		/* make sure emmc last partition is properly defined */
 		run_command("gpt extend mmc 0", 0);
 		hb_mmc_env_init();
-	}  else if (boot_mode == PIN_2ND_NOR) {
+#elif defined CONFIG_HB_BOOT_FROM_NOR
 		/* load nor kernel and dtb */
 		hb_nor_env_init();
-	} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 		hb_nand_env_init();
-	}
+#endif
 
 	hb_boot_args_cmd_set(boot_mode);
 }
@@ -1497,6 +1504,7 @@ static int reboot_notify_to_mcu(void)
 //END4[prj_j2quad]
 #endif
 
+#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
 static int flash_write_partition(char *partition, int partition_offset,
 				int partition_size)
 {
@@ -1648,6 +1656,7 @@ U_BOOT_CMD(
 	"          partition  : \"all\": until \"system\" will be updated\n"
 	"                       \"not specified\": whole flash will be erased"
 );
+#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
 
 #ifndef	CONFIG_FPGA_HOBOT
 #if defined(HB_SWINFO_BOOT_OFFSET)

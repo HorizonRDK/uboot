@@ -403,9 +403,9 @@ static int do_avb_verify(cmd_tbl_t *cmdtp, int flag, int argc,
 	int ret = 0;
 
 	/* avb init */
-#if defined HB_NOR_BOOT
+#if defined CONFIG_HB_BOOT_FROM_NOR
 	cmd = "avb init sf 0";
-#elif defined HB_NAND_BOOT
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 	cmd = "avb init nand 0";
 #else
 	cmd = "avb init mmc 0";

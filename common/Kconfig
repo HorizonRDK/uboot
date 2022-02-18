@@ -222,6 +222,36 @@ config BOOTCOMMAND
 	  This is the string of commands that will be used as bootcmd and if
 	  AUTOBOOT is set, automatically run.
 
+choice
+	prompt "Boot Storage Selection"
+	default HB_BOOT_FROM_MMC
+config HB_BOOT_FROM_NOR
+	bool "XJ3 booting from NOR flash"
+	depends on SPI_FLASH
+	select MTD_UBI
+	select CMD_SF
+	help
+	  Enabling this will make a U-Boot binary that is XJ3 capable of
+	  being booted via NOR.
+
+config HB_BOOT_FROM_NAND
+	bool "XJ3 booting from NAND flash"
+	select MTD_UBI
+	help
+	  Enabling this will make a U-Boot binary that is XJ3 capable of
+	  being booted via NAND flash.
+
+config HB_BOOT_FROM_MMC
+	bool "XJ3 booting from EMMC storage"
+	depends on MMC
+	select HB_DWMMC
+	select CMD_MMC
+	select CMD_PART
+	help
+	  Enabling this will make a U-Boot binary that is XJ3 capable of
+	  being booted via EMMC.
+endchoice
+
 menu "Console"
 
 config MENU

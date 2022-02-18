@@ -108,11 +108,9 @@ function choose()
     if [ "$bootmode" = "nor" ];then
         cal_mtdparts
         sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
-        KCFLAGS=${KCFLAGS}" -DHB_NOR_BOOT"
     elif [[ "$bootmode" = *"nand"* ]];then
         cal_mtdparts
         sed -i "s/CONFIG_MTDPARTS_DEFAULT=.*/CONFIG_MTDPARTS_DEFAULT=\"${mtdparts_str}\"/g" $conftmp
-        KCFLAGS=${KCFLAGS}" -DHB_NAND_BOOT"
     fi
     # Here, ROOTFS_TYPE is passed to UBoot for bootargs
     # TODO: Integrate UBIFS in gpt.conf to the build process for partition.sh

@@ -16,7 +16,7 @@
 #include <hb_info.h>
 
 #define SECTOR_SIZE (512)
-#ifdef HB_NAND_BOOT
+#ifdef CONFIG_HB_BOOT_FROM_NAND
 #define BUFFER_SIZE 2048
 #else
 #define BUFFER_SIZE SECTOR_SIZE
@@ -29,9 +29,12 @@ static unsigned int end_sector;
 static char buffer[BUFFER_SIZE];
 static int curr_device = -1;
 
+#ifdef CONFIG_CMD_SF
 extern struct spi_flash *flash;
+#endif
 struct mmc *emmc = NULL;
 
+#ifdef CONFIG_HB_BOOT_FROM_NOR
 /* init nor flash device  */
 static void init_nor_device(void)
 {
@@ -43,6 +46,7 @@ static void init_nor_device(void)
 		return;
 	}
 }
+#endif
 
 struct mmc *init_mmc_device(int dev, bool force_init)
 {
@@ -63,18 +67,17 @@ struct mmc *init_mmc_device(int dev, bool force_init)
 static int dw_init(int flag)
 {
 	int ret = 0;
-	int boot_mode = hb_boot_mode_get();
 
-	if (boot_mode == PIN_2ND_NOR) {
+#if defined CONFIG_HB_BOOT_FROM_NOR
 		init_nor_device();
 		if (!flash) {
 			printf("Failed to initialize SPI flash\n");
 			ret = -1;
 		}
-	} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
-	} else {
+#elif defined CONFIG_HB_BOOT_FROM_MMC
 		/* check the status of device */
 		emmc = init_mmc_device(curr_device, false);
 		if (!emmc) {
@@ -88,7 +91,7 @@ static int dw_init(int flag)
 				ret = -1;
 			}
 		}
-	}
+#endif
 
 	return ret;
 }
@@ -96,9 +99,8 @@ static int dw_init(int flag)
 static int dw_read(unsigned int cur_sector)
 {
 	int ret = 0;
-	int boot_mode = hb_boot_mode_get();
 
-	if (boot_mode == PIN_2ND_NOR) {
+#if defined CONFIG_HB_BOOT_FROM_NOR
 		if (!flash)
 			return -1;
 
@@ -107,15 +109,15 @@ static int dw_read(unsigned int cur_sector)
 			printf("Error: read nor flash fail\n");
 			return -1;
 		}
-	} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 		return 0;
-	} else {
+#elif defined CONFIG_HB_BOOT_FROM_MMC
 		ret = blk_dread(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
 		if (ret != 1) {
 			printf("Error: read sector %d fail\n", cur_sector);
 			return -1;
 		}
-	}
+#endif
 
 	return ret;
 }
@@ -123,9 +125,8 @@ static int dw_read(unsigned int cur_sector)
 static int dw_write(unsigned int cur_sector)
 {
 	int ret = 0;
-	int boot_mode = hb_boot_mode_get();
 
-	if (boot_mode == PIN_2ND_NOR) {
+#if defined CONFIG_HB_BOOT_FROM_NOR
 		if (!flash)
 			return -1;
 
@@ -140,15 +141,15 @@ static int dw_write(unsigned int cur_sector)
 			printf("Error: read nor flash fail\n");
 			return -1;
 		}
-	} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 		return ret;
-	} else {
+#elif defined CONFIG_HB_BOOT_FROM_MMC
 		ret = blk_dwrite(mmc_get_blk_desc(emmc), cur_sector, 1, buffer);
 		if (ret != 1) {
 			printf("Error: write sector %d fail\n", cur_sector);
 			return -1;
 		}
-	}
+#endif
 
 	return ret;
 }
@@ -168,9 +169,7 @@ static int is_parameter_valid(int offset, int size)
 /* init veeprom mmc blocks */
 int veeprom_init(void)
 {
-	int boot_mode = hb_boot_mode_get();
-
-	if (boot_mode == PIN_2ND_NOR) {
+#if defined CONFIG_HB_BOOT_FROM_NOR
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		init_nor_device();
@@ -179,7 +178,7 @@ int veeprom_init(void)
 			return -1;
 		}
 		mtd_probe_devices();
-	} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		mtd_probe_devices();
@@ -188,7 +187,7 @@ int veeprom_init(void)
 			env_set("bootdelay", "-1");
 			return 1;
 		}
-	} else {
+#elif defined CONFIG_HB_BOOT_FROM_MMC
 		/* set veeprom raw sectors */
 		start_sector = VEEPROM_START_SECTOR;
 		end_sector = VEEPROM_END_SECTOR;
@@ -202,22 +201,21 @@ int veeprom_init(void)
 				return -1;
 			}
 		}
-	}
+#endif
 
 	return 0;
 }
 
 void veeprom_exit(void)
 {
-	int boot_mode = hb_boot_mode_get();
 
-	if (boot_mode == PIN_2ND_NOR) {
+#if defined CONFIG_HB_BOOT_FROM_NOR
 		spi_flash_free(flash);
-	} else if (boot_mode == PIN_2ND_NAND) {
+#elif defined CONFIG_HB_BOOT_FROM_NAND
 		return;
-	} else {
+#elif defined CONFIG_HB_BOOT_FROM_MMC
 		curr_device = -1;
-	}
+#endif
 }
 
 /* format veeprom mmc blocks, memset(0) */
@@ -262,7 +260,7 @@ int veeprom_read(int offset, char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef HB_NAND_BOOT
+#ifdef CONFIG_HB_BOOT_FROM_NAND
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_read("veeprom", buffer, sizeof(buffer));
 	flush_cache((ulong)buffer, sizeof(buffer));
@@ -295,7 +293,7 @@ int veeprom_read(int offset, char *buf, int size)
 		memcpy(buf, buffer + offset_inner, operate_count);
 		buf += operate_count;
 	}
-#endif
+#endif /*CONFIG_HB_BOOT_FROM_NAND*/
 
 	return ret;
 }
@@ -315,7 +313,7 @@ int veeprom_write(int offset, const char *buf, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef HB_NAND_BOOT
+#ifdef CONFIG_HB_BOOT_FROM_NAND
 	printf("In nand veeprom write!\n");
 	memset(buffer, 0, sizeof(buffer));
 	printf("In nand veeprom write buffer set success!\n");
@@ -359,7 +357,7 @@ int veeprom_write(int offset, const char *buf, int size)
 			return ret;
 		}
 	}
-#endif
+#endif /*CONFIG_HB_BOOT_FROM_NAND*/
 	return ret;
 }
 
@@ -378,7 +376,7 @@ int veeprom_clear(int offset, int size)
 		printf("Error: parameters invalid\n");
 		return -1;
 	}
-#ifdef HB_NAND_BOOT
+#ifdef CONFIG_HB_BOOT_FROM_NAND
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_write("veeprom", buffer, sizeof(buffer));
 #else
@@ -419,7 +417,7 @@ int veeprom_clear(int offset, int size)
 			return ret;
 		}
 	}
-#endif
+#endif /*CONFIG_HB_BOOT_FROM_NAND*/
 	return ret;
 }
 

@@ -268,6 +268,7 @@ int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
+#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
 static int ota_flash_update_image(char *flash_type, char *partition,
 								  char *addr, unsigned int bytes)
 {
@@ -287,7 +288,9 @@ static int ota_flash_update_image(char *flash_type, char *partition,
 
 	return run_command(command, 0);
 }
+#endif
 
+#ifdef CONFIG_HB_BOOT_FROM_MMC
 static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 {
 	unsigned int start_lba = 0, end_lba = 0, kernel_end = 0;
@@ -384,14 +387,16 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 
 	return ret;
 }
+#endif
 
 int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 						char *const argv[])
 {
 	char *file_name = NULL, *filesize = NULL, *fileaddr = NULL;
-	char *ep = NULL, *ptr = NULL, *flash_type = NULL;
+	char *ep = NULL, *ptr = NULL;
+	__maybe_unused 	char *flash_type = NULL;
 	char partition_name[256] = { 0 };
-	int ret;
+	int ret = -1;
 	unsigned int boot_mode, bytes;
 
 	if ((argc != 1) && (argc != 4) && (argc != 5)) {
@@ -402,11 +407,23 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	/* get bootmode */
 	if (argc == 5) {
 		if (strcmp(argv[4], "emmc") == 0) {
+#ifndef CONFIG_HB_BOOT_FROM_MMC
+			printf("error: parameter %s not support! \n", argv[4]);
+			return CMD_RET_FAILURE;
+#endif
 			boot_mode = PIN_2ND_EMMC;
 		} else if (strcmp(argv[4], "nor") == 0) {
+#ifndef CONFIG_HB_BOOT_FROM_NOR
+			printf("error: parameter %s not support! \n", argv[4]);
+			return CMD_RET_FAILURE;
+#endif
 			boot_mode = PIN_2ND_NOR;
 			flash_type = "nor";
 		} else if (strcmp(argv[4], "nand") == 0) {
+#ifndef CONFIG_HB_BOOT_FROM_NAND
+			printf("error: parameter %s not support! \n", argv[4]);
+			return CMD_RET_FAILURE;
+#endif
 			boot_mode = PIN_2ND_NAND;
 			flash_type = "nand";
 		} else {
@@ -452,10 +469,15 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	/* update image */
-	if (boot_mode == PIN_2ND_EMMC)
+	if (boot_mode == PIN_2ND_EMMC) {
+#ifdef CONFIG_HB_BOOT_FROM_MMC
 		ret = ota_mmc_update_image(partition_name, fileaddr, bytes);
-	else
+#endif
+	} else {
+#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
 		ret = ota_flash_update_image(flash_type, partition_name, fileaddr, bytes);
+#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
+	}
 
 	if (ret == 0)
 		printf("ota update image success!\n");

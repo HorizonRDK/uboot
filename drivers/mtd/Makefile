@@ -26,7 +26,7 @@ obj-y += mtd.o
 endif
 obj-y += nand/
 obj-y += onenand/
-obj-y += spi/
+obj-$(CONFIG_SPI_FLASH) += spi/
 obj-$(CONFIG_MTD_UBI) += ubi/
 
 #SPL/TPL build

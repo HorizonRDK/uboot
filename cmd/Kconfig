@@ -896,6 +896,7 @@ config CMD_MMC_SWRITE
 config CMD_MTD
 	bool "mtd"
 	select MTD_PARTITIONS
+	depends on SPI_FLASH
 	help
 	  MTD commands support.
 
@@ -1020,11 +1021,13 @@ config CMD_SDRAM
 
 config CMD_SF
 	bool "sf"
+	depends on SPI_FLASH
 	help
 	  SPI Flash support
 
 config CMD_SF_TEST
 	bool "sf test - Allow testing of SPI flash"
+	depends on CMD_SF
 	help
 	  Provides a way to test that SPI flash is working correctly. The
 	  test is destructive, in that an area of SPI flash must be provided
