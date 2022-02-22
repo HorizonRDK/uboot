@@ -16,6 +16,9 @@ int mmc_send_status(struct mmc *mmc, unsigned int *status);
 int mmc_poll_for_busy(struct mmc *mmc, int timeout);
 
 int mmc_set_blocklen(struct mmc *mmc, int len);
+int mmc_set_blockcount(struct mmc *mmc,
+					   unsigned int blockcount,
+					   bool is_rel_write);
 #ifdef CONFIG_FSL_ESDHC_ADAPTER_IDENT
 void mmc_adapter_card_type_ident(void);
 #endif
