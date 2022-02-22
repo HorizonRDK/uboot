@@ -236,6 +236,7 @@ config HB_BOOT_FROM_NOR
 
 config HB_BOOT_FROM_NAND
 	bool "XJ3 booting from NAND flash"
+	depends on MTD_SPI_NAND
 	select MTD_UBI
 	help
 	  Enabling this will make a U-Boot binary that is XJ3 capable of

@@ -61,6 +61,7 @@
 		status = "disabled";
 	};
 
+/*
 	qspi: qspi@B0000000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hb,qspi";
@@ -70,7 +71,7 @@
 		clock-names = "qspi_aclk";
 		reg = <0x0 0xB0000000 0x0 0x1000>;
 	};
-
+*/
 	gmac: ethernet@A5014000 {
 		compatible = "hobot,hb-gmac";
 		reg = <0x0 0xA5014000 0x0 0x2000>;

@@ -22,7 +22,7 @@
 
 	aliases {
 		serial0 = &uart0;
-		spi0	= &qspi;
+		/*spi0	= &qspi;*/
 		gmac0 	= &gmac;
 		mmc0    = &sdio0;
 		mmc1   	= &sdio1;
@@ -57,6 +57,7 @@
        status = "okay";
 };
 
+/*
 &qspi {
 	status = "okay";
 	#address-cells = <1>;
@@ -78,6 +79,7 @@
 	};
 
 };
+*/
 
 &gmac {
         status = "okay";
