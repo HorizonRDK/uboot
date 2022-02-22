@@ -379,8 +379,13 @@ static int mmc_read_blocks(struct mmc *mmc, void *dst, lbaint_t start,
 	struct mmc_cmd cmd;
 	struct mmc_data data;
 
-	if (blkcnt > 1)
+	if (blkcnt > 1) {
+		if (mmc->host_caps & MMC_CAP_CMD23) {
+			if (mmc_set_blockcount(mmc, blkcnt, false))
+				pr_err("mmc fail to send set blkcnt cmd\n");
+		}
 		cmd.cmdidx = MMC_CMD_READ_MULTIPLE_BLOCK;
+	}
 	else
 		cmd.cmdidx = MMC_CMD_READ_SINGLE_BLOCK;
 
@@ -399,7 +404,7 @@ static int mmc_read_blocks(struct mmc *mmc, void *dst, lbaint_t start,
 	if (mmc_send_cmd(mmc, &cmd, &data))
 		return 0;
 
-	if (blkcnt > 1) {
+	if (blkcnt > 1 && !(mmc->host_caps & MMC_CAP_CMD23)) {
 		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
 		cmd.cmdarg = 0;
 		cmd.resp_type = MMC_RSP_R1b;

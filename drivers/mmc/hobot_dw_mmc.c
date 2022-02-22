@@ -28,19 +28,18 @@ DECLARE_GLOBAL_DATA_PTR;
 #define DWMMC_MMC_ID			(0)
 #define DWMMC_SD1_ID			(1)
 #define DWMMC_SD2_ID			(2)
-#define HO
 #define HOBOT_DW_MCI_FREQ_MAX		(200000000)
 
 #define HOBOT_MMC_CLK_DIS		(HOBOT_SYSCTRL_REG + 0x158)
 #define HOBOT_MMC_CLK_EN			(HOBOT_SYSCTRL_REG + 0x154)
-#define HOBOT_SD0_CLK_SHIFT	BIT(15)
-#define HOBOT_SD1_CLK_SHIFT	BIT(16)
-#define HOBOT_SD2_CLK_SHIFT	BIT(25)
+#define HOBOT_SD0_CLK_SHIFT	15
+#define HOBOT_SD1_CLK_SHIFT	16
+#define HOBOT_SD2_CLK_SHIFT	25
 
-#define HOBOT_CLKOFF_STA		(0x258)
-#define HOBOT_SD0_CLKOFF_STA_SHIFT	(1<<1)
-#define HOBOT_SD1_CLKOFF_STA_SHIFT	(1<<2)
-#define HOBOT_SD2_CLKOFF_STA_SHIFT	(1<<3)
+#define HOBOT_CLKOFF_STA		(HOBOT_SYSCTRL_REG + 0x258)
+#define HOBOT_SD0_CLKOFF_STA_SHIFT	BIT(1)
+#define HOBOT_SD1_CLKOFF_STA_SHIFT	BIT(2)
+#define HOBOT_SD2_CLKOFF_STA_SHIFT  BIT(3)
 
 /*#define HOBOT_MMC_DEGREE_MASK			(0xF)*/
 #define HOBOT_MMC_SAMPLE_DEGREE_SHIFT	(12)
@@ -48,7 +47,9 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SDCARD_RD_THRESHOLD		(512)
 #define NUM_PHASES			(16)
 #define TUNING_ITERATION_TO_PHASE(i)	(i)
-
+#define HOBOT_CLK_OP_RETRY       10
+#define HOBOT_CLK_OP_DELAY_US     10
+#define HOBOT_CLK_OP_TIMEOUT_US(x)		(x / HOBOT_CLK_OP_DELAY_US)
 struct hobot_mmc_plat {
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 	struct dtd_hobot_hb_dw_mshc dtplat;
@@ -196,34 +197,105 @@ static void sdio_pin_mux_config(int dev_index)
 #endif
 }
 
+static int hb_mmc_disable_clk(struct dwmci_host *host)
+{
+	struct udevice *dev = host->priv;
+	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
+	uint64_t timeout = HOBOT_CLK_OP_TIMEOUT_US(100);
+	u32 clken_clr_shift = 0, clkoff_sta_shift = 0;
+	u32 reg_value;
+	int retry = 0;
+
+	if (priv->ctrl_id == DWMMC_MMC_ID) {
+		clken_clr_shift = HOBOT_SD0_CLK_SHIFT;
+		clkoff_sta_shift = HOBOT_SD0_CLKOFF_STA_SHIFT;
+	} else if (priv->ctrl_id == DWMMC_SD1_ID) {
+		clken_clr_shift = HOBOT_SD1_CLK_SHIFT;
+		clkoff_sta_shift = HOBOT_SD1_CLKOFF_STA_SHIFT;
+	}
+
+	while (retry++ < HOBOT_CLK_OP_RETRY) {
+		reg_value = 1 << clken_clr_shift;
+		writel(reg_value, HOBOT_MMC_CLK_DIS);
+		pr_debug("%s:%d reg_value:%x\n", __func__, __LINE__, reg_value);
+		while (timeout > 0) {
+			reg_value = readl(HOBOT_CLKOFF_STA);
+			pr_debug("%s:%d reg_value:%x, off_sta_shift:%x\n",
+					 __func__, __LINE__, reg_value, clkoff_sta_shift);
+			if (reg_value & clkoff_sta_shift) {
+				return 0;
+			}
+			udelay(HOBOT_CLK_OP_DELAY_US);
+			timeout--;
+		}
+
+		pr_debug("Warn disable mmc clk failed %d times\n", retry);
+	}
+
+	pr_debug("%s: error disable mmc clk, ctrl_id:%d.\n",
+			 host->name, priv->ctrl_id);
+
+	return -1;
+}
+
+static int hb_mmc_enable_clk(struct dwmci_host *host)
+{
+	struct udevice *dev = host->priv;
+	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
+	uint64_t timeout = HOBOT_CLK_OP_TIMEOUT_US(100);
+	u32 clken_set_shift = 0, clkoff_sta_shift = 0;
+	u32 reg_value;
+	int retry = 0;
+
+	if (priv->ctrl_id == DWMMC_MMC_ID) {
+		clken_set_shift = HOBOT_SD0_CLK_SHIFT;
+		clkoff_sta_shift = HOBOT_SD0_CLKOFF_STA_SHIFT;
+	} else if (priv->ctrl_id == DWMMC_SD1_ID) {
+		clken_set_shift = HOBOT_SD1_CLK_SHIFT;
+		clkoff_sta_shift = HOBOT_SD1_CLKOFF_STA_SHIFT;
+	}
+
+	while (retry++ < HOBOT_CLK_OP_RETRY) {
+		reg_value = 1 << clken_set_shift;
+		writel(reg_value, HOBOT_MMC_CLK_EN);
+		pr_debug("%s:%d reg_value:%x\n", __func__, __LINE__, reg_value);
+		while (timeout > 0) {
+			reg_value = readl(HOBOT_CLKOFF_STA);
+			pr_debug("%s:%d reg_value:%x, off_sta_shift:%x\n",
+					 __func__, __LINE__, reg_value, clkoff_sta_shift);
+			if (!(reg_value & clkoff_sta_shift)) {
+				return 0;
+			}
+			udelay(HOBOT_CLK_OP_DELAY_US);
+			timeout--;
+		}
+
+		pr_debug("Warn enable mmc clk failed %d times\n", retry);
+	}
+
+	pr_err("Err enable mmc clk, ctrl_id:%d!\n", priv->ctrl_id);
+
+	return -1;
+}
+
 static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 {
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
-	unsigned int reg_val = 0, mmc_shift;
-	int tmp = 0;
+	unsigned int reg_val = 0;
+	int div_2nd = 0;
 
-	/* decide which ctrl we are configuring */
-	mmc_shift = (priv->ctrl_id == 0 ? HOBOT_SD0_CLK_SHIFT :
-			   (priv->ctrl_id == 1 ? HOBOT_SD1_CLK_SHIFT :
-									 HOBOT_SD2_CLK_SHIFT));
-	/* Disable clk */
-	writel(mmc_shift, HOBOT_MMC_CLK_DIS);
-	udelay(500);
+	hb_mmc_disable_clk(host);
 	/* Configure 1st div to 8 */
 	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
 	reg_val &= 0xFFFFFF00;
 	reg_val |= 0x70;
 	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
-	/* Configure 2nd div */
-	tmp = clk_get_rate(&priv->clk) / freq;
-	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
-	reg_val |= (tmp & 0xF);
-	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	pr_debug("%s: mmc_clk_reg:0x%x, target freq:%u, div_2nd:%d\n",
+			 host->name, reg_val, freq, div_2nd);
 	/* Enable clk */
-	writel(mmc_shift, HOBOT_MMC_CLK_EN);
-	udelay(500);
+	hb_mmc_enable_clk(host);
 	clk_set_rate(&priv->clk, freq);
 	freq = clk_get_rate(&priv->clk);
 #else
@@ -238,6 +310,10 @@ static int hb_mmc_set_sample_phase(struct hobot_dwmmc_priv *priv,
 				   int degrees)
 {
 	u32 reg_value;
+	struct dwmci_host host = priv->host;
+	debug("current_sample_phase=%d,set to %d\n",
+		  priv->current_sample_phase, degrees);
+	hb_mmc_disable_clk(&host);
 
 	priv->current_sample_phase = degrees;
 	reg_value = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
@@ -245,8 +321,7 @@ static int hb_mmc_set_sample_phase(struct hobot_dwmmc_priv *priv,
 	reg_value |= degrees << HOBOT_MMC_SAMPLE_DEGREE_SHIFT;
 	writel(reg_value, HOBOT_MMC_CLK_REG(priv->ctrl_id));
 
-	/* We should delay 1us wait for timing setting finished. */
-	udelay(1);
+	hb_mmc_enable_clk(&host);
 	return 0;
 }
 
@@ -254,14 +329,16 @@ static int hb_mmc_set_drv_phase(struct hobot_dwmmc_priv *priv,
 				   int degrees)
 {
 	u32 reg_value;
+	struct dwmci_host host = priv->host;
+
+	hb_mmc_disable_clk(&host);
 
 	reg_value = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
 	reg_value &= 0xFFFFF0FF;
 	reg_value |= degrees << HOBOT_MMC_DRV_DEGREE_SHIFT;
 	writel(reg_value, HOBOT_MMC_CLK_REG(priv->ctrl_id));
 
-	/* We should delay 1us wait for timing setting finished. */
-	udelay(1);
+	hb_mmc_enable_clk(&host);
 	return 0;
 }
 
@@ -367,6 +444,8 @@ static int dw_mci_hb_sample_tuning(struct dwmci_host *host, u32 opcode)
 		longest_range_len);
 
 	middle_phase = ranges[longest_range].start + longest_range_len / 2;
+	debug("middle_phase= %d\n",
+		TUNING_ITERATION_TO_PHASE(middle_phase));
 	middle_phase %= NUM_PHASES;
 
 	hb_mmc_set_sample_phase(priv, TUNING_ITERATION_TO_PHASE(middle_phase));
@@ -388,7 +467,7 @@ static int dw_mci_hb_execute_tuning(struct dwmci_host *host, u32 opcode)
 	hb_mmc_set_drv_phase(priv, 0);
 	return ret;
 }
-#endif
+#endif	/*MMC_SUPPORTS_TUNING*/
 
 static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 {

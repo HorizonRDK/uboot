@@ -73,7 +73,7 @@ struct s_rpmb {
 	unsigned short request;
 };
 
-static int mmc_set_blockcount(struct mmc *mmc, unsigned int blockcount,
+int mmc_set_blockcount(struct mmc *mmc, unsigned int blockcount,
 			      bool is_rel_write)
 {
 	struct mmc_cmd cmd = {0};

@@ -80,6 +80,7 @@
 #define DWMCI_DMA_EN		(1 << 5)
 #define DWMCI_CTRL_SEND_AS_CCSD	(1 << 10)
 #define DWMCI_IDMAC_EN		(1 << 25)
+#define DWMCI_ABORT_READ	(1 << 8)
 #define DWMCI_RESET_ALL		(DWMCI_CTRL_RESET | DWMCI_CTRL_FIFO_RESET |\
 				DWMCI_CTRL_DMA_RESET)
 
@@ -133,6 +134,7 @@
 #define DWMCI_DDR_MODE	(1 << 16)
 
 /* Internal IDMAC interrupt defines */
+#define DWMCI_IDINTEN_NI		BIT(8)
 #define DWMCI_IDINTEN_RI		BIT(1)
 #define DWMCI_IDINTEN_TI		BIT(0)
 
