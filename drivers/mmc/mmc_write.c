@@ -225,15 +225,7 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 	else if (blkcnt == 1)
 		cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
 	else
-	 {
-#ifdef CONFIG_TARGET_XJ3
-		if (mmc->host_caps & MMC_CAP_CMD23) {
-			if (mmc_set_blockcount(mmc, blkcnt, false))
-				pr_err("mmc fail to send set blkcnt cmd\n");
-		}
-#endif
 		cmd.cmdidx = MMC_CMD_WRITE_MULTIPLE_BLOCK;
-	 }
 
 	if (mmc->high_capacity)
 		cmd.cmdarg = start;
@@ -255,7 +247,7 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 	/* SPI multiblock writes terminate using a special
 	 * token, not a STOP_TRANSMISSION request.
 	 */
-	if (!mmc_host_is_spi(mmc) && blkcnt > 1 && !(mmc->host_caps & MMC_CAP_CMD23)) {
+	if (!mmc_host_is_spi(mmc) && blkcnt > 1) {
 		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
 		cmd.cmdarg = 0;
 		cmd.resp_type = MMC_RSP_R1b;

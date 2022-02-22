@@ -18,7 +18,6 @@
 #include <asm/cache.h>
 #include <linux/delay.h>
 #include <power/regulator.h>
-#include <hb_info.h>
 
 #define PAGE_SIZE 4096
 
@@ -240,17 +239,6 @@ static int dwmci_set_transfer_mode(struct dwmci_host *host,
 	return mode;
 }
 
-static void dw_mci_regs_show(struct dwmci_host *const host)
-{
-	debug("*********dw mci regs info************\n");
-	debug("STATUS:\t0x%08x\n", dwmci_readl(host, DWMCI_STATUS));
-	debug("RINTSTS:\t0x%08x\n", dwmci_readl(host, DWMCI_RINTSTS));
-	debug("CMD:\t0x%08x\n", dwmci_readl(host, DWMCI_CMD));
-	debug("CTRL:\t0x%08x\n", dwmci_readl(host, DWMCI_CTRL));
-	debug("INTMASK:\t0x%08x\n", dwmci_readl(host, DWMCI_INTMASK));
-	debug("CLKENA:\t0x%08x\n", dwmci_readl(host, DWMCI_CLKENA));
-}
-
 #ifdef CONFIG_DM_MMC
 static int dwmci_send_cmd(struct udevice *dev, struct mmc_cmd *cmd,
 		   struct mmc_data *data)
@@ -270,7 +258,6 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 	u32 mask, ctrl;
 	ulong start = get_timer(0);
 	struct bounce_buffer bbstate;
-	int idsts_val;
 
 	while (dwmci_readl(host, DWMCI_STATUS) & DWMCI_BUSY) {
 		if (get_timer(start) > timeout) {
@@ -336,11 +323,6 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 
 	dwmci_writel(host, DWMCI_CMD, flags);
 
-#if defined(CONFIG_HB_QUICK_BOOT) && defined(MMC_SUPPORTS_TUNING)
-	if(mmc_is_tuning_cmd(cmd->cmdidx)) {
-			retry = 1000; 	   /* 'retry' decrease from 100,000 to 1,000 */
-	}
-#endif
 	for (i = 0; i < retry; i++) {
 		mask = dwmci_readl(host, DWMCI_RINTSTS);
 		if (mask & DWMCI_INTMSK_CDONE) {
@@ -352,22 +334,6 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 
 	if (i == retry) {
 		debug("%s: Timeout.\n", __func__);
-#if defined(CONFIG_TARGET_XJ3) && defined(MMC_SUPPORTS_TUNING)
-		/* When tuning timeout, send abort command actively */
-		if(mmc_is_tuning_cmd(cmd->cmdidx)) {
-			DEBUG_LOG("%s: get tuning data timeout! send tuning cmd abort.\n",
-					  host->name);
-
-			flags = dwmci_readl(host, DWMCI_CMD);
-			flags |= DWMCI_CMD_ABORT_STOP;
-			dwmci_writel(host, DWMCI_CMD, flags);
-
-			flags = dwmci_readl(host, DWMCI_CTRL);
-			flags |= DWMCI_ABORT_READ;
-			dwmci_writel(host, DWMCI_CTRL, flags);
-			dw_mci_regs_show(host);
-		}
-#endif /*CONFIG_TARGET_XJ3 && MMC_SUPPORTS_TUNING*/
 		return -ETIMEDOUT;
 	}
 
@@ -408,34 +374,18 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 
 		/* only dma mode need it */
 		if (!host->fifo_mode) {
-#if defined(CONFIG_TARGET_XJ3) && defined(MMC_SUPPORTS_TUNING)
-	/*
-	* When MMC is in the tuning state, both phase=7 and phase= 8
-	* May cause dwmci_data_transfer() failure (DWMCI_RINTSTS = DWMCI_DATA_ERR | DWMCI_DATA_TOUT),
-	* The MMC Probe time will increase, skip wait_for_bit(DWMCI_IDINTEN_RI).
-	*/
-			if(mmc_is_tuning_cmd(cmd->cmdidx) && (ret < 0)) {
-					return ret; /* this ret from dwmci_data_transfer() */
-			}
+			if (data->flags == MMC_DATA_READ)
+				mask = DWMCI_IDINTEN_RI;
 			else
-#endif /*CONFIG_TARGET_XJ3 && MMC_SUPPORTS_TUNING*/
-			 {
-				if (data->flags == MMC_DATA_READ)
-					mask = DWMCI_IDINTEN_RI;
-				else
-					mask = DWMCI_IDINTEN_TI;
-				ret = wait_for_bit_le32(host->ioaddr + DWMCI_IDSTS,
-							mask, true, 1000, false);
-				if (ret)
-					debug("%s: DWMCI_IDINTEN mask 0x%x timeout.\n",
-						__func__, mask);
-			}
+				mask = DWMCI_IDINTEN_TI;
+			ret = wait_for_bit_le32(host->ioaddr + DWMCI_IDSTS,
+						mask, true, 1000, false);
+			if (ret)
+				debug("%s: DWMCI_IDINTEN mask 0x%x timeout.\n",
+				      __func__, mask);
 			/* clear interrupts */
-			idsts_val = dwmci_readl(host, DWMCI_IDSTS);
-			if (idsts_val & (DWMCI_IDINTEN_TI | DWMCI_IDINTEN_RI)) {
-				dwmci_writel(host, DWMCI_IDSTS, DWMCI_IDINTEN_TI | DWMCI_IDINTEN_RI);
-				dwmci_writel(host, DWMCI_IDSTS, DWMCI_IDINTEN_NI);
-			}
+			dwmci_writel(host, DWMCI_IDSTS, DWMCI_IDINTEN_MASK);
+
 			ctrl = dwmci_readl(host, DWMCI_CTRL);
 			ctrl &= ~(DWMCI_DMA_EN);
 			dwmci_writel(host, DWMCI_CTRL, ctrl);
@@ -470,7 +420,7 @@ static int dwmci_setup_bus(struct dwmci_host *host, u32 freq)
 		return -EINVAL;
 	}
 
-	if (sclk <= freq)
+	if (sclk == freq)
 		div = 0;	/* bypass mode */
 	else
 		div = DIV_ROUND_UP(sclk, 2 * freq);
@@ -507,8 +457,6 @@ static int dwmci_setup_bus(struct dwmci_host *host, u32 freq)
 
 	host->clock = freq;
 
-	pr_debug("%s: host->clock:%u, freq:%u, sclk: %lu, div: %u\n",
-			 host->name, host->clock, freq, sclk, div);
 	return 0;
 }
 
@@ -564,8 +512,6 @@ static int dwmci_set_ios(struct mmc *mmc)
 	pr_debug("Buswidth = %d, clock: %d\n", mmc->bus_width, mmc->clock);
 
 	dwmci_setup_bus(host, mmc->clock);
-	mmc->clock = host->clock;
-
 	switch (mmc->bus_width) {
 	case 8:
 		ctype = DWMCI_CTYPE_8BIT;
@@ -715,10 +661,6 @@ void dwmci_setup_cfg(struct mmc_config *cfg, struct dwmci_host *host,
 		cfg->host_caps &= ~(MMC_MODE_8BIT | MMC_MODE_4BIT);
 	}
 	cfg->host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;
-#ifdef CONFIG_MMC_HS200_SUPPORT
-	cfg->host_caps |= MMC_MODE_HS200;
-#endif
-	cfg->host_caps |= MMC_CAP_CMD23;
 
 	cfg->b_max = CONFIG_SYS_MMC_MAX_BLK_COUNT;
 }
