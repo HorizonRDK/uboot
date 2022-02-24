@@ -159,7 +159,7 @@ static int dwmci_data_transfer(struct dwmci_host *host, struct mmc_data *data)
 		mask = dwmci_readl(host, DWMCI_RINTSTS);
 		/* Error during data transfer. */
 		if (mask & (DWMCI_DATA_ERR | DWMCI_DATA_TOUT)) {
-			debug("%s: DATA ERROR!\n", __func__);
+			debug("%s: DATA ERROR! RINTSTS=0x%x.\n", __func__, mask);
 			ret = -EINVAL;
 			break;
 		}
@@ -332,10 +332,15 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 
 	flags |= (cmd->cmdidx | DWMCI_CMD_START | DWMCI_CMD_USE_HOLD_REG);
 
-	debug("Sending CMD%d\n",cmd->cmdidx);
+	debug("Sending CMD%d, flags=0x%x\n", cmd->cmdidx, flags);
 
 	dwmci_writel(host, DWMCI_CMD, flags);
 
+#if defined(CONFIG_HB_QUICK_BOOT) && defined(MMC_SUPPORTS_TUNING)
+	if(mmc_is_tuning_cmd(cmd->cmdidx)) {
+			retry = 1000; 	   /* 'retry' decrease from 100,000 to 1,000 */
+	}							/*Avoid taking too long when the tuning fails*/
+#endif
 	for (i = 0; i < retry; i++) {
 		mask = dwmci_readl(host, DWMCI_RINTSTS);
 		if (mask & DWMCI_INTMSK_CDONE) {
@@ -346,7 +351,7 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 	}
 
 	if (i == retry) {
-		debug("%s: Timeout.\n", __func__);
+		debug("%s: CMD%d Timeout.\n", __func__, cmd->cmdidx);
 #if defined(CONFIG_TARGET_XJ3) && defined(MMC_SUPPORTS_TUNING)
 		/* When tuning timeout, send abort command actively */
 		if(mmc_is_tuning_cmd(cmd->cmdidx)) {
@@ -375,14 +380,14 @@ static int dwmci_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
 		 * below shall be debug(). eMMC cards also do not favor
 		 * CMD8, please keep that in mind.
 		 */
-		debug("%s: Response Timeout.\n", __func__);
+		debug("%s: Response Timeout. RINTSTS=0x%x\n", __func__, mask);
 		return -ETIMEDOUT;
 	} else if (mask & DWMCI_INTMSK_RE) {
-		debug("%s: Response Error.\n", __func__);
+		debug("%s: Response Error. RINTSTS=0x%d\n", __func__, mask);
 		return -EIO;
 	} else if ((cmd->resp_type & MMC_RSP_CRC) &&
 		   (mask & DWMCI_INTMSK_RCRC)) {
-		debug("%s: Response CRC Error.\n", __func__);
+		debug("%s: Response CRC Error. RINTSTS=0x%d\n", __func__, mask);
 		return -EIO;
 	}
 

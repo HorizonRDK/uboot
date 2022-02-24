@@ -463,8 +463,8 @@ static int dw_mci_hb_execute_tuning(struct dwmci_host *host, u32 opcode)
 
 	ret = dw_mci_hb_sample_tuning(host, opcode);
 
-	/* uboot default drv_phase is 0 */
-	hb_mmc_set_drv_phase(priv, 0);
+	/* uboot default drv_phase is 4, be consistent with linux kernel driver */
+	hb_mmc_set_drv_phase(priv, 4);
 	return ret;
 }
 #endif	/*MMC_SUPPORTS_TUNING*/
@@ -559,7 +559,10 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 		return clock;
 	}
 
-	debug("emmc host clock set %ld.\n", clock);
+#ifdef CONFIG_HB_BOOT_FROM_MMC
+	if(priv->ctrl_id == DWMMC_MMC_ID)
+		DEBUG_LOG("%s clock set: %ld.\n", host->name, host->bus_hz);
+#endif /*CONFIG_HB_BOOT_FROM_MMC*/
 	clk_enable(&priv->clk);
 
 #endif
