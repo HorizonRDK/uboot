@@ -18,7 +18,9 @@
 #include <scomp.h>
 
 #define SCRATCHPAD	1024
-
+#ifdef CONFIG_MMC_TUNING_DATA_TRANS
+DECLARE_GLOBAL_DATA_PTR;
+#endif
 static uint32_t x3_ddr_vender;
 static uint32_t x3_ddr_size;
 static uint32_t x3_ddr_type;
@@ -425,3 +427,34 @@ U_BOOT_CMD(
 		send_id, CONFIG_SYS_MAXARGS, 0, do_set_boardid,
 		"send_boardid",
 		"send board information to kernel by DTB");
+
+#ifdef CONFIG_MMC_TUNING_DATA_TRANS
+int hb_set_emmc_tuning_res(void)
+{
+	int ret;
+	int nodeoffset;
+	uint64_t dtb_addr;
+	int32_t set_middle = gd->mmc_tuning_res;
+
+	dtb_addr = env_get_ulong("fdt_addr", 16, FDT_ADDR);
+	ret = find_fdt(dtb_addr);
+	if(1 == ret) {
+		printf("find_fdt error\n");
+		return 1;
+	}
+	nodeoffset = fdt_path_offset(hb_dtb, "/soc/dwmmc@A5010000");
+	if (nodeoffset < 0) {
+		printf("libfdt fdt_path_offset() returned %s\n",
+			fdt_strerror(nodeoffset));
+		return 1;
+	}
+	ret = hb_dtb_property_config(nodeoffset,
+								 "uboot-tuning-middle-phase", set_middle);
+	if (ret < 0) {
+		printf("hb_dtb_property_config,middle: %s\n", fdt_strerror(ret));
+		return 1;
+	}
+	DEBUG_LOG("write mmc tuning result to device-tree: %d\n", set_middle);
+	return ret;
+}
+#endif /*CONFIG_MMC_TUNE_DATA_TRANS*/

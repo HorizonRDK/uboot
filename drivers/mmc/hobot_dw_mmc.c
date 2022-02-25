@@ -450,6 +450,10 @@ static int dw_mci_hb_sample_tuning(struct dwmci_host *host, u32 opcode)
 
 	hb_mmc_set_sample_phase(priv, TUNING_ITERATION_TO_PHASE(middle_phase));
 
+#ifdef CONFIG_MMC_TUNING_DATA_TRANS
+	gd->mmc_tuning_res = TUNING_ITERATION_TO_PHASE(middle_phase);
+#endif
+
 free:
 	free(ranges);
 	return ret;

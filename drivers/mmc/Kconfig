@@ -243,6 +243,14 @@ config HB_DWMMC
 	  SD 3.0, SDIO 3.0 and MMC 4.5 and supports common eMMC chips as well
 	  as removeable SD and micro-SD cards.
 
+config MMC_TUNING_DATA_TRANS
+	bool "Hobot SD/MMC tuning transmit to next stage support"
+	depends on HB_DWMMC
+	depends on MMC_HS200_SUPPORT && TARGET_XJ3
+	default y if HB_QUICK_BOOT
+	help
+	  This enables support mmc tuning data transmit to next stage(such as linux kernel)
+
 config MMC_DW_SOCFPGA
 	bool "SOCFPGA specific extensions for Synopsys DW Memory Card Interface"
 	depends on ARCH_SOCFPGA

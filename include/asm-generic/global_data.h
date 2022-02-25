@@ -122,6 +122,9 @@ typedef struct global_data {
 	struct list_head log_head;	/* List of struct log_device */
 	int log_fmt;			/* Mask containing log format info */
 #endif
+#ifdef CONFIG_MMC_TUNING_DATA_TRANS
+	int32_t mmc_tuning_res;
+#endif
 } gd_t;
 #endif
 

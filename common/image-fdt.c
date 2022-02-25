@@ -172,6 +172,12 @@ static void hb_dts_node_modify(void) {
     snprintf(cmd, sizeof(cmd), "detect_pmic");
 	run_command(cmd, 0);
 
+#ifdef CONFIG_MMC_TUNING_DATA_TRANS
+	/* write mmc tuning result to kernel device-tree */
+	if(hb_set_emmc_tuning_res() != 0)
+		DEBUG_LOG("error to write tune data\n");
+#endif
+
 	/*
 	 * enable/disable node
 	 * check if current boot is nand/nor, if so, enable them
