@@ -107,7 +107,7 @@
 		compatible = "hobot,hb-dw-mshc";
 		status = "disabled";
 		bus-width = <8>;
-		/* mmc-hs200-1_8v; */
+		mmc-hs200-1_8v;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;
@@ -115,8 +115,8 @@
 		card-detect-delay = <200>;
 		fifo-depth = <0x100>;
 		fifo-mode = <0>;
-		clock-freq-min-max = <100000 52000000>;
-		clock-frequency = <52000000>;
+		clock-freq-min-max = <100000 192000000>;
+		clock-frequency = <192000000>;
 		clocks = <&sd0_cclk>;
 		reg = <0x0 0xA5010000 0x0 0x1000>;
 		};

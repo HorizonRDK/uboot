@@ -561,7 +561,7 @@ static int hobot_dwmmc_probe(struct udevice *dev)
 
 #ifdef CONFIG_HB_BOOT_FROM_MMC
 	if(priv->ctrl_id == DWMMC_MMC_ID)
-		DEBUG_LOG("%s clock set: %ld.\n", host->name, host->bus_hz);
+		DEBUG_LOG("%s clock set: %d.\n", host->name, host->bus_hz);
 #endif /*CONFIG_HB_BOOT_FROM_MMC*/
 	clk_enable(&priv->clk);
 
