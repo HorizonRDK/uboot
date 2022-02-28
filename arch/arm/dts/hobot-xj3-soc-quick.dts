@@ -27,7 +27,7 @@
 		mmc0    = &sdio0;
 		/*mmc1   	= &sdio1;*/
 		/*mmc2   	= &sdio2;*/
-		i2c0    = &i2c0;
+		/*i2c0    = &i2c0;*/
 	};
 
 	chosen {
@@ -53,9 +53,11 @@
 	status = "okay";
 };
 
+/*
 &i2c0 {
        status = "okay";
 };
+*/
 
 /*
 &qspi {

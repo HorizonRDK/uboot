@@ -18,49 +18,54 @@
 			clocks = <&uart0_mclk>;
 			reg = <0x0 0xA5000000 0x0 0x1000>;
 		};
-
+/*
 	i2c0:i2c@0xA5009000 {
 		compatible = "hobot,hb-i2c";
 		reg = <0 0xA5009000 0 0x100>;
 		clock-frequency = <100000>;
 		status = "disabled";
 	};
-
+*/
+/*
 	i2c1:i2c@0xA500A000 {
 		compatible = "hobot,hb-i2c";
 		reg = <0 0xA500A000 0 0x100>;
 		clock-frequency = <100000>;
 		status = "disabled";
 	};
-
+*/
+/*
 	i2c2:i2c@0xA500B000 {
 		compatible = "hobot,hb-i2c";
 		reg = <0 0xA500B000 0 0x100>;
 		clock-frequency = <100000>;
 		status = "disabled";
 	};
-
+*/
+/*
 	i2c3:i2c@0xA500C000 {
 		compatible = "hobot,hb-i2c";
 		reg = <0 0xA500C000 0 0x100>;
 		clock-frequency = <100000>;
 		status = "disabled";
 	};
-
+*/
+/*
 	i2c4:i2c@0xA5016000 {
 		compatible = "hobot,hb-i2c";
 		reg = <0 0xA5016000 0 0x100>;
 		clock-frequency = <100000>;
 		status = "disabled";
 	};
-
+*/
+/*
 	i2c5:i2c@0xA5017000 {
 		compatible = "hobot,hb-i2c";
 		reg = <0 0xA5017000 0 0x100>;
 		clock-frequency = <100000>;
 		status = "disabled";
 	};
-
+*/
 /*
 	qspi: qspi@B0000000 {
 		u-boot,dm-pre-reloc;

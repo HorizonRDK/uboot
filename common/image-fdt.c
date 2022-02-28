@@ -169,8 +169,10 @@ static void hb_dts_node_modify(void) {
 	snprintf(cmd, sizeof(cmd), "send_id");
 	run_command(cmd, 0);
 
+#ifdef CONFIG_CMD_DETECT_PMIC
     snprintf(cmd, sizeof(cmd), "detect_pmic");
 	run_command(cmd, 0);
+#endif
 
 #ifdef CONFIG_MMC_TUNING_DATA_TRANS
 	/* write mmc tuning result to kernel device-tree */

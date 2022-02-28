@@ -467,7 +467,7 @@ static void hb_mipi_panel_reset(void)
 		reg32_write(X2_GPIO_BASE + X3_GPIO1_CTRL_REG, X3_MIPI_RESET_OUT_LOW(reg));
 	}
 }
-
+#ifdef CONFIG_DM_I2C
 static bool hb_pf5024_device_id_getable(void)
 {
 	uint8_t chip = I2C_PF5024_SLAVE_ADDR;
@@ -491,12 +491,16 @@ static bool hb_pf5024_device_id_getable(void)
 	else
 		return false;
 }
-
+#endif
 
 uint32_t hb_som_type_get(void)
 {
 	uint32_t som_id;
+#ifndef CONFIG_HB_QUICK_BOOT
 	bool flag = hb_pf5024_device_id_getable();
+#else
+	bool flag = true;
+#endif
 
 	if (hb_som_type < 0) {
 		som_id = SOM_TYPE_SEL(hb_board_id);
