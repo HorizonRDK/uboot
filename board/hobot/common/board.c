@@ -2032,7 +2032,7 @@ int last_stage_init(void)
 #ifndef CONFIG_FPGA_HOBOT
 	disable_cnn();
 #endif
-#ifdef CONFIG_MMC
+#if defined(CONFIG_MMC) && !defined(CONFIG_HB_QUICK_BOOT)
 	/* for determining mmc bus-width from environment */
 	run_command("mmc rescan", 0);
 #endif

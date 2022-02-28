@@ -25,8 +25,8 @@
 		/*spi0	= &qspi;*/
 		gmac0 	= &gmac;
 		mmc0    = &sdio0;
-		mmc1   	= &sdio1;
-		mmc2   	= &sdio2;
+		/*mmc1   	= &sdio1;*/
+		/*mmc2   	= &sdio2;*/
 		i2c0    = &i2c0;
 	};
 
@@ -98,11 +98,13 @@
 &sdio0 {
 	status = "okay";
 };
-
+/*
 &sdio1 {
 	status = "okay";
 };
-
+*/
+/*
 &sdio2 {
 	status = "okay";
 };
+*/

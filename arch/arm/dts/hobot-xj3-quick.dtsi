@@ -121,6 +121,7 @@
 		reg = <0x0 0xA5010000 0x0 0x1000>;
 		};
 
+/*
 	sdio1:dwmmc@A5011000 {
 		compatible = "hobot,hb-dw-mshc";
 		status = "disabled";
@@ -136,7 +137,9 @@
 		clocks = <&sd1_cclk>;
 		reg = <0x0 0xA5011000 0x0 0x1000>;
 		};
+*/
 
+/*
 	sdio2:dwmmc@A5012000 {
 		compatible = "hobot,hb-dw-mshc";
 		status = "disabled";
@@ -152,6 +155,7 @@
 		clocks = <&sd2_cclk>;
 		reg = <0x0 0xA5012000 0x0 0x1000>;
 	};
+*/
 
 	usb: usb {
 		#address-cells = <2>;

@@ -3029,7 +3029,8 @@ void mmc_set_preinit(struct mmc *mmc, int preinit)
 #if CONFIG_IS_ENABLED(DM_MMC)
 static int mmc_probe(bd_t *bis)
 {
-	int ret, i;
+	int ret;
+	__maybe_unused int i;
 	struct uclass *uc;
 	struct udevice *dev;
 
@@ -3042,11 +3043,14 @@ static int mmc_probe(bd_t *bis)
 	 * should allow holes, but the current MMC list does not allow that.
 	 * So if we request 0, 1, 3 we will get 0, 1, 2.
 	 */
+#ifndef CONFIG_HB_QUICK_BOOT
+/*if defined QUICK_BOOT only detect mmc0*/
 	for (i = 0; ; i++) {
 		ret = uclass_get_device_by_seq(UCLASS_MMC, i, &dev);
 		if (ret == -ENODEV)
 			break;
 	}
+#endif
 	uclass_foreach_dev(dev, uc) {
 		ret = device_probe(dev);
 		if (ret && ret != (-EOPNOTSUPP))
@@ -3082,7 +3086,7 @@ int mmc_initialize(bd_t *bis)
 	if (ret)
 		return ret;
 
-#ifndef CONFIG_SPL_BUILD
+#if !defined(CONFIG_SPL_BUILD) && !defined(CONFIG_HB_QUICK_BOOT)
 #if !(UBOOT_LOG_OPTIMIZE)
 	print_mmc_devices(',');
 #endif
@@ -3092,6 +3096,7 @@ int mmc_initialize(bd_t *bis)
 	return 0;
 }
 
+#ifndef CONFIG_HB_QUICK_BOOT
 #if CONFIG_IS_ENABLED(DM_MMC)
 int mmc_init_device(int num)
 {
@@ -3114,6 +3119,7 @@ int mmc_init_device(int num)
 
 	return 0;
 }
+#endif
 #endif
 
 #ifdef CONFIG_CMD_BKOPS_ENABLE
