@@ -81,26 +81,30 @@
 		status = "disabled";
 	};
 
+/*
 	spi0: spi@A5004000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,hb-spi";
 		status = "disabled";
 		reg = <0x0 0xA5004000 0x0 0x1000>;
 	};
-
+*/
+/*
 	spi1: spi@A5005000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,hb-spi";
 		status = "disabled";
 		reg = <0x0 0xA5005000 0x0 0x1000>;
 	};
-
+*/
+/*
 	spi2: spi@A5006000 {
 		u-boot,dm-pre-reloc;
 		compatible = "hobot,hb-spi";
 		status = "disabled";
 		reg = <0x0 0xA5006000 0x0 0x1000>;
 	};
+*/
 
 	sdio0:dwmmc@A5010000 {
 		u-boot,dm-pre-reloc;
