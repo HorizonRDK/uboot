@@ -439,6 +439,7 @@ static int initr_mmc(void)
  *
  * @return 0 if environment should not be loaded, !=0 if it is ok to load
  */
+#ifndef CONFIG_HB_QUICK_BOOT
 static int should_load_env(void)
 {
 	if (readl(HB_PMU_SW_REG_23) == 0x74726175)
@@ -451,14 +452,19 @@ static int should_load_env(void)
 	return 1;
 #endif
 }
+#endif
 
 static int initr_env(void)
 {
+#ifndef CONFIG_HB_QUICK_BOOT
 	/* initialize environment */
 	if (should_load_env())
 		env_relocate();
 	else
 		set_default_env(NULL, 0);
+#else
+	set_default_env("Quick Boot Mode", 0);
+#endif
 #ifdef CONFIG_OF_CONTROL
 	env_set_addr("fdtcontroladdr", gd->fdt_blob);
 #endif
