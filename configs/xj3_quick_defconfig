@@ -1008,6 +1008,7 @@ CONFIG_HBOT_SECURE_COMPONENT=y
 # CONFIG_LCD is not set
 # CONFIG_VIDEO_SIMPLE is not set
 # CONFIG_VIDEO_DT_SIMPLEFB is not set
+# CONFIG_HOBOT_XJ3_LCD is not set
 
 #
 # Watchdog Timer Support

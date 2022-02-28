@@ -683,4 +683,11 @@ config VIDEO_DT_SIMPLEFB
 	  The video output is initialized by U-Boot, and kept by the
 	  kernel.
 
+config HOBOT_XJ3_LCD
+	bool "Enable Hobot XJ3 LCD support"
+	depends on TARGET_XJ3
+	default y if !HB_QUICK_BOOT
+	help
+	  Support LCD displays the startup logo and battery quantity.
+
 endmenu
