@@ -21,7 +21,6 @@ config UDP_FUNCTION_FASTBOOT
 	help
 	  This enables the fastboot protocol over UDP.
 
-if FASTBOOT
 
 config FASTBOOT_BUF_ADDR
 	hex "Define FASTBOOT buffer address"
@@ -51,6 +50,7 @@ config FASTBOOT_BUF_SIZE
 	  downloads. This buffer should be as large as possible for a
 	  platform. Define this to the size available RAM for fastboot.
 
+if FASTBOOT
 config FASTBOOT_USB_DEV
 	int "USB controller number"
 	depends on USB_FUNCTION_FASTBOOT
