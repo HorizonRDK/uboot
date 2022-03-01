@@ -277,7 +277,6 @@ CONFIG_LAST_STAGE_INIT=y
 #
 # Security support
 #
-CONFIG_HASH=y
 CONFIG_AVB_VERIFY=y
 
 #
@@ -317,28 +316,28 @@ CONFIG_AUTOBOOT=y
 #
 # Info commands
 #
-CONFIG_CMD_BDI=y
+# CONFIG_CMD_BDI is not set
 # CONFIG_CMD_CONFIG is not set
-CONFIG_CMD_CONSOLE=y
+# CONFIG_CMD_CONSOLE is not set
 # CONFIG_CMD_CPU is not set
 # CONFIG_CMD_LICENSE is not set
 
 #
 # Boot commands
 #
-CONFIG_CMD_BOOTD=y
+# CONFIG_CMD_BOOTD is not set
 CONFIG_CMD_BOOTM=y
 # CONFIG_CMD_BOOTZ is not set
-CONFIG_CMD_BOOTI=y
+# CONFIG_CMD_BOOTI is not set
 # CONFIG_CMD_BOOTMENU is not set
 # CONFIG_CMD_DTIMG is not set
-CONFIG_CMD_ELF=y
+# CONFIG_CMD_ELF is not set
 CONFIG_CMD_FDT=y
-CONFIG_CMD_GO=y
-CONFIG_CMD_RUN=y
-CONFIG_CMD_IMI=y
+# CONFIG_CMD_GO is not set
+# CONFIG_CMD_RUN is not set
+# CONFIG_CMD_IMI is not set
 # CONFIG_CMD_IMLS is not set
-CONFIG_CMD_XIMG=y
+# CONFIG_CMD_XIMG is not set
 # CONFIG_CMD_POWEROFF is not set
 # CONFIG_CMD_FITUPD is not set
 # CONFIG_CMD_THOR_DOWNLOAD is not set
@@ -361,16 +360,13 @@ CONFIG_CMD_XIMG=y
 # Memory commands
 #
 # CONFIG_CMD_BINOP is not set
-CONFIG_CMD_CRC32=y
-# CONFIG_CRC32_VERIFY is not set
+# CONFIG_CMD_CRC32 is not set
 # CONFIG_CMD_EEPROM is not set
 # CONFIG_LOOPW is not set
-CONFIG_CMD_MD5SUM=y
-# CONFIG_MD5SUM_VERIFY is not set
+# CONFIG_CMD_MD5SUM is not set
 # CONFIG_CMD_MEMINFO is not set
-CONFIG_CMD_MEMORY=y
-CONFIG_CMD_MEMTEST=y
-CONFIG_SYS_ALT_MEMTEST=y
+# CONFIG_CMD_MEMORY is not set
+# CONFIG_CMD_MEMTEST is not set
 # CONFIG_CMD_MX_CYCLIC is not set
 # CONFIG_CMD_SHA1SUM is not set
 # CONFIG_CMD_STRINGS is not set
@@ -378,8 +374,8 @@ CONFIG_SYS_ALT_MEMTEST=y
 #
 # Compression commands
 #
-CONFIG_CMD_LZMADEC=y
-CONFIG_CMD_UNZIP=y
+# CONFIG_CMD_LZMADEC is not set
+# CONFIG_CMD_UNZIP is not set
 # CONFIG_CMD_ZIP is not set
 
 #
@@ -391,28 +387,27 @@ CONFIG_CMD_UNZIP=y
 # CONFIG_CMD_CLK is not set
 # CONFIG_CMD_DEMO is not set
 # CONFIG_CMD_DFU is not set
-CONFIG_CMD_DM=y
+# CONFIG_CMD_DM is not set
 # CONFIG_CMD_FDC is not set
-CONFIG_CMD_FLASH=y
+# CONFIG_CMD_FLASH is not set
 # CONFIG_CMD_FPGAD is not set
-CONFIG_CMD_FUSE=y
+# CONFIG_CMD_FUSE is not set
 # CONFIG_CMD_FUSE_EX is not set
 CONFIG_CMD_SEND_ID=y
 # CONFIG_CMD_DETECT_PMIC is not set
 CONFIG_CMD_SWINFO=y
 # CONFIG_CMD_GPIO is not set
-CONFIG_CMD_J2ID=y
-CONFIG_CMD_GPT=y
+# CONFIG_CMD_J2ID is not set
+# CONFIG_CMD_GPT is not set
 CONFIG_RANDOM_UUID=y
-CONFIG_CMD_GPT_RENAME=y
 # CONFIG_CMD_IDE is not set
 # CONFIG_CMD_IO is not set
 # CONFIG_CMD_IOTRACE is not set
 # CONFIG_CMD_I2C is not set
-CONFIG_CMD_LOADB=y
+# CONFIG_CMD_LOADB is not set
 # CONFIG_CMD_LOADS is not set
 CONFIG_CMD_MMC=y
-CONFIG_CMD_MMC_RPMB=y
+# CONFIG_CMD_MMC_RPMB is not set
 # CONFIG_CMD_MMC_SWRITE is not set
 # CONFIG_CMD_NAND is not set
 # CONFIG_CMD_MMC_SPI is not set
@@ -426,7 +421,7 @@ CONFIG_CMD_PART=y
 # CONFIG_CMD_SCSI is not set
 # CONFIG_CMD_SDRAM is not set
 # CONFIG_CMD_KEROS is not set
-CONFIG_CMD_W1=y
+# CONFIG_CMD_W1 is not set
 # CONFIG_CMD_SPI is not set
 # CONFIG_CMD_TSI148 is not set
 # CONFIG_CMD_UNIVERSE is not set
@@ -437,10 +432,10 @@ CONFIG_CMD_W1=y
 #
 # Shell scripting commands
 #
-CONFIG_CMD_ECHO=y
-CONFIG_CMD_ITEST=y
-CONFIG_CMD_SOURCE=y
-CONFIG_CMD_SETEXPR=y
+# CONFIG_CMD_ECHO is not set
+# CONFIG_CMD_ITEST is not set
+# CONFIG_CMD_SOURCE is not set
+# CONFIG_CMD_SETEXPR is not set
 # CONFIG_CMD_NET is not set
 # CONFIG_CMD_ETHSW is not set
 # CONFIG_CMD_PXE is not set
@@ -451,14 +446,14 @@ CONFIG_CMD_SETEXPR=y
 #
 # CONFIG_CMD_BSP is not set
 # CONFIG_CMD_BKOPS_ENABLE is not set
-CONFIG_CMD_BLOCK_CACHE=y
-CONFIG_CMD_CACHE=y
+# CONFIG_CMD_BLOCK_CACHE is not set
+# CONFIG_CMD_CACHE is not set
 # CONFIG_CMD_DISPLAY is not set
 # CONFIG_CMD_LED is not set
 # CONFIG_CMD_DATE is not set
 # CONFIG_CMD_TIME is not set
 # CONFIG_CMD_GETTIME is not set
-CONFIG_CMD_MISC=y
+# CONFIG_CMD_MISC is not set
 # CONFIG_MP is not set
 # CONFIG_CMD_TIMER is not set
 # CONFIG_CMD_QFW is not set
@@ -490,15 +485,12 @@ CONFIG_CMD_MISC=y
 #
 # CONFIG_CMD_BTRFS is not set
 # CONFIG_CMD_EXT2 is not set
-CONFIG_CMD_EXT4=y
-CONFIG_CMD_EXT4_WRITE=y
-CONFIG_CMD_FAT=y
+# CONFIG_CMD_EXT4 is not set
+# CONFIG_CMD_FAT is not set
 # CONFIG_CMD_FS_GENERIC is not set
 # CONFIG_CMD_FS_UUID is not set
 # CONFIG_CMD_JFFS2 is not set
 # CONFIG_CMD_MTDPARTS is not set
-CONFIG_MTDIDS_DEFAULT=""
-CONFIG_MTDPARTS_DEFAULT=""
 # CONFIG_CMD_REISER is not set
 # CONFIG_CMD_ZFS is not set
 
@@ -508,7 +500,7 @@ CONFIG_MTDPARTS_DEFAULT=""
 # CONFIG_CMD_BEDBUG is not set
 # CONFIG_CMD_DIAG is not set
 # CONFIG_CMD_KGDB is not set
-CONFIG_CMD_LOG=y
+# CONFIG_CMD_LOG is not set
 # CONFIG_CMD_TRACE is not set
 # CONFIG_CMD_AVB is not set
 # CONFIG_CMD_UBI is not set
@@ -1052,7 +1044,6 @@ CONFIG_LIBAVB=y
 # CONFIG_SHA1 is not set
 # CONFIG_SHA256 is not set
 # CONFIG_SHA_HW_ACCEL is not set
-CONFIG_MD5=y
 
 #
 # Compression Support

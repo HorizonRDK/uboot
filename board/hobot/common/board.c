@@ -787,12 +787,13 @@ static void hb_mmc_env_init(void)
 			ota_recovery_mode_set(false);
 		} else {
 			ota_upgrade_flag_check(hb_upmode, hb_bootreason);
-
+#ifdef CONFIG_CMD_GPT_RENAME
 			/* auto extend last emmc partition */
 			if (strcmp(hb_bootreason, REASON_ALL) == 0) {
 				s = "gpt extend mmc 0";
 				run_command_list(s, -1, 0);
 			}
+#endif
 		}
 	}
 
@@ -927,8 +928,10 @@ static void hb_env_and_boardid_init(void)
 
 	/* mmc or nor env init */
 #if defined CONFIG_HB_BOOT_FROM_MMC
+#ifdef CONFIG_CMD_GPT_RENAME
 		/* make sure emmc last partition is properly defined */
 		run_command("gpt extend mmc 0", 0);
+#endif /*CONFIG_CMD_GPT_RENAME*/
 		hb_mmc_env_init();
 #elif defined CONFIG_HB_BOOT_FROM_NOR
 		/* load nor kernel and dtb */

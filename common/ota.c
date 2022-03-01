@@ -380,10 +380,12 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 	if (ret < 0)
 		return ret;
 
+#ifdef CONFIG_CMD_GPT_RENAME
 	if (strcmp(name, "all") == 0) {
 		s = "gpt extend mmc 0";
 		ret = run_command_list(s, -1, 0);
 	}
+#endif
 
 	return ret;
 }
