@@ -21,6 +21,7 @@
 #define DEBUG_LOG(fmt, ...)
 #endif
 
+#ifdef CONFIG_CMD_SWINFO
 //#define SET_QOS_IN_UBOOT
 #define HB_SWINFO_MEM_ADDR		0x020ff000
 #define HB_SWINFO_MEM_MAGIC		0x57534248
@@ -34,6 +35,7 @@
 #define HB_SWINFO_BOOT_UDUMPEMMC	0x6
 #define HB_SWINFO_BOOT_UDUMPUSB		0x7
 #define HB_SWINFO_BOOT_UDUMPFASTBOOT	0x8
+#endif
 
 /* auto detection */
 #define AUTO_DETECTION	0x0

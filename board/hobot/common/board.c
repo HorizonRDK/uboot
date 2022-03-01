@@ -1849,7 +1849,7 @@ static void misc()
 //END4[prj_j2quad]
 }
 #endif
-#ifndef CONFIG_FPGA_HOBOT
+#if !defined(CONFIG_FPGA_HOBOT) && defined(CONFIG_CMD_SWINFO)
 static void hb_swinfo_boot(void)
 {
 	int retc;
@@ -2094,7 +2094,7 @@ int last_stage_init(void)
 	prepare_autoreset();
 #endif
 
-#ifndef	CONFIG_FPGA_HOBOT
+#if !defined(CONFIG_FPGA_HOBOT) && defined(CONFIG_CMD_SWINFO)
 	hb_swinfo_boot();
 #endif
 
