@@ -457,9 +457,11 @@ restart:
 #ifdef CONFIG_CMD_TFTPPUT
 		case TFTPPUT:
 #endif
+#ifdef CONFIG_CMD_TFTPBOOT
 			/* always use ARP to get server ethernet address */
 			tftp_start(protocol);
 			break;
+#endif
 #ifdef CONFIG_CMD_TFTPSRV
 		case TFTPSRV:
 			tftp_start_server();
@@ -477,13 +479,13 @@ restart:
 			dhcp_request();		/* Basically same as BOOTP */
 			break;
 #endif
-
+#ifdef CONFIG_CMD_BOOTP
 		case BOOTP:
 			bootp_reset();
 			net_ip.s_addr = 0;
 			bootp_request();
 			break;
-
+#endif
 #if defined(CONFIG_CMD_RARP)
 		case RARP:
 			rarp_try = 0;

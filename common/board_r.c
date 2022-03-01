@@ -577,7 +577,7 @@ static int initr_bbmii(void)
 }
 #endif
 
-#ifdef CONFIG_CMD_NET
+#ifdef CONFIG_HB_ETH_GMAC
 static int initr_net(void)
 {
 	DEBUG_LOG("Net:   ");
@@ -832,7 +832,7 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_BITBANGMII
 	initr_bbmii,
 #endif
-#ifdef CONFIG_CMD_NET
+#ifdef CONFIG_HB_ETH_GMAC
 	INIT_FUNC_WATCHDOG_RESET
 	initr_net,
 #endif
