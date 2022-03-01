@@ -84,14 +84,13 @@ static int initr_secondary_cpu(void)
 	return 0;
 }
 
+#ifdef CONFIG_TRACE
 static int initr_trace(void)
 {
-#ifdef CONFIG_TRACE
 	trace_init(gd->trace_buff, CONFIG_TRACE_BUFFER_SIZE);
-#endif
-
 	return 0;
 }
+#endif
 
 static int initr_reloc(void)
 {
@@ -166,11 +165,13 @@ static int initr_reloc_global_data(void)
 	return 0;
 }
 
+#ifndef CONFIG_HB_QUICK_BOOT
 static int initr_serial(void)
 {
 	serial_initialize();
 	return 0;
 }
+#endif
 
 #if defined(CONFIG_PPC) || defined(CONFIG_M68K) || defined(CONFIG_MIPS)
 static int initr_trap(void)
@@ -305,23 +306,27 @@ static int initr_dm(void)
 }
 #endif
 
+#ifdef CONFIG_BOOTSTAGE
 static int initr_bootstage(void)
 {
 	bootstage_mark_name(BOOTSTAGE_ID_START_UBOOT_R, "board_init_r");
 
 	return 0;
 }
+#endif
 
 __weak int power_init_board(void)
 {
 	return 0;
 }
 
+#ifndef CONFIG_HB_QUICK_BOOT
 static int initr_announce(void)
 {
 	debug("Now running in RAM - U-Boot at: %08lx\n", gd->relocaddr);
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
 static int initr_manual_reloc_cmdtable(void)
@@ -502,6 +507,7 @@ static int initr_api(void)
 }
 #endif
 
+#ifndef CONFIG_HB_QUICK_BOOT
 /* enable exceptions */
 #ifdef CONFIG_ARM
 static int initr_enable_interrupts(void)
@@ -509,6 +515,7 @@ static int initr_enable_interrupts(void)
 	enable_interrupts();
 	return 0;
 }
+#endif
 #endif
 
 #ifdef CONFIG_CMD_NET
@@ -673,7 +680,9 @@ static int run_main_loop(void)
  * TODO: perhaps reset the watchdog in the initcall function after each call?
  */
 static init_fnc_t init_sequence_r[] = {
+#ifdef CONFIG_TRACE
 	initr_trace,
+#endif
 	initr_reloc,
 	/* TODO: could x86/PPC have this also perhaps? */
 #ifdef CONFIG_ARM
@@ -691,13 +700,19 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 	initr_barrier,
 	initr_malloc,
+#ifndef CONFIG_HB_QUICK_BOOT
 	log_init,
+#endif
+#ifdef CONFIG_BOOTSTAGE
 	initr_bootstage,	/* Needs malloc() but has its own timer */
+#endif
 	initr_console_record,
 #ifdef CONFIG_SYS_NONCACHED_MEMORY
 	initr_noncached,
 #endif
+#ifdef CONFIG_BOOTSTAGE
 	bootstage_relocate,
+#endif
 #ifdef CONFIG_OF_LIVE
 	initr_of_live,
 #endif
@@ -721,8 +736,10 @@ static init_fnc_t init_sequence_r[] = {
 	efi_memory_init,
 #endif
 	stdio_init_tables,
+#ifndef CONFIG_HB_QUICK_BOOT
 	initr_serial,
 	initr_announce,
+#endif
 	INIT_FUNC_WATCHDOG_RESET
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
 	initr_manual_reloc_cmdtable,
@@ -793,7 +810,9 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_API
 	initr_api,
 #endif
+#ifndef CONFIG_HB_QUICK_BOOT
 	console_init_r,		/* fully init console as a device */
+#endif
 #ifdef CONFIG_DISPLAY_BOARDINFO_LATE
 	console_announce_r,
 	show_board_info,
@@ -808,9 +827,11 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_CMD_KGDB
 	initr_kgdb,
 #endif
+#ifndef CONFIG_HB_QUICK_BOOT
 	interrupt_init,
 #ifdef CONFIG_ARM
 	initr_enable_interrupts,
+#endif /*CONFIG_HB_QUICK_BOOT*/
 #endif
 #if defined(CONFIG_MICROBLAZE) || defined(CONFIG_M68K)
 	timer_init,		/* initialize timer */
