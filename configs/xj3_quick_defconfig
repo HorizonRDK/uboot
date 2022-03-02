@@ -651,30 +651,15 @@ CONFIG_FASTBOOT_BUF_SIZE=0x7000000
 #
 # GPIO Support
 #
-CONFIG_DM_GPIO=y
-# CONFIG_ALTERA_PIO is not set
-# CONFIG_DWAPB_GPIO is not set
-# CONFIG_AT91_GPIO is not set
-# CONFIG_ATMEL_PIO4 is not set
+# CONFIG_DM_GPIO is not set
 # CONFIG_DA8XX_GPIO is not set
 # CONFIG_INTEL_BROADWELL_GPIO is not set
-# CONFIG_INTEL_ICH6_GPIO is not set
 # CONFIG_IMX_RGPIO2P is not set
-# CONFIG_HSDK_CREG_GPIO is not set
 # CONFIG_LPC32XX_GPIO is not set
-# CONFIG_MSM_GPIO is not set
 # CONFIG_MXC_GPIO is not set
 # CONFIG_CMD_PCA953X is not set
-# CONFIG_ROCKCHIP_GPIO is not set
-# CONFIG_XILINX_GPIO is not set
 # CONFIG_CMD_TCA642X is not set
-# CONFIG_TEGRA_GPIO is not set
-# CONFIG_TEGRA186_GPIO is not set
 # CONFIG_VYBRID_GPIO is not set
-# CONFIG_DM_74X164 is not set
-# CONFIG_DM_PCA953X is not set
-# CONFIG_MPC8XXX_GPIO is not set
-CONFIG_HOBOT_GPIO=y
 
 #
 # I2C support
@@ -691,10 +676,7 @@ CONFIG_HOBOT_GPIO=y
 #
 # LED Support
 #
-CONFIG_LED=y
-# CONFIG_LED_BLINK is not set
-# CONFIG_LED_GPIO is not set
-# CONFIG_J2_LED is not set
+# CONFIG_LED is not set
 # CONFIG_LED_STATUS is not set
 
 #
