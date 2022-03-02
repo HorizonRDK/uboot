@@ -1374,6 +1374,7 @@ U_BOOT_CMD(
 	"-fdt_enable enable/disable <path>"
 );
 
+#ifndef CONFIG_HB_QUICK_BOOT
 static int do_fix_mmc_buswidth(cmd_tbl_t *cmdtp, int flag, int argc,
 						 char * const argv[])
 {
@@ -1416,6 +1417,7 @@ U_BOOT_CMD(
 	"fix_mmc_buswidth <mmc_buswidth>",
 	"fix mmc buswidth for older SOMs"
 );
+#endif /*CONFIG_HB_QUICK_BOOT*/
 
 static int do_set_tag_memsize(cmd_tbl_t *cmdtp, int flag,
 	int argc, char * const argv[])

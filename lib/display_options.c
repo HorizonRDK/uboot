@@ -11,6 +11,10 @@
 #include <linux/ctype.h>
 #include <asm/io.h>
 
+#ifdef CONFIG_HB_QUICK_BOOT
+const char __weak version_string[] = U_BOOT_VERSION_STRING;
+#endif
+
 char *display_options_get_banner_priv(bool newlines, const char *build_tag,
 				      char *buf, int size)
 {

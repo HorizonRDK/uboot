@@ -14,6 +14,7 @@
 
 static int curr_device = -1;
 
+#ifndef CONFIG_HB_QUICK_BOOT
 static void print_mmcinfo(struct mmc *mmc)
 {
 	int i;
@@ -95,6 +96,8 @@ static void print_mmcinfo(struct mmc *mmc)
 		}
 	}
 }
+#endif
+
 static struct mmc *init_mmc_device(int dev, bool force_init)
 {
 	struct mmc *mmc;
@@ -110,6 +113,7 @@ static struct mmc *init_mmc_device(int dev, bool force_init)
 		return NULL;
 	return mmc;
 }
+#ifndef CONFIG_HB_QUICK_BOOT
 static int do_mmcinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct mmc *mmc;
@@ -130,6 +134,7 @@ static int do_mmcinfo(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	print_mmcinfo(mmc);
 	return CMD_RET_SUCCESS;
 }
+#endif /*CONFIG_HB_QUICK_BOOT*/
 
 #if CONFIG_IS_ENABLED(CMD_MMC_RPMB)
 static int confirm_key_prog(void)
@@ -871,7 +876,9 @@ static int do_mmc_bkops_enable(cmd_tbl_t *cmdtp, int flag,
 #endif
 
 static cmd_tbl_t cmd_mmc[] = {
+#ifndef CONFIG_HB_QUICK_BOOT
 	U_BOOT_CMD_MKENT(info, 1, 0, do_mmcinfo, "", ""),
+#endif
 	U_BOOT_CMD_MKENT(read, 4, 1, do_mmc_read, "", ""),
 #if CONFIG_IS_ENABLED(MMC_WRITE)
 	U_BOOT_CMD_MKENT(write, 4, 0, do_mmc_write, "", ""),
@@ -931,7 +938,9 @@ static int do_mmcops(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 U_BOOT_CMD(
 	mmc, 29, 1, do_mmcops,
 	"MMC sub system",
+#ifndef CONFIG_HB_QUICK_BOOT
 	"info - display info of the current MMC device\n"
+#endif
 	"mmc read addr blk# cnt\n"
 	"mmc write addr blk# cnt\n"
 #if CONFIG_IS_ENABLED(CMD_MMC_SWRITE)
@@ -975,9 +984,11 @@ U_BOOT_CMD(
 #endif
 	);
 
+#ifndef CONFIG_HB_QUICK_BOOT
 /* Old command kept for compatibility. Same as 'mmc info' */
 U_BOOT_CMD(
 	mmcinfo, 1, 0, do_mmcinfo,
 	"display MMC info",
 	"- display info of the current MMC device"
 );
+#endif

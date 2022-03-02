@@ -7,8 +7,10 @@ ifndef CONFIG_SPL_BUILD
 # core command
 obj-y += boot.o
 obj-$(CONFIG_CMD_BOOTM) += bootm.o
+ifndef CONFIG_HB_QUICK_BOOT
 obj-y += help.o
 obj-y += version.o
+endif
 
 # command
 obj-$(CONFIG_CMD_AES) += aes.o
@@ -178,8 +180,9 @@ obj-$(CONFIG_CMD_AVB) += avb.o
 obj-$(CONFIG_X86) += x86/
 
 obj-$(CONFIG_ARCH_MVEBU) += mvebu/
-
+ifndef CONFIG_HB_QUICK_BOOT
 obj-y += ota.o
+endif
 obj-$(CONFIG_HB_WATCHDOG) += watchdog.o
 endif # !CONFIG_SPL_BUILD
 
