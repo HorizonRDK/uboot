@@ -49,7 +49,13 @@ static u32 fastboot_bytes_send;
  */
 static u32 fastboot_bytes_expected;
 
+/**
+ * fastboot_bytes_loaded - number of bytes for current fastboot loaded
+ */
+static u32 fastboot_bytes_loaded = 0;
+
 static void okay(char *, char *);
+static void reset(char *, char *);
 static void getvar(char *, char *);
 static void download(char *, char *);
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH)
@@ -126,6 +132,10 @@ static const struct {
 		.command = "set_active",
 		.dispatch = okay
 	},
+	[FASTBOOT_COMMAND_RESET] =  {
+		.command = "reset",
+		.dispatch = reset
+	},
 #if CONFIG_IS_ENABLED(FASTBOOT_CMD_OEM_FORMAT)
 	[FASTBOOT_COMMAND_OEM_FORMAT] = {
 		.command = "oem format",
@@ -197,6 +207,21 @@ int fastboot_handle_command(char *cmd_string, char *response)
  */
 static void okay(char *cmd_parameter, char *response)
 {
+	fastboot_okay(NULL, response);
+}
+
+/**
+ * reset() - Do fastboot context reset
+ *
+ * @cmd_parameter: Pointer to command parameter
+ * @response: Pointer to fastboot response buffer
+ *
+ * Do fastboot context reset. (eg. static variable fastboot_bytes_loaded... )
+ */
+static void reset(char *cmd_parameter, char *response)
+{
+	fastboot_bytes_loaded = 0;
+
 	fastboot_okay(NULL, response);
 }
 
@@ -426,24 +451,26 @@ static void load(char *cmd_parameter, char *response)
 	if (fastboot_get_flash_type() == FLASH_TYPE_UNKNOWN ||
 			fastboot_get_flash_type() == FLASH_TYPE_EMMC) {
 		bytes_loaded = fastboot_mmc_flash_read(cmd_parameter, fastboot_buf_addr,
-				fastboot_buf_size, response);
+				fastboot_buf_size, fastboot_bytes_loaded, response);
 	}
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_NAND)
 	if (fastboot_get_flash_type() == FLASH_TYPE_NAND)
 		bytes_loaded = fastboot_nand_flash_read(cmd_parameter, fastboot_buf_addr,
-				fastboot_buf_size, response);
+				fastboot_buf_size, fastboot_bytes_loaded, response);
 #endif
 #if CONFIG_IS_ENABLED(FASTBOOT_FLASH_SPINAND)
 #if 0
 	if (fastboot_get_flash_type() == FLASH_TYPE_SPINAND)
 		fastboot_spinand_flash_read(cmd_parameter, fastboot_buf_addr,
-				fastboot_buf_size, response);
+				fastboot_buf_size, fastboot_bytes_loaded, response);
+#endif
 #endif
 
-	if (bytes_loaded > 0)
+	if (bytes_loaded > 0) {
+		fastboot_bytes_loaded += bytes_loaded;
 		fastboot_response("DATA", response, "%08x", bytes_loaded);
-#endif
+	}
 }
 
 /**

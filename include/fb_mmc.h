@@ -41,9 +41,9 @@ void fastboot_mmc_erase(const char *cmd, char *response);
  * @cmd: Named partition to write image to
  * @upload_buffer: buffer to load image data
  * @buffer_size: size of upload_buffer
- * @partition_name: name of partition
+ * @offset: offset that bytes already loaded
  * @response: Pointer to fastboot response buffer
  */
-int fastboot_mmc_flash_read(const char *cmd, void *upload_buffer,
-			u32 buffer_size, char *response);
+int fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
+			u32 buffer_size, u32 offset, char *response);
 #endif
