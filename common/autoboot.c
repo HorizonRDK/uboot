@@ -208,6 +208,7 @@ static int __abortboot(int bootdelay)
 static int menukey;
 #endif
 
+#if !defined(CONFIG_HB_QUICK_BOOT) || (CONFIG_BOOTDELAY != 0)
 static int __abortboot(int bootdelay)
 {
 	int abort = 0;
@@ -266,14 +267,18 @@ static int __abortboot(int bootdelay)
 	return abort;
 }
 # endif	/* CONFIG_AUTOBOOT_KEYED */
+#endif /*CONFIG_HB_QUICK_BOOT*/
 
 static int abortboot(int bootdelay)
 {
 	int abort = 0;
-
+#if !defined(CONFIG_HB_QUICK_BOOT) || (CONFIG_BOOTDELAY != 0)
 	if (bootdelay >= 0)
 		abort = __abortboot(bootdelay);
-
+#else
+	printf("Hit any key to stop autoboot: %2d, Skip bootdelay...\r\n",
+		   bootdelay);
+#endif /*CONFIG_HB_QUICK_BOOT*/
 #ifdef CONFIG_SILENT_CONSOLE
 	if (abort)
 		gd->flags &= ~GD_FLG_SILENT;
@@ -299,6 +304,7 @@ static void process_fdt_options(const void *blob)
 #endif /* CONFIG_OF_CONTROL && CONFIG_SYS_TEXT_BASE */
 }
 
+#if !defined(CONFIG_HB_QUICK_BOOT) || (CONFIG_BOOTDELAY != 0)
 const char *bootdelay_process(void)
 {
 	char *s;
@@ -336,13 +342,27 @@ const char *bootdelay_process(void)
 
 	return s;
 }
+#else
+const char *bootdelay_process(void)
+{
+	char *s;
+	bootcount_inc();
+	bootretry_init_cmd_timeout();
+	process_fdt_options(gd->fdt_blob);
+	stored_bootdelay = CONFIG_BOOTDELAY;
+	s = env_get("bootcmd");
+	return s;
+}
+#endif
 
 void autoboot_command(const char *s)
 {
 	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 	/*enter main_loop when need dump mem.add by hobot*/
+#if !defined(CONFIG_HB_QUICK_BOOT) || (CONFIG_BOOTDELAY != 0)
 	if (env_get("ubootwait") != NULL)
 		return;
+#endif
 
 	if (stored_bootdelay != -1 && s && !abortboot(stored_bootdelay)) {
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
