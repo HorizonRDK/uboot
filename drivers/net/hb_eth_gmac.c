@@ -823,9 +823,10 @@ static int eqos_start(struct udevice *dev)
 
     phy_addr = fdtdec_get_int(blob, node, "phyaddr",0);
 
-    // if baseboard is customer board, set phy addr to 0x0
-    if (hb_base_board_type_get() == BASE_BOARD_X3_SDB) {
-        debug("customer board\n");
+    // if baseboard is SDB or CVB, set phy addr to 0x0
+    if (hb_base_board_type_get() == BASE_BOARD_X3_SDB ||
+        hb_base_board_type_get() == BASE_BOARD_CVB) {
+        debug("SDB or CVB\n");
         phy_addr = 0x0;
     }
 #if defined CONFIG_TARGET_XJ3 || defined CONFIG_TARGET_X3_FPGA
