@@ -195,7 +195,7 @@ CONFIG_PHYS_64BIT=y
 #
 CONFIG_ANDROID_BOOT_IMAGE=y
 # CONFIG_FIT is not set
-CONFIG_IMAGE_FORMAT_LEGACY=y
+# CONFIG_IMAGE_FORMAT_LEGACY is not set
 # CONFIG_OF_BOARD_SETUP is not set
 # CONFIG_OF_SYSTEM_SETUP is not set
 # CONFIG_OF_STDOUT_VIA_ALIAS is not set
@@ -375,7 +375,6 @@ CONFIG_CMD_FDT=y
 # Compression commands
 #
 # CONFIG_CMD_LZMADEC is not set
-# CONFIG_CMD_UNZIP is not set
 # CONFIG_CMD_ZIP is not set
 
 #
@@ -1031,9 +1030,9 @@ CONFIG_LIBAVB=y
 # Compression Support
 #
 CONFIG_LZ4=y
-CONFIG_GZIP=y
-CONFIG_LZMA=y
-CONFIG_LZO=y
+# CONFIG_GZIP is not set
+# CONFIG_LZMA is not set
+# CONFIG_LZO is not set
 # CONFIG_SPL_LZO is not set
 # CONFIG_SPL_GZIP is not set
 # CONFIG_ERRNO_STR is not set
