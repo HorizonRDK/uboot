@@ -716,6 +716,13 @@ config HB_QUICK_BOOT
 	help
 	  XJ3 quick boot mode(emmc only), Optimize unnecessary startup procedures.
 
+config PARALLEL_CPU_CORE_ONE
+	depends on HB_QUICK_BOOT
+	bool "USE_SECOND_CPU"
+	select ARM_SMCCC
+	help
+	  use the second cpu core(core1) for init system. Speed up system startup.
+
 endmenu # Horizon Quick Boot
 
 source "common/spl/Kconfig"

@@ -21,8 +21,25 @@
 #define CONFIG_ARMV8_SWITCH_TO_EL1
 #define CONFIG_SYS_NONCACHED_MEMORY		(1 << 20)
 
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+#define CPU_NUM                             (4)
+#define COR0_PWR_CTRL_REG                   (0xA1000490UL)
+#define COR1_PWR_CTRL_REG                   (0xA1000494UL)
+#define COR2_PWR_CTRL_REG                   (0xA1000498UL)
+#define COR3_PWR_CTRL_REG                   (0xA100049CUL)
+#define CORn_PWR_CTRL_REG_PWR_ON            (0x0001)
+#define CORn_PWR_CTRL_REG_STS               (0x0F00)
+#define CORn_PWR_CTRL_REG_STS_COMPLETE      (0x0800)
+
+#define PMU_CPU_WFI_STS                     (0xA6000048)
+#define X2A_CPU1_POWEROFF                   (0xA6000240)
+#define X2A_CPU2_POWEROFF                   (0xA6000244)
+#define X2A_CPU3_POWEROFF                   (0xA6000248)
+#define CPU_RELEASE_ADDR		            X2A_CPU1_POWEROFF
+#else
 /* sw_reg30 and sw_reg31 in pmu */
 #define CPU_RELEASE_ADDR		(0xA6000278)
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
 #define X3_USABLE_RAM_TOP		(0x6000000)	/* Top is + 96MB */

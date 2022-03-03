@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2000-2009
@@ -11,6 +12,9 @@
 #include <malloc.h>
 #include <vxworks.h>
 #include <tee/optee.h>
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+#include "configs/xj3_cpus.h"
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -503,6 +507,10 @@ static boot_os_fn *boot_os[] = {
 __weak void arch_preboot_os(void)
 {
 	/* please define platform specific arch_preboot_os() */
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+	if (wait_salve_core)
+		wait_salve_core();
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 }
 
 int boot_selected_os(int argc, char * const argv[], int state,

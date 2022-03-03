@@ -373,3 +373,63 @@ ENDPROC(c_runtime_cpu_setup)
 WEAK(save_boot_params)
 	b	save_boot_params_ret	/* back to my caller */
 ENDPROC(save_boot_params)
+
+#if defined(CONFIG_PARALLEL_CPU_CORE_ONE)
+ENTRY(slave_e)
+	/*
+	 * Could be EL3/EL2/EL1, Initial State:
+	 * Little Endian, MMU Disabled, i/dCache Disabled
+	 */
+	switch_el x1, 3f, 2f, 1f
+3:	set_vbar vbar_el3, x0
+	mrs	x0, scr_el3
+	orr	x0, x0, #0xf			/* SCR_EL3.NS|IRQ|FIQ|EA */
+	msr	scr_el3, x0
+	msr	cptr_el3, xzr			/* Enable FP/SIMD */
+#ifdef COUNTER_FREQUENCY
+	ldr	x0, =COUNTER_FREQUENCY
+	msr	cntfrq_el0, x0			/* Initialize CNTFRQ */
+#endif /*COUNTER_FREQUENCY*/
+	b	0f
+2:	set_vbar	vbar_el2, x0
+	mov	x0, #0x33ff
+	msr	cptr_el2, x0			/* Enable FP/SIMD */
+	b	0f
+1:	set_vbar	vbar_el1, x0
+	mov	x0, #3 << 20
+	msr	cpacr_el1, x0			/* Enable FP/SIMD */
+0:
+
+	/*
+	 * Enable SMPEN bit for coherency.
+	 * This register is not architectural but at the moment
+	 * this bit should be set for A53/A57/A72.
+	 */
+#ifdef CONFIG_ARMV8_SET_SMPEN
+	switch_el x1, 3f, 1f, 1f
+3:
+	mrs     x0, S3_1_c15_c2_1               /* cpuectlr_el1 */
+	orr     x0, x0, #0x40
+	msr     S3_1_c15_c2_1, x0
+1:
+#endif /* CONFIG_ARMV8_SET_SMPEN */
+
+	/* Apply ARM core specific erratas */
+	bl	apply_core_errata
+
+1:	wfe
+	ldr	x1, =CPU_RELEASE_ADDR
+	ldr	x0, [x1]
+	cbz	x0, 1b
+	str     xzr, [x1]
+	br	x0			/* branch to the given address */
+ENDPROC(slave_e)
+ENTRY(psci_cpu_entry)
+	ldr x3, =sp_slave_core1
+	ldr x4, [x3]
+	mov sp, x4
+	ldr x3, =gd_slave_core1
+	ldr x18, [x3]
+	b   slave_core1_cycle
+ENDPROC(psci_cpu_entry)
+#endif /* CONFIG_PARALLEL_CPU_CORE_ONE */

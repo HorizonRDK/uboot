@@ -754,6 +754,15 @@ __weak int arch_cpu_init_dm(void)
 	return 0;
 }
 
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+/*initialize core1 global data*/
+void slave_core_board_init(void)
+{
+	setup_dest_addr();
+	reserve_mmu();
+}
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
+
 static const init_fnc_t init_sequence_f[] = {
 	setup_mon_len,
 #ifdef CONFIG_OF_CONTROL

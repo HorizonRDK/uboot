@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Code shared between SPL and U-Boot proper
@@ -7,6 +8,9 @@
  */
 
 #include <common.h>
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+#include "configs/xj3_cpus.h"
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -49,7 +53,13 @@ ulong board_init_f_alloc_reserve(ulong top)
 	top -= CONFIG_VAL(SYS_MALLOC_F_LEN);
 #endif
 	/* LAST : reserve GD (rounded up to a multiple of 16 bytes) */
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+	/* add core1 global data and stack region*/
+	top = rounddown(top - 2 * sizeof(struct global_data) - SLAVE_CORE_STACK_SIZE,
+					16);
+#else
 	top = rounddown(top-sizeof(struct global_data), 16);
+#endif /* CONFIG_PARALLEL_CPU_CORE_ONE */
 
 	return top;
 }
@@ -107,13 +117,23 @@ void board_init_f_init_reserve(ulong base)
 
 	gd_ptr = (struct global_data *)base;
 	/* zero the area */
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+	memset(gd_ptr, '\0', 2 * sizeof(*gd));
+#else
 	memset(gd_ptr, '\0', sizeof(*gd));
+#endif /* CONFIG_PARALLEL_CPU_CORE_ONE */
+
 	/* set GD unless architecture did it already */
 #if !defined(CONFIG_ARM)
 	arch_setup_gd(gd_ptr);
 #endif
 	/* next alloc will be higher by one GD plus 16-byte alignment */
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+	/* add core1 global data and stack region*/
+	base += roundup(2 * sizeof(struct global_data) + SLAVE_CORE_STACK_SIZE, 16);
+#else
 	base += roundup(sizeof(struct global_data), 16);
+#endif /* CONFIG_PARALLEL_CPU_CORE_ONE */
 
 	/*
 	 * record early malloc arena start.

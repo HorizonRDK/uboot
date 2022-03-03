@@ -282,6 +282,7 @@ CONFIG_LAST_STAGE_INIT=y
 # Horizon Quick Boot
 #
 CONFIG_HB_QUICK_BOOT=y
+# CONFIG_PARALLEL_CPU_CORE_ONE is not set
 
 #
 # SPL / TPL

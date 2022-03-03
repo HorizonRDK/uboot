@@ -51,6 +51,11 @@
 #include <efi_loader.h>
 #include <hb_info.h>
 #include <asm/arch/hb_pmu.h>
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+#include <asm/psci.h>
+#include "configs/xj3_cpus.h"
+#include "configs/xj3.h"
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -245,6 +250,14 @@ static int initr_malloc(void)
 	malloc_start = gd->relocaddr - TOTAL_MALLOC_LEN;
 	mem_malloc_init((ulong)map_sysmem(malloc_start, TOTAL_MALLOC_LEN),
 			TOTAL_MALLOC_LEN);
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+	/*master core malloc 4K memory space for slave core malloc*/
+	core1_malloc_base = (void *)malloc(SLAVE_CORE_MALLOC_SIZE_MAX);
+	if (NULL == core1_malloc_base)
+		pr_err("core0 malloc 0x%x failed,cannot set core1_malloc_base\n",
+		       SLAVE_CORE_MALLOC_SIZE_MAX);
+	debug("core0 malloc res=0x%p\n", core1_malloc_base);
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 	return 0;
 }
 
@@ -700,6 +713,9 @@ static init_fnc_t init_sequence_r[] = {
 #endif
 	initr_barrier,
 	initr_malloc,
+#ifdef CONFIG_PARALLEL_CPU_CORE_ONE
+	wake_slave_core,
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 #ifndef CONFIG_HB_QUICK_BOOT
 	log_init,
 #endif
