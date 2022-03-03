@@ -273,7 +273,6 @@ CONFIG_LAST_STAGE_INIT=y
 #
 # Security support
 #
-CONFIG_AVB_VERIFY=y
 
 #
 # Update support
@@ -497,7 +496,6 @@ CONFIG_CMD_PART=y
 # CONFIG_CMD_KGDB is not set
 # CONFIG_CMD_LOG is not set
 # CONFIG_CMD_TRACE is not set
-# CONFIG_CMD_AVB is not set
 # CONFIG_CMD_UBI is not set
 
 #
@@ -1008,7 +1006,7 @@ CONFIG_LIB_RAND=y
 #
 # Android Verified Boot
 #
-CONFIG_LIBAVB=y
+# CONFIG_LIBAVB is not set
 
 #
 # Hashing Support

@@ -252,7 +252,9 @@ void hb_set_serial_number(void)
 }
 
 int hb_check_secure(void) {
-	uint32_t reg;
+#ifdef CONFIG_HB_QUICK_BOOT
+	return false;
+#endif
 	char *if_secure_env = env_get("secure_en");
 	int ret = 0;
 
