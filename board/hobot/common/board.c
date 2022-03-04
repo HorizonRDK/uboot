@@ -654,57 +654,56 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		memset(tmp, 0, sizeof(tmp));
 
 #if defined CONFIG_HB_BOOT_FROM_MMC
-		if (boot_mode == PIN_2ND_EMMC) {
-			char ubuntu_magic[4] = { 0 };
-			bool ubuntu_boot = false;
-			veeprom_read(VEEPROM_UBUNTU_MAGIC_OFFSET, ubuntu_magic, VEEPROM_UBUNTU_MAGIC_SIZE);
-			ubuntu_boot = (strncmp(UBUNTU_MAGIC, ubuntu_magic, sizeof(ubuntu_magic)) == 0);
-			if(!if_secure) {
-				strncat(bootargs_str, ubuntu_boot ? " rw systemd.gpt_auto=0" :" ro" ,
-						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-				strncat(bootargs_str, " rootwait",
-						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-				snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
-						get_partition_id(system_partition));
-				strncat(bootargs_str, tmp,
-						sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-			}
-#elif defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
-			/* ro/rw judgement from volume type */
-			ubi_part(rootfs_mtd_name, NULL);
-			vol = ubi_find_volume(rootfs_vol_name);
-			if (vol != NULL) {
-				strncat(bootargs_str,
-					vol->vol_type == UBI_STATIC_VOLUME ? " ro" : " rw",
+		char ubuntu_magic[4] = { 0 };
+		bool ubuntu_boot = false;
+		veeprom_read(VEEPROM_UBUNTU_MAGIC_OFFSET, ubuntu_magic, VEEPROM_UBUNTU_MAGIC_SIZE);
+		ubuntu_boot = (strncmp(UBUNTU_MAGIC, ubuntu_magic, sizeof(ubuntu_magic)) == 0);
+		if(!if_secure) {
+			strncat(bootargs_str, ubuntu_boot ? " rw systemd.gpt_auto=0" :" ro" ,
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-			} else {
-				printf("Rootfs volume: %s not found in UBI partition: %s\n",
-						rootfs_vol_name, rootfs_mtd_name);
-				/* Stop at UBoot */
-				env_set("bootdelay", "-1");
-			}
-
 			strncat(bootargs_str, " rootwait",
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-			root_mtd = get_mtd_device_nm(rootfs_mtd_name);
-			rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
-			/* If neccessary, add logic to determine which ubi device is
-				rootfs, ubi0 and volume name rootfs is used as default */
-			snprintf(tmp, sizeof(tmp), " root=ubi0:rootfs ubi.mtd=%d", rootfs_mtdnm);
+			snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
+					get_partition_id(system_partition));
+			strncat(bootargs_str, tmp,
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+		}
+#elif defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+		/* ro/rw judgement from volume type */
+		ubi_part(rootfs_mtd_name, NULL);
+		vol = ubi_find_volume(rootfs_vol_name);
+		if (vol != NULL) {
+			strncat(bootargs_str,
+				vol->vol_type == UBI_STATIC_VOLUME ? " ro" : " rw",
+				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+		} else {
+			printf("Rootfs volume: %s not found in UBI partition: %s\n",
+					rootfs_vol_name, rootfs_mtd_name);
+			/* Stop at UBoot */
+			env_set("bootdelay", "-1");
+		}
+
+		strncat(bootargs_str, " rootwait",
+				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+		root_mtd = get_mtd_device_nm(rootfs_mtd_name);
+		rootfs_mtdnm = (root_mtd == NULL) ? 4 : (root_mtd->index - 1);
+		/* If neccessary, add logic to determine which ubi device is
+			rootfs, ubi0 and volume name rootfs is used as default */
+		snprintf(tmp, sizeof(tmp), " root=ubi0:rootfs ubi.mtd=%d", rootfs_mtdnm);
+		strncat(bootargs_str, tmp,
+			sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+		if (boot_mode == PIN_2ND_NAND) {
+			/* For nand, page size must also be specified */
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), ",%d",
+						(root_mtd == NULL) ? 2048 : root_mtd->writesize);
 			strncat(bootargs_str, tmp,
 				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-			if (boot_mode == PIN_2ND_NAND) {
-				/* For nand, page size must also be specified */
-				memset(tmp, 0, sizeof(tmp));
-				snprintf(tmp, sizeof(tmp), ",%d",
-						 (root_mtd == NULL) ? 2048 : root_mtd->writesize);
-				strncat(bootargs_str, tmp,
-					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-			}
-			/* For Flashes, Kernel MTD partition is constructed with mtdparts */
-			strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-			strncat(bootargs_str, env_get("mtdparts"),
-					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+		}
+		/* For Flashes, Kernel MTD partition is constructed with mtdparts */
+		strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+		strncat(bootargs_str, env_get("mtdparts"),
+				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 #endif
 		/* Use extra_bootargs to append extra bootargs to bootargs when necessary */
 		extra_bootargs = env_get("extra_bootargs");
