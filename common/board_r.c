@@ -55,6 +55,12 @@
 #include <asm/psci.h>
 #include "configs/xj3_cpus.h"
 #include "configs/xj3.h"
+#if (CONFIG_BOOTDELAY == 0)
+#include <image.h>
+#include <part.h>
+#include <ota.h>
+#include <veeprom.h>
+#endif/*CONFIG_BOOTDELAY=0*/
 #endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -668,6 +674,119 @@ static int initr_bedbug(void)
 }
 #endif
 
+#if (CONFIG_BOOTDELAY == 0) && defined(CONFIG_PARALLEL_CPU_CORE_ONE)
+/**
+ * just update "boot_partion",before core0 mmc read boot image
+ * this function must run before mmc load
+ * this function will run again in last_stage_init()
+ */
+static void update_boot_partion(void)
+{
+	char upmode[VEEPROM_UPDATE_MODE_SIZE + 1] = { 0 };
+	char boot_reason[VEEPROM_RESET_REASON_SIZE + 1] = { 0 };
+	char partstatus;
+	int32_t boot_stat;
+
+	veeprom_init();
+	/* read veeprom hb_bootreason */
+	veeprom_read(VEEPROM_RESET_REASON_OFFSET, boot_reason,
+			VEEPROM_RESET_REASON_SIZE);
+	snprintf(hb_bootreason, sizeof(hb_bootreason), "%s", boot_reason);
+
+	/* read veeprom hb_upmode */
+	veeprom_read(VEEPROM_UPDATE_MODE_OFFSET, upmode,
+			VEEPROM_UPDATE_MODE_SIZE);
+	snprintf(hb_upmode, sizeof(hb_upmode), "%s", upmode);
+	veeprom_read(VEEPROM_ABMODE_STATUS_OFFSET, &partstatus,
+			VEEPROM_ABMODE_STATUS_SIZE);
+	boot_stat = (partstatus >> BOOT_OFFSET_FLAG) & 0x1;
+	if (boot_stat == 1) {
+		snprintf(boot_partition, sizeof(boot_partition), "%s",
+			 BOOT_BAK_PARTITION_NAME);
+	}
+}
+
+/**
+ * when core1 initializing environment, core0 load boot image(boot.img only).
+ *
+ * NOICE:
+ * 	1. read boot.img from eMMC storage.
+ * 	2. env_set() and env_get() is forbidden.
+ * 	3. just hb_bootreason is noraml, other bootreason will return.
+ */
+static int32_t load_image_without_env(void)
+{
+	int32_t ret, part;
+
+	char cmd_mmc_read[512] = { 0 };
+	struct blk_desc *desc;
+	disk_partition_t info;
+
+	/*update boot partion name from veeprom*/
+	update_boot_partion();
+	DEBUG_LOG("hb_upmode=%s, hb_bootreason=%s\n", hb_upmode, hb_bootreason);
+	/*when bootreason is not normal, NOT load boot image before*/
+	/*bootcmd will run mmc read*/
+	if (strcmp(hb_bootreason, REASON_NORMAL) != 0) {
+		return 0;
+	}
+
+	/*check mmc device on slot 0*/
+	ret = blk_get_device_by_str("mmc", "0", &desc);
+	if (ret < 0) {
+		pr_err("%s:Cannot find mmc on slot 0,err=%d\n", __FUNCTION__,
+		       ret);
+		goto finish;
+	}
+	/*read image info(start and size) by boot_partition*/
+	part = part_get_info_by_name(desc, boot_partition, &info);
+	if (-1 == part) {
+		pr_err("%s:Cannot find partition:%s\n", __FUNCTION__, boot_partition);
+		goto finish;
+	}
+
+	snprintf(cmd_mmc_read, sizeof(cmd_mmc_read), "%s mmc read %x %lx %lx",
+		 HB_SET_WDT, BOOTIMG_ADDR, info.start, info.size);
+	DEBUG_LOG("core0: load boot_partition=%s, command=%s\n",
+			  boot_partition, cmd_mmc_read);
+
+	/*load boot image by cmd_mmc_read command*/
+	run_command(cmd_mmc_read, 0);
+
+finish:
+	return 0;
+}
+
+/**
+ * This function run after read bootimage(mmc read boot.img)
+ * master core(core0) wait other core has been initialized uboot environment
+ * this function maybe cause choke, degrade system performance
+ **/
+static int32_t wait_for_env(void)
+{
+	int32_t i = 0;
+#define CORE0_WAIT_ENV_TIMEOUT 0
+	DEBUG_LOG("core0 wait for env set...");
+	while (!env_is_ready(gd)) {
+		udelay(10);
+		i++;
+		if (i > CORE0_WAIT_ENV_TIMEOUT)
+			break;
+	}
+	if (env_is_ready(gd)) {
+		DEBUG_LOG("OK\n");
+		return 0;
+	}
+	/*core0 can not get env, kill core1 and do_work by core0*/
+	DEBUG_LOG("error\n");
+	hb_kill_slave_core();
+	initr_env();
+
+	return 0;
+}
+
+#endif /*CONFIG_BOOTDELAY=0 && CONFIG_PARALLEL_CPU_CORE_ONE*/
+
 static int run_main_loop(void)
 {
 #ifdef CONFIG_SANDBOX
@@ -805,7 +924,12 @@ static init_fnc_t init_sequence_r[] = {
 #ifdef CONFIG_MMC
 	initr_mmc,
 #endif
+#if (CONFIG_BOOTDELAY == 0) && defined(CONFIG_PARALLEL_CPU_CORE_ONE)
+	load_image_without_env,
+	wait_for_env,
+#else
 	initr_env,
+#endif
 #ifdef CONFIG_SYS_BOOTPARAMS_LEN
 	initr_malloc_bootparams,
 #endif

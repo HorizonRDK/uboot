@@ -724,6 +724,13 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		} else {
 			snprintf(tmp, sizeof(tmp), CONFIG_BOOTCOMMAND,
 				 boot_partition, boot_partition);
+#if (CONFIG_BOOTDELAY == 0) && defined(CONFIG_PARALLEL_CPU_CORE_ONE)
+		/*The boot image(boot.img) was preinstalled in DDR earlier,
+		*so not need reread from eMMC, just run bootm command*/
+			if (strcmp(hb_bootreason, REASON_NORMAL) == 0) {
+				snprintf(tmp, sizeof(tmp), BOOTCOMMAND_DIRECT_BOOTM);
+			}
+#endif /*CONFIG_BOOTDELAY=0 && CONFIG_PARALLEL_CPU_CORE_ONE*/
 			env_set("bootcmd", tmp);
 		}
 #elif defined CONFIG_HB_BOOT_FROM_NOR

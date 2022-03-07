@@ -27,8 +27,8 @@
 
 #define RESERVE_MEM_LEN    (64)
 struct reserve_mem{
-	char reserve[RESERVE_MEM_LEN - sizeof(unsigned int)];
-	unsigned int done;
+	char reserve[RESERVE_MEM_LEN - sizeof(uint32_t)];
+	uint32_t done;
 };
 
 #define CPU_NUM                             (4)
@@ -56,6 +56,10 @@ struct reserve_mem{
 #define SPAIN_DELAY_TIME      (10)
 #define SPAIN_PRINT_CNT       (500000 / SPAIN_DELAY_TIME)
 
+#define ERR_NO_FREE_MEM			1
+#define ERR_ENV_NOT_READY		2
+#define ERR_UNKNOW_CPU			3
+
 typedef void(*wait_salve_core_t)(void);
 extern volatile wait_salve_core_t wait_salve_core;
 extern void *core1_malloc_base;
@@ -66,8 +70,9 @@ extern void *core1_malloc_base;
 #define CPU_CORE_2 (CPU_CORE_MPIDR_EL1_BASE + 0x2)
 #define CPU_CORE_3 (CPU_CORE_MPIDR_EL1_BASE + 0x3)
 
-int wake_slave_core(void);
+int32_t wake_slave_core(void);
 void slave_core_board_init(void); /* for core board init */
 uint64_t hb_kill_slave_core(void);
+bool env_is_ready(volatile struct global_data *p_gd);
 void show_gd_info(const char *s, const volatile struct global_data *p_gd);
 #endif // INCLUDE_CONFIGS_XJ3_CPUS_H_

@@ -158,6 +158,10 @@
 	"part start mmc 0 %s bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
 	" ${bootimageblk} ${bootimagesize};bootm "__stringify(BOOTIMG_ADDR)";"
 
+#if (CONFIG_BOOTDELAY == 0) && defined(CONFIG_PARALLEL_CPU_CORE_ONE)
+/*Only run bootm command*/
+#define BOOTCOMMAND_DIRECT_BOOTM "bootm "__stringify(BOOTIMG_ADDR)";"
+#endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 /*
  * This include file must after CONFIG_BOOTCOMMAND
  * and must include, otherwise will generate getenv failed
