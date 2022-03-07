@@ -190,9 +190,9 @@ static void write_raw_image_to_addr(struct blk_desc *dev_desc, long addr,
 	fastboot_okay(NULL, response);
 }
 
-static int read_raw_image(struct blk_desc *dev_desc, disk_partition_t *info,
+static int64_t read_raw_image(struct blk_desc *dev_desc, disk_partition_t *info,
 		const char *part_name, void *buffer,
-		u32 size, u32 offset, char *response)
+		u64 size, s64 offset, char *response)
 {
 	lbaint_t blkcnt;
 	lbaint_t blks;
@@ -238,8 +238,8 @@ static int read_raw_image(struct blk_desc *dev_desc, disk_partition_t *info,
 /**
  * read_raw_image_to_addr - write raw image to addr
  */
-static int read_raw_image_from_addr(struct blk_desc *dev_desc, long addr,
-		int blksz, void *buffer, u32 size, u32 offset, char *response)
+static int64_t read_raw_image_from_addr(struct blk_desc *dev_desc, u64 addr,
+		u64 blksz, void *buffer, u64 size, s64 offset, char *response)
 {
 	lbaint_t blkcnt;
 	lbaint_t blks;
@@ -262,7 +262,7 @@ static int read_raw_image_from_addr(struct blk_desc *dev_desc, long addr,
 		return -1;
 	}
 
-	printf("........ read " LBAFU " bytes from 0x%lx\n",
+	printf("........ read \" %llu \" bytes from 0x%llx\n",
 			blkcnt * blksz, addr + blks_offset);
 	fastboot_okay(NULL, response);
 
@@ -666,18 +666,18 @@ void fastboot_mmc_erase(const char *cmd, char *response)
  * On success, the number of bytes read is returned.
  * On error, -1 is returned.
  */
-int fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
-			u32 buffer_size, u32 offset, char *response)
+int64_t fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
+			u64 buffer_size, s64 offset, char *response)
 {
 	struct blk_desc *dev_desc;
 	disk_partition_t info;
 	char *cur, *next;
-	long start_addr = -1;
-	unsigned long length = 0;
-	int32_t partition_size = 0;
-	int32_t remaining_size = 0;
-	int32_t read_size = 0;
-	int r = -1;
+	int64_t start_addr = -1;
+	uint64_t length = 0;
+	int64_t partition_size = 0;
+	int64_t remaining_size = 0;
+	int64_t read_size = 0;
+	int64_t r = -1;
 
 	dev_desc = blk_get_dev("mmc", CONFIG_FASTBOOT_FLASH_MMC_DEV);
 	if (!dev_desc || dev_desc->type == DEV_TYPE_UNKNOWN) {
@@ -692,7 +692,7 @@ int fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
 	/* addr@length or addr@end_part case */
 	if (cur && next && !strict_strtoul(cur, 16, (unsigned long *)&start_addr)) {
 		/* addr@length */
-		if (strict_strtoul(next, 16, &length) < 0) {
+		if (strict_strtoul(next, 16, (unsigned long *)&length) < 0) {
 			/* addr@end_part_name */
 			if (part_get_info_by_name_or_alias(dev_desc, next, &info) < 0) {
 				pr_err("cannot find partition: '%s'\n", next);
@@ -715,22 +715,29 @@ int fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
 
 	remaining_size = partition_size - offset;
 	if (remaining_size <= 0) {
-		pr_err("Error: No remaining bytes to be fetched. partition_size(%u), offset(%u)\n",
+		pr_err("Error: No remaining bytes to be fetched. partition_size(%llu), offset(%llu)\n",
 				partition_size, offset);
 
 		fastboot_fail("Error: No remaining bytes to be fetched.", response);
 		return -1;
 	}
 
-	printf("remaining(%u bytes) to be fetched. continue...\n", remaining_size);
+	printf("remaining(%llu bytes) to be fetched. continue...\n", remaining_size);
 
 	read_size = buffer_size > remaining_size ? remaining_size : buffer_size;
+
+	if (start_addr < 0 && start_addr != -1) {
+		pr_err("Error: start_addr: %08lld(%08llx) invalid...\n", start_addr, start_addr);
+		fastboot_fail("Error: start_addr(< 0) invalid...\n", response);
+
+		return -1;
+	}
 
 	if (start_addr == -1)
 		r = read_raw_image(dev_desc, &info, cmd, upload_buffer,
 				read_size, offset, response);
 	else
-		r = read_raw_image_from_addr(dev_desc, start_addr,
+		r = read_raw_image_from_addr(dev_desc, (u64)start_addr,
 				dev_desc->blksz, upload_buffer,
 				read_size, offset, response);
 

@@ -52,7 +52,7 @@ static u32 fastboot_bytes_expected;
 /**
  * fastboot_bytes_loaded - number of bytes for current fastboot loaded
  */
-static u32 fastboot_bytes_loaded = 0;
+static u64 fastboot_bytes_loaded = 0;
 
 static void okay(char *, char *);
 static void reset(char *, char *);
@@ -440,7 +440,7 @@ static void erase(char *cmd_parameter, char *response)
  */
 static void load(char *cmd_parameter, char *response)
 {
-	int32_t bytes_loaded = -1;
+	int64_t bytes_loaded = -1;
 
 	if (!cmd_parameter) {
 		fastboot_fail("Expected command parameter", response);
@@ -469,7 +469,7 @@ static void load(char *cmd_parameter, char *response)
 
 	if (bytes_loaded > 0) {
 		fastboot_bytes_loaded += bytes_loaded;
-		fastboot_response("DATA", response, "%08x", bytes_loaded);
+		fastboot_response("DATA", response, "%08llx", bytes_loaded);
 	}
 }
 

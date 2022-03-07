@@ -44,6 +44,6 @@ void fastboot_mmc_erase(const char *cmd, char *response);
  * @offset: offset that bytes already loaded
  * @response: Pointer to fastboot response buffer
  */
-int fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
-			u32 buffer_size, u32 offset, char *response);
+int64_t fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
+			u64 buffer_size, s64 offset, char *response);
 #endif
