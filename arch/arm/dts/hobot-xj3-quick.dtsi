@@ -77,6 +77,7 @@
 		reg = <0x0 0xB0000000 0x0 0x1000>;
 	};
 */
+/*
 	gmac: ethernet@A5014000 {
 		compatible = "hobot,hb-gmac";
 		reg = <0x0 0xA5014000 0x0 0x2000>;
@@ -85,6 +86,7 @@
 		clock-names = "phy_ref_clk", "mac_pre_div_clk", "mac_div_clk";
 		status = "disabled";
 	};
+*/
 
 /*
 	spi0: spi@A5004000 {
