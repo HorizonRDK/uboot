@@ -529,6 +529,10 @@ uint32_t hb_base_board_type_get(void)
 {
 	uint32_t reg, base_id;
 
+#ifdef HR_BASE_BOARD_TYPE
+	return HR_BASE_BOARD_TYPE;
+#endif
+
 	if (hb_base_board_type < 0) {
 		base_id = BASE_BOARD_SEL(hb_board_id);
 
