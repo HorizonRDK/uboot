@@ -89,3 +89,5 @@ GTAGS
 *.orig
 *~
 \#*#
+qos/qos
+qos/qos.map

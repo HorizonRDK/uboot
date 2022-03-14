@@ -2,7 +2,7 @@
  *   Copyright 2020 Horizon Robotics, Inc.
  */
 #include <common.h>
-#include <xj3_set_pin.h>
+#include "xj3_set_pin.h"
 
 struct pin_info pin_info_array[] = {
 	{1, NO_PULL},

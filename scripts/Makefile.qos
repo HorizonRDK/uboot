@@ -23,7 +23,7 @@ c_flags := $(KBUILD_CFLAGS) $(cpp_flags) \
 	-I $(srctree)/include/ \
 	-I $(srctree)/arch/arm/include/
 
-LDSCRIPT := $(srctree)/$(obj)/qos.lds
+LDSCRIPT := $(srctree)/qos.lds
 
 head-y          := $(addprefix $(obj)/,$(head-y))
 qos-init := $(head-y)
@@ -45,7 +45,7 @@ qos-main += $(obj)/setup.o
 OBJCOPYFLAGS_$(QOS_BIN) =  -O binary
 qos_objcopy := (cd $(obj) && $(OBJCOPY)  $(OBJCOPYFLAGS_$(QOS_BIN)) qos qos.bin)
 
-LDFLAGS_$(QOS_BIN) += -T $(srctree)/$(obj)/qos.lds $(LDFLAGS_FINAL)
+LDFLAGS_$(QOS_BIN) += -T $(srctree)/qos.lds $(LDFLAGS_FINAL)
 
 qos := (cd $(obj) && $(LD) $(LDFLAGS) $(LDFLAGS_$(QOS_BIN)) \
 		$(patsubst $(obj)/%,%,$(qos-main))  \

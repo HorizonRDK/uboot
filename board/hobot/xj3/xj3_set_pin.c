@@ -9,7 +9,7 @@
 #include <asm/arch/hb_sysctrl.h>
 #include <hb_info.h>
 #include <asm/arch-x2/ddr.h>
-#include <xj3_set_pin.h>
+#include "xj3_set_pin.h"
 
 extern struct pin_info pin_info_array[];
 extern uint32_t pin_info_len;
