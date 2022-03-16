@@ -1526,7 +1526,7 @@ static int reboot_notify_to_mcu(void)
 //END4[prj_j2quad]
 #endif
 
-#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+#ifdef CONFIG_CMD_OTA_WRITE
 static int flash_write_partition(char *partition, int partition_offset,
 				int partition_size)
 {
@@ -1678,7 +1678,7 @@ U_BOOT_CMD(
 	"          partition  : \"all\": until \"system\" will be updated\n"
 	"                       \"not specified\": whole flash will be erased"
 );
-#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
+#endif /*CONFIG_CMD_OTA_WRITE*/
 
 #ifndef	CONFIG_FPGA_HOBOT
 #if defined(HB_SWINFO_BOOT_OFFSET)

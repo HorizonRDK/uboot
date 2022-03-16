@@ -423,6 +423,7 @@ CONFIG_CMD_PART=y
 # CONFIG_CMD_USB is not set
 # CONFIG_CMD_USB_SDP is not set
 # CONFIG_CMD_USB_MASS_STORAGE is not set
+# CONFIG_CMD_OTA_WRITE is not set
 
 #
 # Shell scripting commands

@@ -1108,6 +1108,19 @@ config CMD_AXI
 	  Interface) busses, a on-chip interconnect specification for managing
 	  functional blocks in SoC designs, which is also often used in designs
 	  involving FPGAs (e.g.  communication with IP cores in Xilinx FPGAs).
+
+config CMD_OTA_WRITE
+	bool "otawrite"
+	default y if !HB_QUICK_BOOT
+	depends on TARGET_XJ3
+	select CMD_GPT
+	select CMD_GPT_RENAME
+	select MTD
+	select CMD_MTD
+	select MMC_WRITE
+	help
+	  Burn the corresponding partition by partition name.
+	  It can be understood as a more advanced MMC write.
 endmenu
 
 

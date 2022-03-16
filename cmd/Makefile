@@ -180,9 +180,7 @@ obj-$(CONFIG_CMD_AVB) += avb.o
 obj-$(CONFIG_X86) += x86/
 
 obj-$(CONFIG_ARCH_MVEBU) += mvebu/
-ifndef CONFIG_HB_QUICK_BOOT
-obj-y += ota.o
-endif
+obj-$(CONFIG_CMD_OTA_WRITE) += ota.o
 obj-$(CONFIG_HB_WATCHDOG) += watchdog.o
 endif # !CONFIG_SPL_BUILD
 

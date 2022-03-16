@@ -36,8 +36,10 @@
 #include <asm/arch/hb_pmu.h>
 #include <asm/io.h>
 
+#ifdef CONFIG_CMD_OTA_WRITE
 static void bootinfo_update_spl(char * addr, unsigned int spl_size);
 static void bootinfo_update_uboot(unsigned int uboot_size);
+#endif /*CONFIG_CMD_OTA_WRITE*/
 
 static int curr_device = 0;
 extern struct spi_flash *flash;
@@ -128,7 +130,7 @@ int get_partition_id(char *partname)
 
 	return CMD_RET_FAILURE;
 }
-
+#ifdef CONFIG_CMD_OTA_WRITE
 static unsigned int get_patition_lba(char *partname,
 	unsigned int *start_lba, unsigned int *end_lba)
 {
@@ -186,6 +188,7 @@ static unsigned int get_patition_lba(char *partname,
 
 	return CMD_RET_FAILURE;
 }
+#endif /*CONFIG_CMD_OTA_WRITE*/
 
 unsigned int hex_to_char(unsigned int temp)
 {
@@ -268,7 +271,7 @@ int ota_download_and_upimage(cmd_tbl_t *cmdtp, int flag, int argc,
 	return 0;
 }
 
-#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+#ifdef CONFIG_CMD_OTA_WRITE
 static int ota_flash_update_image(char *flash_type, char *partition,
 								  char *addr, unsigned int bytes)
 {
@@ -288,9 +291,7 @@ static int ota_flash_update_image(char *flash_type, char *partition,
 
 	return run_command(command, 0);
 }
-#endif
 
-#ifdef CONFIG_HB_BOOT_FROM_MMC
 static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 {
 	unsigned int start_lba = 0, end_lba = 0, kernel_end = 0;
@@ -389,16 +390,14 @@ static int ota_mmc_update_image(char *name, char *addr, unsigned int bytes)
 
 	return ret;
 }
-#endif
 
 int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 						char *const argv[])
 {
 	char *file_name = NULL, *filesize = NULL, *fileaddr = NULL;
-	char *ep = NULL, *ptr = NULL;
-	__maybe_unused 	char *flash_type = NULL;
+	char *ep = NULL, *ptr = NULL, *flash_type = NULL;
 	char partition_name[256] = { 0 };
-	int ret = -1;
+	int ret;
 	unsigned int boot_mode, bytes;
 
 	if ((argc != 1) && (argc != 4) && (argc != 5)) {
@@ -409,23 +408,11 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	/* get bootmode */
 	if (argc == 5) {
 		if (strcmp(argv[4], "emmc") == 0) {
-#ifndef CONFIG_HB_BOOT_FROM_MMC
-			printf("error: parameter %s not support! \n", argv[4]);
-			return CMD_RET_FAILURE;
-#endif
 			boot_mode = PIN_2ND_EMMC;
 		} else if (strcmp(argv[4], "nor") == 0) {
-#ifndef CONFIG_HB_BOOT_FROM_NOR
-			printf("error: parameter %s not support! \n", argv[4]);
-			return CMD_RET_FAILURE;
-#endif
 			boot_mode = PIN_2ND_NOR;
 			flash_type = "nor";
 		} else if (strcmp(argv[4], "nand") == 0) {
-#ifndef CONFIG_HB_BOOT_FROM_NAND
-			printf("error: parameter %s not support! \n", argv[4]);
-			return CMD_RET_FAILURE;
-#endif
 			boot_mode = PIN_2ND_NAND;
 			flash_type = "nand";
 		} else {
@@ -471,15 +458,10 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	/* update image */
-	if (boot_mode == PIN_2ND_EMMC) {
-#ifdef CONFIG_HB_BOOT_FROM_MMC
+	if (boot_mode == PIN_2ND_EMMC)
 		ret = ota_mmc_update_image(partition_name, fileaddr, bytes);
-#endif
-	} else {
-#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+	else
 		ret = ota_flash_update_image(flash_type, partition_name, fileaddr, bytes);
-#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
-	}
 
 	if (ret == 0)
 		printf("ota update image success!\n");
@@ -488,6 +470,7 @@ int ota_write(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	return ret;
 }
+#endif /*CONFIG_CMD_OTA_WRITE*/
 
 static void ota_error(char *partition)
 {
@@ -790,7 +773,7 @@ uint32_t hb_do_cksum(const uint8_t *buff, uint32_t len)
 
 	return result;
 }
-
+#ifdef CONFIG_CMD_OTA_WRITE
 static void write_bootinfo(void)
 {
 	int ret;
@@ -855,3 +838,4 @@ static void bootinfo_update_uboot(unsigned int uboot_size)
 	bootinfo_cs_all(pinfo);
 	write_bootinfo();
 }
+#endif /*CONFIG_CMD_OTA_WRITE*/
