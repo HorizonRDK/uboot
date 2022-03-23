@@ -1,26 +1,5 @@
 #!/bin/bash
 
-function trans_unit() {
-    local num=$1
-    local c=${num:0-1}
-    num=$(echo $num | tr "[A-Z]" "[a-z]")
-
-    if [ -z "$(echo $c | sed 's#[0-9]##g')" ]; then
-        echo "$((${num}))"
-    elif [ "$c" = "k" ]; then
-        echo "${num:0:0-1}*1024"
-    elif [ "$c" = "m" ]; then
-        echo "${num:0:0-1}*1024*1024"
-    elif [ "$c" = "g" ]; then
-        echo "${num:0:0-1}*1024*1024*1024"
-    elif [ "$c" = "s" ]; then
-        echo "${num:0:0-1}*512"
-    else
-        echo "Error: Unknown size [$1]"
-        exit 1
-    fi
-}
-
 function cal_mtdparts
 {
     local total_parts=0
@@ -63,7 +42,7 @@ function cal_mtdparts
                     else
                         part_size=$prev_part_size
                     fi
-                    part_size_total=$(($(trans_unit ${starts})))
+                    part_size_total=$(trans_unit 1 ${starts})
                     prev_part_size=${part_size_total}
                     part_start=$(($part_start + $part_size))
                 fi
@@ -76,13 +55,13 @@ function cal_mtdparts
                 part_name=${part}
                 mtdparts_str="mtdparts=${mtdids_str##*=}:"
                 let total_parts=$(( ${total_parts} + 1 ))
-                part_size_total=$(($(trans_unit ${starts})))
+                part_size_total=$(($(trans_unit 1 ${starts})))
                 prev_part_size=$part_size_total
             fi
         else
             # Calculating partition size with seperate parts
             if [ -z "${arr[5]}" ];then
-                part_size_total=$(( $part_size_total + $(trans_unit ${starts}) ))
+                part_size_total=$(( $part_size_total + $(trans_unit 1 ${starts}) ))
                 part_added=1
             fi
         fi
@@ -176,21 +155,24 @@ function build()
             }
             cd -
         fi
-        local line=`sed -n '/UBOOT_IMAGE_NAME/p; /UBOOT_IMAGE_NAME/q' ${GPT_CONFIG}`
-        local arr=(${line//:/ })
-        local starts=${arr[3]}
-        local stops=${arr[4]}
-        local stop=${stops%?}
-        local start=${starts%?}
-        local uboot_size=$(( ${stop} - ${start} + 1 ))
-        rm -rf $TARGET_DEPLOY_DIR/uboot.img
-        runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=512 count=${uboot_size} conv=notrunc,sync status=none"
-        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img conv=notrunc,sync status=none"
-        runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=512 seek=2048 conv=notrunc,sync status=none"
-        cd $path_otatool
-            bash build_uboot_update_package.sh emmc
-        cd -
-        cpfiles "$path_otatool/uboot.zip" "$TARGET_DEPLOY_DIR/ota"
+        if [ ${bootmode} != "nand" ];then
+            blk_sz=512
+            rm -rf $TARGET_DEPLOY_DIR/uboot.img
+            uboot_size=$(get_partition_size $blk_sz "${UBOOT_PARTITION_NAME}")
+
+            # TODO: Use more robust partition size and content check when get_partition_size is done
+            if [  "$EMMC_DUAL_BOOT" = "dual_boot" ];then
+                offset=0
+                uboot_total=${uboot_size}
+            else
+                offset=$(( uboot_size / blk_sz ))
+                uboot_total=$(( uboot_size * 2 / blk_sz ))
+            fi
+            runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=${blk_sz} count=${uboot_total} conv=notrunc,sync status=none"
+            runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=${blk_sz} conv=notrunc,sync status=none"
+            runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=${blk_sz} seek=${offset} conv=notrunc,sync status=none"
+            bash ${path_otatool}/build_uboot_update_package.sh "${bootmode}"
+        fi
     fi
 }
 
@@ -207,7 +189,7 @@ function all_32()
 
 function usage()
 {
-    echo "Usage: build.sh [-o emmc|nor|nand|nand_4096 ] [-u] [-p] [-l]"    echo "Options:"
+    echo "Usage: build.sh [-o emmc|nor|nand|nand_4096 ] [-u] [-p] [-l]"
     echo "Options:"
     echo "  -o  boot mode, all or one of uart, emmc, nor, nand, ap"
     echo "  -p  create uboot.img"
@@ -219,7 +201,7 @@ function usage()
 
 bootmode=$BOOT_MODE
 pack_img="false"
-while getopts "upo:lh:" opt
+while getopts "po:lh:" opt
 do
     case $opt in
         o)
