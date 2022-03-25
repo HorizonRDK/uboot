@@ -800,13 +800,6 @@ static void hb_mmc_env_init(void)
 			ota_recovery_mode_set(false);
 		} else {
 			ota_upgrade_flag_check(hb_upmode, hb_bootreason);
-#ifdef CONFIG_CMD_GPT_RENAME
-			/* auto extend last emmc partition */
-			if (strcmp(hb_bootreason, REASON_ALL) == 0) {
-				s = "gpt extend mmc 0";
-				run_command_list(s, -1, 0);
-			}
-#endif
 		}
 	}
 
