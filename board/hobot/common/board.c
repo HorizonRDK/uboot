@@ -493,6 +493,28 @@ static bool hb_pf5024_device_id_getable(void)
 }
 #endif
 
+#ifdef CONFIG_DM_I2C
+static int hb_adjust_somid_by_lt8618sxb(void)
+{
+	int ret;
+	uint8_t chip_addr = 0x3b;
+	struct udevice *dev;
+	struct udevice *bus;
+
+	ret = uclass_get_device_by_seq(UCLASS_I2C, 1, &bus);
+	if (ret) {
+		printf("Invalid bus 1: err=%d\n", ret);
+		return SOM_TYPE_X3SDB;
+	}
+
+	ret = dm_i2c_probe(bus, chip_addr, 0, &dev);
+	if (!ret)
+		return SOM_TYPE_X3SDB;
+	else
+		return SOM_TYPE_X3SDBV4;
+}
+#endif
+
 uint32_t hb_som_type_get(void)
 {
 	uint32_t som_id;
@@ -512,6 +534,7 @@ uint32_t hb_som_type_get(void)
 		case SOM_TYPE_X3:
 		case SOM_TYPE_J3:
 		case SOM_TYPE_X3SDB:
+			som_id = hb_adjust_somid_by_lt8618sxb();
 			break;
 		default:
 			break;
