@@ -412,25 +412,14 @@
 			status = "okay";
 		};
 
-		sd0_div_cclk: sd0_div_cclk {
-			u-boot,dm-pre-reloc;
-			#clock-cells = <0>;
-			compatible = "hobot,div-clk";
-			clocks = <&sd0_div_clk>;
-			offset = <0x320>;
-			bits = <4>;
-			field = <4>;
-			status = "okay";
-		};
-
 		sd0_cclk: sd0_cclk {
 			u-boot,dm-pre-reloc;
 			#clock-cells = <0>;
-			compatible = "hobot,gate-clk";
-			clocks = <&sd0_div_cclk>;
-			offset = <0x150 0x154 0x158 0x258>;
-			bits = <15 15 15 1>;
-			field = <1 1 1 1>;
+			compatible = "hobot,endiv-clk";
+			clocks = <&sd0_div_clk>;
+			offset = <0x320 0x150 0x154 0x158 0x258>;
+			bits = <4 15 15 15 1>;
+			field = <4 1 1 1 1>;
 			status = "okay";
 		};
 
@@ -445,25 +434,14 @@
 			status = "okay";
 		};
 
-		sd1_div_cclk: sd1_div_cclk {
-			u-boot,dm-pre-reloc;
-			#clock-cells = <0>;
-			compatible = "hobot,div-clk";
-			clocks = <&sd1_div_clk>;
-			offset = <0x330>;
-			bits = <4>;
-			field = <4>;
-			status = "okay";
-		};
-
 		sd1_cclk: sd1_cclk {
 			u-boot,dm-pre-reloc;
 			#clock-cells = <0>;
-			compatible = "hobot,gate-clk";
-			clocks = <&sd1_div_cclk>;
-			offset = <0x150 0x154 0x158 0x258>;
-			bits = <16 16 16 2>;
-			field = <1 1 1 1>;
+			compatible = "hobot,endiv-clk";
+			clocks = <&sd1_div_clk>;
+			offset = <0x330 0x150 0x154 0x158 0x258>;
+			bits = <4 16 16 16 2>;
+			field = <4 1 1 1 1>;
 			status = "okay";
 		};
 
@@ -478,27 +456,14 @@
 			status = "okay";
 		};
 
-		sd2_div_cclk: sd2_div_cclk {
-			u-boot,dm-pre-reloc;
-			#clock-cells = <0>;
-			compatible = "hobot,fixed-factor-clk";
-			clocks = <&sd2_div_clk>;
-			offset = <0x340>;
-			bits = <4>;
-			field = <4>;
-			clk-div = <8>;
-			clk-mult = <1>;
-			status = "okay";
-		};
-
 		sd2_cclk: sd2_cclk {
 			u-boot,dm-pre-reloc;
 			#clock-cells = <0>;
-			compatible = "hobot,gate-clk";
-			clocks = <&sd2_div_cclk>;
-			offset = <0x150 0x154 0x158 0x258>;
-			bits = <25 25 25 3>;
-			field = <1 1 1 1>;
+			compatible = "hobot,endiv-clk";
+			clocks = <&sd2_div_clk>;
+			offset = <0x340 0x150 0x154 0x158 0x258>;
+			bits = <4 25 25 25 3>;
+			field = <4 1 1 1 1>;
 			status = "okay";
 		};
 

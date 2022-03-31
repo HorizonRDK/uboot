@@ -283,20 +283,15 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
-	unsigned int reg_val = 0;
-	int div_2nd = 0;
+	int ret;
 
-	hb_mmc_disable_clk(host);
-	/* Configure 1st div to 8 */
-	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
-	reg_val &= 0xFFFFFF00;
-	reg_val |= 0x70;
-	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
-	pr_debug("%s: mmc_clk_reg:0x%x, target freq:%u, div_2nd:%d\n",
-			 host->name, reg_val, freq, div_2nd);
-	/* Enable clk */
-	hb_mmc_enable_clk(host);
-	clk_set_rate(&priv->clk, freq);
+	pr_debug("%s: target freq:%u\n", host->name, freq);
+	ret = clk_set_rate(&priv->clk, freq);
+	if (ret < 0) {
+		pr_err("%s: clk_set_rate failed: %d\n", host->name, ret);
+		return ret;
+	}
+
 	freq = clk_get_rate(&priv->clk);
 #else
 	freq = 50000000;
