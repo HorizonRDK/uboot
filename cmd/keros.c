@@ -47,8 +47,7 @@ static int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
         char * const argv[])
 {
 	int ret = 0;
-	uint32_t offset;
-	uint8_t *addr = (uint8_t *)&offset;
+	unsigned long offset;
 	uint8_t page, encrytion;
 	uint32_t old_password, new_password;
 	uint32_t header, type, d_length, crc, c_crc;
@@ -68,7 +67,7 @@ static int do_burn_keros(cmd_tbl_t *cmdtp, int flag, int argc,
 
 	offset = simple_strtoul(argv[1], NULL, 16);    /* secure data addr in ddr*/
 
-	memcpy(&package[0], addr, sizeof(package));
+	memcpy(&package[0],(uint8_t *)offset,sizeof(package));
 
 	header = *p_pack;
 	type = *(p_pack + TYPE_INDEX);
