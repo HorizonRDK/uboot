@@ -154,9 +154,27 @@
 #define HB_SET_WDT     ""
 #endif
 
+#ifdef CONFIG_DISTRO_DEFAULTS
+#define BOOTSCR_ADDR			0x3C10000
+#define RAMDISK_ADDR			0x4000000
+
+#define ENV_MEM_LAYOUT_SETTINGS \
+	"kernel_addr_r="__stringify(KERNEL_ADDR)"\0" \
+	"scriptaddr="__stringify(BOOTSCR_ADDR)"\0" \
+	"fdt_addr_r="__stringify(FDT_ADDR)"\0" \
+	"ramdisk_addr_r="__stringify(RAMDISK_ADDR)"\0"
+
+#define BOOT_TARGET_DEVICES(func) \
+	func(MMC, mmc, 0) \
+	func(MMC, mmc, 1) \
+	func(MMC, mmc, 2)
+
+#define CONFIG_BOOTCOMMAND HB_SET_WDT "run distro_bootcmd"
+#else
 #define CONFIG_BOOTCOMMAND HB_SET_WDT "part size mmc 0 %s bootimagesize;"\
 	"part start mmc 0 %s bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
 	" ${bootimageblk} ${bootimagesize};bootm "__stringify(BOOTIMG_ADDR)";"
+#endif
 
 #if (CONFIG_BOOTDELAY == 0) && defined(CONFIG_PARALLEL_CPU_CORE_ONE)
 /*Only run bootm command*/
@@ -220,6 +238,11 @@
 
 /* Initial environment variables */
 #ifndef CONFIG_EXTRA_ENV_SETTINGS
+#ifdef CONFIG_DISTRO_DEFAULTS
+#define CONFIG_EXTRA_ENV_SETTINGS \
+	ENV_MEM_LAYOUT_SETTINGS \
+	BOOTENV
+#else
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	"kernel_addr=" __stringify(KERNEL_ADDR) "\0" \
 	"fdt_addr=" __stringify(FDT_ADDR) "\0" \
@@ -240,6 +263,7 @@
 	    "run ddrboot\0" \
 	"cdc_connect_timeout=360\0" \
 	"partitions=" PARTS_DEFAULT "\0"
+#endif
 #endif
 
 /* #define HB_AUTOBOOT */

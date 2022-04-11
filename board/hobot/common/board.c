@@ -2009,6 +2009,31 @@ static void base_board_gpio_test(void)
 
 }
 
+#ifdef CONFIG_DISTRO_DEFAULTS
+static char * get_dtb_name(void)
+{
+	uint32_t  base_board_id = hb_base_board_type_get();
+	char *dtb_name = NULL;
+	switch (base_board_id) {
+	case BASE_BOARD_X3_DVB:
+		dtb_name = "hobot-x3-dvb.dtb";
+		break;
+	case BASE_BOARD_J3_DVB:
+		dtb_name = "hobot-j3-dvb.dtb";
+		break;
+	case BASE_BOARD_X3_SDB:
+		dtb_name = "hobot-x3-sdb.dtb";
+		break;
+	default:
+		printf("Unsupported board ID!!\n");
+		dtb_name = "none";
+		break;
+	}
+	env_set("fdtfile", dtb_name);
+	return dtb_name;
+}
+#endif
+
 static void boot_src_test(void)
 {
 	uint32_t boot_src = hb_boot_mode_get();
@@ -2066,6 +2091,9 @@ int last_stage_init(void)
 
 	sw_efuse_set_register();
 	base_board_gpio_test();
+#ifdef CONFIG_DISTRO_DEFAULTS
+	get_dtb_name();
+#endif
 	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
 		boot_src_test();
 	else
