@@ -79,7 +79,7 @@
  */
 
 #ifdef CONFIG_ENV_IS_IN_UBI
-#define CONFIG_ENV_UBI_PART "boot"
+#define CONFIG_ENV_UBI_PART "env"
 #define CONFIG_ENV_UBI_VOLUME "ubootenv"
 #define CONFIG_ENV_UBI_VOLUME_REDUND "ubootenvbak"
 #endif

@@ -499,7 +499,7 @@ ulong board_get_usable_ram_top(ulong total_size)
 int init_io_vol(void)
 {
 	uint32_t value = 0;
-	uint32_t base_board_id = 0;
+	uint32_t som_type = 0;
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 	hb_board_id = bootinfo->board_id;
@@ -507,17 +507,38 @@ int init_io_vol(void)
 	 * all io to v1.8 except bt1120
 	 * BIFSPI and I2C2 is 3.3v in J3DVB, the other is 1.8v
 	 */
-	value = 0xF0F;
-	base_board_id = hb_base_board_type_get();
-	if (base_board_id == BASE_BOARD_J3_DVB) {
-		value = 0xD0D;
-	}
-	writel(value, GPIO_BASE + 0x174);
 	/*
-	* the external power supply of SD11 and SD2 is 3.3V by default in DVB,
-	* so ONLY set sd0 to 1.8V
-	*/
-	writel(SD0_AIN0_1V8 | SD0_AIN1_1V8, GPIO_BASE + 0x170);
+	 * 1'b0=3.3v mode;  1'b1=1.8v mode
+	 * 0x170 bit[3]       sd2
+	 *       bit[2]       sd1
+	 *       bit[1:0]     sd0
+	 *
+	 * 0x174 bit[11:10]   rgmii
+	 *       bit[9]       i2c2
+	 *       bit[8]       i2c0
+	 *       bit[7]       reserved
+	 *       bit[6:4]     bt1120
+	 *       bit[3:2]     bifsd
+	 *       bit[1]       bifspi
+	 *       bit[0]       jtag
+	 */
+	som_type = hb_som_type_get();
+	if (som_type == SOM_TYPE_J3) {
+		writel(0xD0D, GPIO_BASE + 0x174);
+		writel(0xF, GPIO_BASE + 0x170);
+	} else if (som_type == SOM_TYPE_X3) {
+		writel(0xF0F, GPIO_BASE + 0x174);
+		writel(0xF, GPIO_BASE + 0x170);
+	} else if (som_type == SOM_TYPE_X3SDB) {
+		writel(0xF0F, GPIO_BASE + 0x174);
+		writel(0x7, GPIO_BASE + 0x170);
+	} else if (som_type == SOM_TYPE_X3SDBV4) {
+		writel(0xF0F, GPIO_BASE + 0x174);
+		writel(0x7, GPIO_BASE + 0x170);
+	} else if (som_type == SOM_TYPE_X3PI) {
+		writel(0xC00, GPIO_BASE + 0x174);
+		writel(0x7, GPIO_BASE + 0x170);
+	}
 	return 0;
 }
 

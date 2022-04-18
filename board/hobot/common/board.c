@@ -493,27 +493,51 @@ static bool hb_pf5024_device_id_getable(void)
 }
 #endif
 
-#ifdef CONFIG_DM_I2C
-static int hb_adjust_somid_by_lt8618sxb(void)
+/*
+ *          BIFSD_CLK(20) SENSOR2_MCLK(111)  som_type
+ * SDBv3 :      0             0                 3
+ * SDBv4 :      0             1                 4
+ * X3 PI :      1             0                 5
+ */
+static int hb_adjust_somid_by_gpios(void)
 {
-	int ret;
-	uint8_t chip_addr = 0x3b;
-	struct udevice *dev;
-	struct udevice *bus;
+	int16_t i = 0;
+	uint32_t pin_val = 0;
+	uint32_t pin_no[] = {111, 20};
+	uint64_t addr = 0, reg = 0;
+	uint16_t pin_nums = ARRAY_LEN(pin_no);
 
-	ret = uclass_get_device_by_seq(UCLASS_I2C, 1, &bus);
-	if (ret) {
-		printf("Invalid bus 1: err=%d\n", ret);
-		return SOM_TYPE_X3SDB;
+	/* set pin func to GPIO*/
+	for (i = 0; i < pin_nums; ++i) {
+		addr = HB_PIN_FUNC_CFG_REG(pin_no[i]);
+		reg = readl(addr);
+		reg |= 0x3;
+		writel(reg, addr);
 	}
 
-	ret = dm_i2c_probe(bus, chip_addr, 0, &dev);
-	if (!ret)
-		return SOM_TYPE_X3SDB;
-	else
-		return SOM_TYPE_X3SDBV4;
+	/* set pin to GPIO input function */
+	for (i = 0; i < pin_nums; ++i) {
+		addr = HB_IO_OUT_CTL_REG(pin_no[i]);
+		reg = readl(addr);
+		reg &= ~((uint64_t)(0x1) << (16 + pin_no[i] % 16));
+		writel(reg, addr);
+	}
+	udelay(500);
+	for (i = 0; i < pin_nums; ++i) {
+		addr = HB_IO_IN_VAL_REG(pin_no[i]);
+		reg = readl(addr);
+		if (reg & ((uint64_t)(0x1) << (pin_no[i] % 16))) {
+			pin_val |= 0x1 << i;
+		}
+	}
+	DEBUG_LOG("som_type_by_pin = %02x\n", pin_val);
+
+	if (pin_val > 2) pin_val = 2;
+
+	return SOM_TYPE_X3SDB + pin_val;
+
 }
-#endif
+
 
 uint32_t hb_som_type_get(void)
 {
@@ -534,12 +558,15 @@ uint32_t hb_som_type_get(void)
 		case SOM_TYPE_X3:
 		case SOM_TYPE_J3:
 		case SOM_TYPE_X3SDB:
-			som_id = hb_adjust_somid_by_lt8618sxb();
+			som_id = hb_adjust_somid_by_gpios();
 			break;
+		case SOM_TYPE_X3SDBV4:
+		case SOM_TYPE_X3PI:
 		default:
 			break;
 		}
 		hb_som_type = som_id;
+		printf("hb_som_type=%d\n", hb_som_type);
 	} else {
 		return hb_som_type;
 	}
@@ -656,6 +683,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	char *ubuntu_bootargs = NULL;
 	veeprom_read(VEEPROM_UBUNTU_MAGIC_OFFSET, ubuntu_magic, VEEPROM_UBUNTU_MAGIC_SIZE);
 	ubuntu_boot = (strncmp(UBUNTU_MAGIC, ubuntu_magic, sizeof(ubuntu_magic)) == 0);
+	printf("hb_boot_args_cmd_set custom_bootargs %d ubuntu_boot %d\n", custom_bootargs, ubuntu_boot);
 	/* Set Bootargs */
 	if (!custom_bootargs) {
 		/* General Bootargs */
@@ -726,12 +754,14 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		strncat(bootargs_str, env_get("mtdparts"),
 				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 #endif /*defined CONFIG_HB_BOOT_FROM_MMC*/
-		if (ubuntu_boot == true) {
-			char *ubuntu_args = "rootfstype=ext4 rw rootwait";
-			char *ptr = strstr(bootargs_str, "rootfstype");
+		if (ubuntu_boot == true)
+		{
+			char *ptr = strstr(bootargs_str,"rootfstype");
 			memset(ptr, 0, strlen(ptr));
-			snprintf(ptr, sizeof(bootargs_str) - strlen(bootargs_str),
-					"rootfstype=ext4 rw rootwait");
+			strcat(ptr, "rootfstype=ext4 rw rootwait");
+#if defined CONFIG_HB_BOOT_FROM_NAND
+			strcat(bootargs_str, " ubi.mtd=2,2048 "__stringify(CONFIG_MTDPARTS_DEFAULT));
+#endif
 #if defined CONFIG_HB_BOOT_FROM_MMC
 			snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
 					get_partition_id(system_partition));
@@ -2047,17 +2077,23 @@ static void base_board_gpio_test(void)
 #ifdef CONFIG_DISTRO_DEFAULTS
 static char * get_dtb_name(void)
 {
-	uint32_t  base_board_id = hb_base_board_type_get();
+	uint32_t som_type = hb_som_type_get();
 	char *dtb_name = NULL;
-	switch (base_board_id) {
-	case BASE_BOARD_X3_DVB:
+	switch (som_type) {
+	case SOM_TYPE_X3:
 		dtb_name = "hobot-x3-dvb.dtb";
 		break;
-	case BASE_BOARD_J3_DVB:
+	case SOM_TYPE_J3:
 		dtb_name = "hobot-j3-dvb.dtb";
 		break;
-	case BASE_BOARD_X3_SDB:
+	case SOM_TYPE_X3SDB:
 		dtb_name = "hobot-x3-sdb.dtb";
+		break;
+	case SOM_TYPE_X3SDBV4:
+		dtb_name = "hobot-x3-sdb_v4.dtb";
+		break;
+	case SOM_TYPE_X3PI:
+		dtb_name = "hobot-x3-pi.dtb";
 		break;
 	default:
 		printf("Unsupported board ID!!\n");
@@ -2065,6 +2101,7 @@ static char * get_dtb_name(void)
 		break;
 	}
 	env_set("fdtfile", dtb_name);
+	printf("dtb_name:%s\n", dtb_name);
 	return dtb_name;
 }
 #endif
@@ -2106,6 +2143,10 @@ int last_stage_init(void)
 #ifndef CONFIG_FPGA_HOBOT
 	disable_cnn();
 #endif
+#ifdef CONFIG_DISTRO_DEFAULTS
+	get_dtb_name();
+#endif
+
 #if defined(CONFIG_MMC) && !defined(CONFIG_HB_QUICK_BOOT)
 	/* for determining mmc bus-width from environment */
 	run_command("mmc rescan", 0);
@@ -2125,9 +2166,7 @@ int last_stage_init(void)
 
 	sw_efuse_set_register();
 	base_board_gpio_test();
-#ifdef CONFIG_DISTRO_DEFAULTS
-	get_dtb_name();
-#endif
+
 	if (readl(HB_PMU_SW_REG_23) != 0x74726175)
 		boot_src_test();
 	else

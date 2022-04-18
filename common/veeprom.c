@@ -261,6 +261,12 @@ int veeprom_read(int offset, char *buf, int size)
 		return -1;
 	}
 #ifdef CONFIG_HB_BOOT_FROM_NAND
+	if (ubi_part(CONFIG_ENV_UBI_PART, NULL)) {
+		printf("\n** Cannot find mtd partition \"%s\"\n",
+			   CONFIG_ENV_UBI_PART);
+		return 1;
+	}
+
 	memset(buffer, 0, sizeof(buffer));
 	ret = ubi_volume_read("veeprom", buffer, sizeof(buffer));
 	flush_cache((ulong)buffer, sizeof(buffer));
