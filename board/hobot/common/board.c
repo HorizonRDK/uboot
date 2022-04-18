@@ -494,16 +494,16 @@ static bool hb_pf5024_device_id_getable(void)
 #endif
 
 /*
- *          BIFSD_CLK(20) SENSOR2_MCLK(111)  som_type
+ *          BIFSD_CLK(20) JTG_TRSTN(4)  som_type
  * SDBv3 :      0             0                 3
  * SDBv4 :      0             1                 4
- * X3 PI :      1             0                 5
+ * X3 PI :      1             x                 5
  */
 static int hb_adjust_somid_by_gpios(void)
 {
 	int16_t i = 0;
 	uint32_t pin_val = 0;
-	uint32_t pin_no[] = {111, 20};
+	uint32_t pin_no[] = {4, 20};
 	uint64_t addr = 0, reg = 0;
 	uint16_t pin_nums = ARRAY_LEN(pin_no);
 
@@ -530,7 +530,6 @@ static int hb_adjust_somid_by_gpios(void)
 			pin_val |= 0x1 << i;
 		}
 	}
-	DEBUG_LOG("som_type_by_pin = %02x\n", pin_val);
 
 	if (pin_val > 2) pin_val = 2;
 
@@ -542,18 +541,13 @@ static int hb_adjust_somid_by_gpios(void)
 uint32_t hb_som_type_get(void)
 {
 	uint32_t som_id;
-#ifndef CONFIG_HB_QUICK_BOOT
-	bool flag = hb_pf5024_device_id_getable();
-#else
-	bool flag = true;
-#endif
 
 	if (hb_som_type < 0) {
 		som_id = SOM_TYPE_SEL(hb_board_id);
 
 		switch (som_id) {
 		case AUTO_DETECTION:
-			som_id = flag ? SOM_TYPE_J3 : SOM_TYPE_X3;
+			som_id = SOM_TYPE_X3;
 			break;
 		case SOM_TYPE_X3:
 		case SOM_TYPE_J3:
@@ -566,7 +560,7 @@ uint32_t hb_som_type_get(void)
 			break;
 		}
 		hb_som_type = som_id;
-		printf("hb_som_type=%d\n", hb_som_type);
+		DEBUG_LOG("hb som type: %d\n", hb_som_type);
 	} else {
 		return hb_som_type;
 	}
