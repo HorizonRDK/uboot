@@ -18,6 +18,9 @@
 #include <image.h>
 #include <linux/libfdt.h>
 #include <mapmem.h>
+#ifdef CONFIG_HB_QUICK_BOOT
+extern void hb_quickboot_modify_dts(void);
+#endif
 
 #ifndef CONFIG_SYS_FDT_PAD
 #define CONFIG_SYS_FDT_PAD 0x3000
@@ -174,12 +177,6 @@ static void hb_dts_node_modify(void) {
 	run_command(cmd, 0);
 #endif
 
-#ifdef CONFIG_MMC_TUNING_DATA_TRANS
-	/* write mmc tuning result to kernel device-tree */
-	if(hb_set_emmc_tuning_res() != 0)
-		DEBUG_LOG("error to write tune data\n");
-#endif
-
 	/*
 	 * enable/disable node
 	 * check if current boot is nand/nor, if so, enable them
@@ -217,6 +214,11 @@ static void hb_dts_node_modify(void) {
 	/* modify mem size */
 	snprintf(cmd, sizeof(cmd), "mem_modify ${mem_size}");
 	run_command(cmd, 0);
+
+	/* remove unnecessary device tree nodes */
+#ifdef CONFIG_HB_QUICK_BOOT
+	hb_quickboot_modify_dts();
+#endif
 
 	hb_add_dts_bootargs();
 }
