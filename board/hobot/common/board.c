@@ -617,7 +617,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	char bootargs_str[2048] = { 0 };
 	char tmp[256] = { 0 };
 	char *extra_bootargs = NULL;
-#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+#if (defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)) && !defined(CONFIG_DISTRO_DEFAULTS)
 	/* rootfs_mtd_name is used for Flashes, now there is no B partition */
 	char *rootfs_mtd_name = "system";
 	char *rootfs_vol_name = "rootfs";
@@ -625,12 +625,17 @@ static void hb_boot_args_cmd_set(int boot_mode)
 	int ret = 0, rootfs_mtdnm = -1;
 	struct mtd_info *root_mtd, *boot_mtd;
 	struct ubi_volume *vol;
-#endif /*(CONFIG_HB_BOOT_FROM_NOR) || (CONFIG_HB_BOOT_FROM_NAND)*/
+#endif /*(defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)) && !defined(CONFIG_DISTRO_DEFAULTS)*/
 	int nr_cpus = 0;
 	int if_secure = hb_check_secure();
 #ifdef CONFIG_TARGET_XJ3
 	nr_cpus = hb_get_cpu_num();
 #endif
+	char ubuntu_magic[4] = { 0 };
+	bool ubuntu_boot = false;
+	char *ubuntu_bootargs = NULL;
+	veeprom_read(VEEPROM_UBUNTU_MAGIC_OFFSET, ubuntu_magic, VEEPROM_UBUNTU_MAGIC_SIZE);
+	ubuntu_boot = (strncmp(UBUNTU_MAGIC, ubuntu_magic, sizeof(ubuntu_magic)) == 0);
 	/* Set Bootargs */
 	if (!custom_bootargs) {
 		/* General Bootargs */
@@ -654,12 +659,8 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		memset(tmp, 0, sizeof(tmp));
 
 #if defined CONFIG_HB_BOOT_FROM_MMC
-		char ubuntu_magic[4] = { 0 };
-		bool ubuntu_boot = false;
-		veeprom_read(VEEPROM_UBUNTU_MAGIC_OFFSET, ubuntu_magic, VEEPROM_UBUNTU_MAGIC_SIZE);
-		ubuntu_boot = (strncmp(UBUNTU_MAGIC, ubuntu_magic, sizeof(ubuntu_magic)) == 0);
 		if(!if_secure) {
-			strncat(bootargs_str, ubuntu_boot ? " rw systemd.gpt_auto=0" :" ro" ,
+			strncat(bootargs_str, " ro" ,
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 			strncat(bootargs_str, " rootwait",
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
@@ -668,7 +669,7 @@ static void hb_boot_args_cmd_set(int boot_mode)
 			strncat(bootargs_str, tmp,
 					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		}
-#elif defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+#elif(defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)) && !defined(CONFIG_DISTRO_DEFAULTS)
 		/* ro/rw judgement from volume type */
 		ubi_part(rootfs_mtd_name, NULL);
 		vol = ubi_find_volume(rootfs_vol_name);
@@ -704,7 +705,20 @@ static void hb_boot_args_cmd_set(int boot_mode)
 		strncat(bootargs_str, " ", sizeof(bootargs_str) - strlen(bootargs_str) - 1);
 		strncat(bootargs_str, env_get("mtdparts"),
 				sizeof(bootargs_str) - strlen(bootargs_str) - 1);
-#endif
+#endif /*defined CONFIG_HB_BOOT_FROM_MMC*/
+		if (ubuntu_boot == true) {
+			char *ubuntu_args = "rootfstype=ext4 rw rootwait";
+			char *ptr = strstr(bootargs_str, "rootfstype");
+			memset(ptr, 0, strlen(ptr));
+			snprintf(ptr, sizeof(bootargs_str) - strlen(bootargs_str),
+					"rootfstype=ext4 rw rootwait");
+#if defined CONFIG_HB_BOOT_FROM_MMC
+			snprintf(tmp, sizeof(tmp), " root=/dev/mmcblk0p%d",
+					get_partition_id(system_partition));
+			strncat(bootargs_str, tmp,
+					sizeof(bootargs_str) - strlen(bootargs_str) - 1);
+#endif /*defined CONFIG_HB_BOOT_FROM_MMC*/
+		}
 		/* Use extra_bootargs to append extra bootargs to bootargs when necessary */
 		extra_bootargs = env_get("extra_bootargs");
 		if (extra_bootargs != NULL) {
@@ -743,16 +757,16 @@ static void hb_boot_args_cmd_set(int boot_mode)
 				env_set("bootdelay", "-1");
 				return;
 			}
-#elif defined CONFIG_HB_BOOT_FROM_NAND
+#elif defined CONFIG_HB_BOOT_FROM_NAND && !defined(CONFIG_DISTRO_DEFAULTS)
 			ubi_part(boot_mtd_name, NULL);
 			if (ubi_volume_read("boot", (void *) BOOTIMG_ADDR, 0)) {
 				printf("Error: Read Kernel from UBI Volume Boot failed!\n");
 				env_set("bootdelay", "-1");
 				return;
 			}
-#endif
+#endif /*defined CONFIG_HB_BOOT_FROM_NAND && !defined(CONFIG_DISTRO_DEFAULTS)*/
 
-#if defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)
+#if (defined(CONFIG_HB_BOOT_FROM_NOR) || defined(CONFIG_HB_BOOT_FROM_NAND)) && !defined(CONFIG_DISTRO_DEFAULTS)
 		if (if_secure) {
 			env_set("bootcmd", HB_SET_WDT "avb_verify; bootm "__stringify(BOOTIMG_ADDR));
 		} else {
