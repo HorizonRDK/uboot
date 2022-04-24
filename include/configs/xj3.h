@@ -118,7 +118,7 @@
 #ifdef CONFIG_MULTIMODE
 #define KERNEL_ADDR			0x400000
 #else
-#define KERNEL_ADDR			0x280000
+#define KERNEL_ADDR			0x200000
 #endif
 #define FDT_ADDR			0x3C00000
 #define GZ_ADDR				0x8000000
