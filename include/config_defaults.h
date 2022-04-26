@@ -11,10 +11,12 @@
 
 /* Support bootm-ing different OSes */
 #define CONFIG_BOOTM_LINUX 1
+#ifndef CONFIG_TARGET_XJ3
 #define CONFIG_BOOTM_NETBSD 1
 #define CONFIG_BOOTM_PLAN9 1
 #define CONFIG_BOOTM_RTEMS 1
 #define CONFIG_BOOTM_VXWORKS 1
+#endif
 
 #ifdef CONFIG_GZIP
 #define CONFIG_ZLIB 1
