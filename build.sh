@@ -165,8 +165,8 @@ function build()
                 offset=0
                 uboot_total=${uboot_size}
             else
-                offset=$(( uboot_size / blk_sz ))
-                uboot_total=$(( uboot_size * 2 / blk_sz ))
+                offset=$(( uboot_size ))
+                uboot_total=$(( uboot_size * 2 ))
             fi
             runcmd "dd if=/dev/zero of=$TARGET_DEPLOY_DIR/uboot.img bs=${blk_sz} count=${uboot_total} conv=notrunc,sync status=none"
             runcmd "dd if=$TARGET_DEPLOY_DIR/uboot/$UBOOT_IMAGE_NAME of=$TARGET_DEPLOY_DIR/uboot.img bs=${blk_sz} conv=notrunc,sync status=none"
