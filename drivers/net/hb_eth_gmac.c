@@ -1468,7 +1468,7 @@ static int eqos_probe(struct udevice *dev)
 
         // set gpio20 to output 0
         reg_val = readl(GPIO1_DIR);
-        reg_val |= 0x00080000;
+        reg_val |= 0x00100000;
         reg_val &= 0xffffffef; // 1.8 output, 1.9 input
         writel(reg_val, GPIO1_DIR);
 
