@@ -494,26 +494,31 @@ static bool hb_pf5024_device_id_getable(void)
 #endif
 
 /*
- *          BIFSD_CLK(20) JTG_TRSTN(4)  som_type
- * SDBv3 :      0             0                 3
- * SDBv4 :      0             1                 4
+ *          BIFSD_CLK(20) BIFSD_DATA1(23)  som_type
+ * SDBv3 :      0             1                 3
+ * SDBv4 :      0             0                 4
  * X3 PI :      1             x                 5
  */
 static int hb_adjust_somid_by_gpios(void)
 {
 	int16_t i = 0;
 	uint32_t pin_val = 0;
-	uint32_t pin_no[] = {4, 20};
+	uint32_t pin_no[] = {23, 20};
 	uint64_t addr = 0, reg = 0;
 	uint16_t pin_nums = ARRAY_LEN(pin_no);
 
 	/* set pin func to GPIO*/
-	for (i = 0; i < pin_nums; ++i) {
-		addr = HB_PIN_FUNC_CFG_REG(pin_no[i]);
-		reg = readl(addr);
-		reg |= 0x3;
-		writel(reg, addr);
-	}
+	/* setting PD */
+	addr = HB_PIN_FUNC_CFG_REG(pin_no[0]);
+	reg = readl(addr);
+	reg |= 0x83;
+	reg &= ~(1 << 8);
+	writel(reg, addr);
+
+	addr = HB_PIN_FUNC_CFG_REG(pin_no[1]);
+	reg = readl(addr);
+	reg |= 0x3;
+	writel(reg, addr);
 
 	/* set pin to GPIO input function */
 	for (i = 0; i < pin_nums; ++i) {
@@ -522,7 +527,7 @@ static int hb_adjust_somid_by_gpios(void)
 		reg &= ~((uint64_t)(0x1) << (16 + pin_no[i] % 16));
 		writel(reg, addr);
 	}
-	udelay(500);
+	udelay(15*1000);
 	for (i = 0; i < pin_nums; ++i) {
 		addr = HB_IO_IN_VAL_REG(pin_no[i]);
 		reg = readl(addr);
@@ -533,8 +538,16 @@ static int hb_adjust_somid_by_gpios(void)
 
 	if (pin_val > 2) pin_val = 2;
 
-	return SOM_TYPE_X3SDB + pin_val;
-
+	switch (pin_val) {
+	case 0:
+		return SOM_TYPE_X3SDBV4;
+	case 1:
+		return SOM_TYPE_X3SDB;
+	case 2:
+		return SOM_TYPE_X3PI;
+	default:
+		return SOM_TYPE_X3SDB;
+	}
 }
 
 
