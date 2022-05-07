@@ -500,6 +500,7 @@ int init_io_vol(void)
 {
 	uint32_t value = 0;
 	uint32_t som_type = 0;
+	uint64_t addr = 0, reg = 0;
 	struct hb_info_hdr *bootinfo = (struct hb_info_hdr*)HB_BOOTINFO_ADDR;
 
 	hb_board_id = bootinfo->board_id;
@@ -538,6 +539,24 @@ int init_io_vol(void)
 	} else if (som_type == SOM_TYPE_X3PI) {
 		writel(0xC00, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);
+		/* Power down and up vdd_sd of sdio2
+		 * make sd card run in super speed mode
+		 */
+		/* Control gpio21 to power down VDD_SD */
+		addr = (PIN_MUX_BASE + (21) * 0x4);
+		reg = readl(addr);
+		reg |= 0x03;
+		writel(reg, addr);
+
+		addr = (GPIO_BASE + ((21) / 16) * 0x10 + 0x8);
+		reg = readl(addr);
+		reg |= ((uint64_t)(0x1) << (16 + 5));
+		reg &= ~((uint64_t)(0x1) << (5));
+		writel(reg, addr);
+		mdelay(10);
+		reg |= ((uint64_t)(0x1) << (5));
+		writel(reg, addr);
+		pr_err("X3 PI reset VDD_SD done\n");
 	}
 	return 0;
 }
