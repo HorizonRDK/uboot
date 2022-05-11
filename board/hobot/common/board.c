@@ -564,6 +564,7 @@ uint32_t hb_som_type_get(void)
 			break;
 		case SOM_TYPE_X3:
 		case SOM_TYPE_J3:
+			break;
 		case SOM_TYPE_X3SDB:
 			som_id = hb_adjust_somid_by_gpios();
 			break;
