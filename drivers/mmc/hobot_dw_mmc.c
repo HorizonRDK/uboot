@@ -283,15 +283,29 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
-	int ret;
+	unsigned int reg_val = 0, mmc_shift;
+	int tmp = 0;
 
-	pr_debug("%s: target freq:%u\n", host->name, freq);
-	ret = clk_set_rate(&priv->clk, freq);
-	if (ret < 0) {
-		pr_err("%s: clk_set_rate failed: %d\n", host->name, ret);
-		return ret;
-	}
-
+	/* decide which ctrl we are configuring */
+	mmc_shift = (priv->ctrl_id == 0 ? HOBOT_SD0_CLK_SHIFT :
+			   (priv->ctrl_id == 1 ? HOBOT_SD1_CLK_SHIFT :
+									 HOBOT_SD2_CLK_SHIFT));
+	/* Disable clk */
+	writel(mmc_shift, HOBOT_MMC_CLK_DIS);
+	udelay(500);
+	/* Configure 1st div to 8 */
+	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	reg_val &= 0xFFFFFF00;
+	reg_val |= 0x70;
+	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	/* Configure 2nd div */
+	tmp = clk_get_rate(&priv->clk) / freq;
+	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	reg_val |= (tmp & 0xF);
+	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
+	/* Enable clk */
+	writel(mmc_shift, HOBOT_MMC_CLK_EN);
+	udelay(500);
 	freq = clk_get_rate(&priv->clk);
 #else
 	freq = 50000000;
