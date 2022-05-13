@@ -190,7 +190,7 @@ int x2a_auth_kernel_img(uint32_t algo, uint8_t *key,
 	if (ret < 0)
 		return VERIFY_FAILURE;
 
-	if (memcmp(dest, sig, sig_len) == 0)
+	if (memcmp(dest, sig, sizeof(dest)) == 0)
 		ret = ALG_SUCCESS;
 	else
 		ret = VERIFY_FAILURE;

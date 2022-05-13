@@ -254,6 +254,7 @@ static int do_swinfo_dump(cmd_tbl_t *cmdtp, int flag,
 		s_addr = (void *)(HB_SWINFO_MEM_ADDR + HB_SWINFO_DUMP_OFFSET);
 		s_f = 1;
 	} else {
+		s_f = 0;
 		s_addr = (void *)(HB_PMU_SW_REG_00 + HB_SWINFO_DUMP_OFFSET);
 	}
 

@@ -697,6 +697,8 @@ int64_t fastboot_mmc_flash_read(char *cmd, void *upload_buffer,
 			if (part_get_info_by_name_or_alias(dev_desc, next, &info) < 0) {
 				pr_err("cannot find partition: '%s'\n", next);
 				fastboot_fail("cannot find partition", response);
+
+				return -1;
 			} else {
 				length = info.start + info.size;
 			}

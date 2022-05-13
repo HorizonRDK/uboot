@@ -221,6 +221,8 @@ int write_sparse_image(struct sparse_storage *info,
 				    __func__);
 				info->mssg("Request would exceed partition size!",
 					   response);
+				free(fill_buf);
+				fill_buf = NULL;
 				return -1;
 			}
 
@@ -252,6 +254,8 @@ int write_sparse_image(struct sparse_storage *info,
 						if (!write_back_buf) {
 							info->mssg("Malloc write back failed for: CHUNK_TYPE_FILL",
 							response);
+							free(fill_buf);
+							fill_buf = NULL;
 							return -1;
 						}
 						/* Write start blk not aligned with mmc erase group */
@@ -282,7 +286,7 @@ int write_sparse_image(struct sparse_storage *info,
 							erase_cnt += (((blkend - start_blk - erase_cnt) / mmc_erase_sz + 1)
 							* mmc_erase_sz);
 
-						blks = info->write(info, start_blk, erase_cnt, NULL);
+						info->write(info, start_blk, erase_cnt, NULL);
 						last_erased_blk = ((blkend + mmc_erase_sz - 1) / mmc_erase_sz) *
 						mmc_erase_sz;
 						/* Start write back erased contents */

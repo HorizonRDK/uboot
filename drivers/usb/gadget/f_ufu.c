@@ -579,7 +579,7 @@ static int cb_run(struct fsg_common *common,
 	struct fsg_buffhd	*next_bh;
 	int rc;
 
-	if (common->data_size > UFU_RUN_COMMNAD_MAX_LENGTH &&
+	if (common->data_size >= UFU_RUN_COMMNAD_MAX_LENGTH ||
 			common->data_dir != DATA_DIR_FROM_HOST) {
 		printf("common length(%u) exceed, must be less than %u, "
 			"and data_dir(%u) must be DATA_DIR_FROM_HOST\n",

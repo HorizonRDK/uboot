@@ -128,8 +128,10 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 	evt->length	= length;
 	evt->buf	= dma_alloc_coherent(length,
 					     (unsigned long *)&evt->dma);
-	if (!evt->buf)
+	if (!evt->buf) {
+		devm_kfree((struct udevice *)dwc->dev, evt);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	/*
 	 * Move event buffer flush operation to the end of dwc3_init,
@@ -919,6 +921,7 @@ int dwc3_setup_phy(struct udevice *dev, struct phy **array, int *num_phys)
 		if (ret && ret != -ENOENT) {
 			pr_err("Failed to get USB PHY%d for %s\n",
 			       i, dev->name);
+			devm_kfree(dev, usb_phys);
 			return ret;
 		}
 	}
