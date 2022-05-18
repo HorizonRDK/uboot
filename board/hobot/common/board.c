@@ -622,7 +622,7 @@ uint32_t hb_board_type_get(void)
 	base_board_id = hb_base_board_type_get();
 	som_id = hb_som_type_get();
 
-	board_type = (base_board_id & 0x7) | ((som_id & 0x7) << 8);
+	board_type = (base_board_id & 0x7) | ((som_id & 0xf) << 8);
 	DEBUG_LOG("board_type = %02x\n", board_type);
 
 	return board_type;
