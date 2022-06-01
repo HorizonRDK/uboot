@@ -402,8 +402,8 @@ static char *stage_name[STAGE_COUNT] = {
 struct test_info {
 	int stage;
 	int bytes;
-	unsigned base_ms;
-	unsigned time_ms[STAGE_COUNT];
+	ulong base_ms;
+	ulong time_ms[STAGE_COUNT];
 };
 
 static void show_time(struct test_info *test, int stage)
