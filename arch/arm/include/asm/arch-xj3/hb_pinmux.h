@@ -20,6 +20,11 @@
 #define PIN_TYPE2_PULL_DOWN_OFFSET   (7)
 #define PIN_TYPE2_PULL_DOWN_ENABLE   (1 << PIN_TYPE2_PULL_DOWN_OFFSET)
 #define PIN_TYPE2_PULL_DOWN_DISABLE  (~(1 << PIN_TYPE2_PULL_DOWN_OFFSET))
+
+#define SD0_AIN0_VOL_BIT      (0)
+#define SD0_AIN1_VOL_BIT      (1)
+#define SD0_AIN0_1V8          (1 << SD0_AIN0_VOL_BIT)
+#define SD0_AIN1_1V8          (1 << SD0_AIN1_VOL_BIT)
 static inline unsigned int hb_pin_get_uart_br(void)
 {
         return (PIN_UART_BR_SEL(readl(STRAP_PIN_REG)));

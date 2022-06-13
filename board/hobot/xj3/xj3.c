@@ -476,7 +476,11 @@ int init_io_vol(void)
 		value = 0xD0D;
 	}
 	writel(value, GPIO_BASE + 0x174);
-	writel(0xF, GPIO_BASE + 0x170);
+	/*
+	* the external power supply of SD11 and SD2 is 3.3V by default in DVB,
+	* so ONLY set sd0 to 1.8V
+	*/
+	writel(SD0_AIN0_1V8 | SD0_AIN1_1V8, GPIO_BASE + 0x170);
 	return 0;
 }
 
