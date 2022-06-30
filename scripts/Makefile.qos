@@ -3,6 +3,7 @@ src := $(obj)
 
 # Create output directory if not already present
 _dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
+_dummy += $(shell [ -d $(obj)/../board/hobot/xj3/ ] || mkdir -p $(obj)/../board/hobot/xj3/)
 
 QOS_BIN := qos
 
@@ -27,7 +28,7 @@ LDSCRIPT := $(srctree)/$(obj)/qos.lds
 head-y          := $(addprefix $(obj)/,$(head-y))
 qos-init := $(head-y)
 
-ALL-y   += $(obj)/$(QOS_BIN).bin
+ALL-y   += $(obj)/$(QOS_BIN).bin $(obj)/../board/hobot/xj3/qos_hex.h
 
 quiet_cmd_ddr_qos = SET_QOS    $@
 cmd_ddr_qos = $(CC) $(c_flags) -c $< -o $@
@@ -53,8 +54,8 @@ $(info "src tree:$(srctree), obj:$(obj)")
 $(obj)/$(QOS_BIN): $(qos-main) $(srctree)/$(obj)/qos.lds
 	$(qos)
 
-$(obj)/$(QOS_BIN).bin : $(obj)/$(QOS_BIN)
+$(obj)/../board/hobot/xj3/qos_hex.h $(obj)/$(QOS_BIN).bin : $(obj)/$(QOS_BIN)
 	$(qos_objcopy)
-	$(srctree)/tools/bin2c qos/qos.bin $(srctree)/board/hobot/xj3/qos_hex.h qos_hex
+	$(srctree)/tools/bin2c qos/qos.bin board/hobot/xj3/qos_hex.h qos_hex
 
 all:    $(ALL-y)
