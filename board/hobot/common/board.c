@@ -570,6 +570,7 @@ uint32_t hb_som_type_get(void)
 			break;
 		case SOM_TYPE_X3SDBV4:
 		case SOM_TYPE_X3PI:
+		case SOM_TYPE_X3E:
 		default:
 			break;
 		}
@@ -2102,6 +2103,9 @@ static char * get_dtb_name(void)
 		break;
 	case SOM_TYPE_X3PI:
 		dtb_name = "hobot-x3-pi.dtb";
+		break;
+	case SOM_TYPE_X3E:
+		dtb_name = "hobot-x3-sdb.dtb";
 		break;
 	default:
 		printf("Unsupported board ID!!\n");

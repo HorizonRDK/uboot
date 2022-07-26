@@ -1422,7 +1422,9 @@ static int eqos_probe(struct udevice *dev)
 		writel(reg_val, reg_addr);
 	}
 
-    if (hb_som_type_get() == SOM_TYPE_X3SDB || hb_som_type_get() == SOM_TYPE_X3SDBV4) {
+    if (hb_som_type_get() == SOM_TYPE_X3SDB
+		|| hb_som_type_get() == SOM_TYPE_X3SDBV4
+		|| hb_som_type_get() == SOM_TYPE_X3E) {
         // reset
         reg_val = readl(PIN_MUX_BASE + (1*16 + 8)*4);
         reg_val |= 0x03;

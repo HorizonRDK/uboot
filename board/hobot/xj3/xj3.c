@@ -557,6 +557,9 @@ int init_io_vol(void)
 		reg |= ((uint64_t)(0x1) << (5));
 		writel(reg, addr);
 		pr_err("X3 PI reset VDD_SD done\n");
+	} else if (som_type == SOM_TYPE_X3E) {
+		writel(0xF0F, GPIO_BASE + 0x174);
+		writel(0x7, GPIO_BASE + 0x170);
 	}
 	return 0;
 }
