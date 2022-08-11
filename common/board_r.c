@@ -795,6 +795,9 @@ static int run_main_loop(void)
 	if (readl(HB_PMU_SW_REG_23) == 0x74726175) {
 		env_set("bootdelay", "-1");
 		writel(0x00000000, HB_PMU_SW_REG_23);
+	} else if ((readl(HB_PMU_SW_REG_23)  & 0xffff) == EFUSE_VERIFY_FALID_FLAG) {
+		printf("SPL verify efuse config file failed\n");
+		env_set("bootdelay", "-1");
 	}
 	/* main_loop() can return to retry autoboot, if so just run it again */
 	for (;;)
