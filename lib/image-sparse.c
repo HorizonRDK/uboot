@@ -226,10 +226,6 @@ int write_sparse_image(struct sparse_storage *info,
 				return -1;
 			}
 
-			mmc = find_mmc_device(dev_num);
-			if (!mmc)
-				return -1;
-			mmc_erase_sz = mmc->erase_grp_size;
 			old_wbbuf_sz = 0;
 			for (i = 0; i < blkcnt;) {
 				j = blkcnt - i;
@@ -239,6 +235,11 @@ int write_sparse_image(struct sparse_storage *info,
 				/* Handle eMMC writes with empty chunks */
 				if ((fill_val == 0) &&
 					(fastboot_get_flash_type() == FLASH_TYPE_EMMC)) {
+					mmc = find_mmc_device(dev_num);
+					if (!mmc)
+						return -1;
+					mmc_erase_sz = mmc->erase_grp_size;
+
 					if (blkend > last_erased_blk) {
 						new_wbbuf_sz = ROUNDUP(
 							info->blksz * fill_buf_num_blks * 2,
