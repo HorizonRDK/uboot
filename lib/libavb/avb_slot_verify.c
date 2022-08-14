@@ -1206,6 +1206,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   char *bootargs_del_ptr = NULL;
   char cmd[1024] = { 0 }, system_partition[32] = { 0 };
   char cmd_final[1024] = { 0 }, system_dev[32] = { 0 };
+  char vbmeta_part_name[128] = {0};
 
   /* Fail early if we're missing the AvbOps needed for slot verification.
    *
@@ -1256,14 +1257,19 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
     goto fail;
   }
 
+  if (strncmp(boot_partition, RECOVERY_PARTITION_NAME, strlen(RECOVERY_PARTITION_NAME))) {
+    strncpy(vbmeta_part_name, "vbmeta", sizeof(vbmeta_part_name) - 1);
+  } else {
+    strncpy(vbmeta_part_name, RECOVERY_PARTITION_NAME, sizeof(vbmeta_part_name) - 1);
+  }
   ret = load_and_verify_vbmeta(ops,
                                requested_partitions,
                                ab_suffix,
                                allow_verification_error,
                                0 /* toplevel_vbmeta_flags */,
                                0 /* rollback_index_location */,
-                               "vbmeta",
-                               avb_strlen("vbmeta"),
+                               vbmeta_part_name,
+                               avb_strlen(vbmeta_part_name),
                                NULL /* expected_public_key */,
                                0 /* expected_public_key_length */,
                                slot_data,

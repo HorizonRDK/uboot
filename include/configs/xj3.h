@@ -42,7 +42,7 @@
 #endif /*CONFIG_PARALLEL_CPU_CORE_ONE*/
 
 #define CONFIG_SYS_SKIP_RELOC		/* skip relocation */
-#define X3_USABLE_RAM_TOP		(0x6000000)	/* Top is + 96MB */
+#define X3_USABLE_RAM_TOP		0x7000000	/* Top is + 112MB */
 
 /* Physical Memory Map */
 #define PHYS_SDRAM_1				0x200000
@@ -105,7 +105,7 @@
 #define CONFIG_NET_RETRY_COUNT	100	/* for rndis arp retry count exceeded */
 
 /* Size of malloc() pool */
-#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_16M)
+#define CONFIG_SYS_MALLOC_LEN		(CONFIG_ENV_SIZE + SZ_32M)
 
 #ifdef CONFIG_SYS_SKIP_RELOC
 #define SZ_66K				0x00010800 /* TBL table + board info + global data */
@@ -122,7 +122,7 @@
 #endif
 #define FDT_ADDR			0x3C00000
 #define GZ_ADDR				0x8000000
-#define LOAD_ADDR			0x6000000
+#define LOAD_ADDR			X3_USABLE_RAM_TOP
 
 #define CONFIG_SYS_MAX_FLASH_BANKS	1
 
