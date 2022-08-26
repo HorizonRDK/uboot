@@ -29,6 +29,13 @@ extern struct hb_uid_hdr hb_unique_id;
 #define MHZ(x) ((x) * 1000000UL)
 #define DEBUG_SECURE_BOOT_PIN  0
 
+static void hb_unique_id_get(void)
+{
+    struct hb_uid_hdr *p_uid = (struct hb_uid_hdr *)(HB_UNIQUEID_INFO);
+    hb_unique_id = *p_uid;
+    return;
+}
+
 int get_pin_input_value(char pin)
 {
 	unsigned int reg = 0;
@@ -416,6 +423,7 @@ int board_late_init(void)
 	qspi_flash_init();
 #endif
 
+	hb_unique_id_get();
 	hb_set_serial_number();
 
 #ifdef CONFIG_DDR_BOOT

@@ -553,13 +553,6 @@ uint32_t hb_base_board_type_get(void)
 	return base_id;
 }
 
-static void hb_unique_id_get(void)
-{
-    struct hb_uid_hdr *p_uid = (struct hb_uid_hdr *)(HB_UNIQUEID_INFO);
-    hb_unique_id = *p_uid;
-    return;
-}
-
 uint32_t hb_board_type_get(void)
 {
 	uint32_t board_type, base_board_id, som_id;
@@ -2082,7 +2075,6 @@ int last_stage_init(void)
 {
 	int boot_mode = hb_boot_mode_get();
 
-	hb_unique_id_get();
 #ifndef CONFIG_FPGA_HOBOT
 	disable_cnn();
 #endif
