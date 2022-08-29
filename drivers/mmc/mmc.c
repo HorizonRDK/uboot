@@ -380,7 +380,7 @@ static int mmc_read_blocks(struct mmc *mmc, void *dst, lbaint_t start,
 	struct mmc_data data;
 
 	if (blkcnt > 1) {
-		if (mmc->host_caps & MMC_CAP_CMD23) {
+		if (mmc_cmd23_enabled(mmc)) {
 			if (mmc_set_blockcount(mmc, blkcnt, false))
 				pr_err("mmc fail to send set blkcnt cmd\n");
 		}
@@ -404,7 +404,7 @@ static int mmc_read_blocks(struct mmc *mmc, void *dst, lbaint_t start,
 	if (mmc_send_cmd(mmc, &cmd, &data))
 		return 0;
 
-	if (blkcnt > 1 && !(mmc->host_caps & MMC_CAP_CMD23)) {
+	if (blkcnt > 1 && !mmc_cmd23_enabled(mmc)) {
 		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
 		cmd.cmdarg = 0;
 		cmd.resp_type = MMC_RSP_R1b;
@@ -1330,6 +1330,9 @@ retry_scr:
 
 	if (mmc->scr[0] & SD_DATA_4BIT)
 		mmc->card_caps |= MMC_MODE_4BIT;
+
+	if (mmc->scr[0] & SD_SCR_CMD23_SUPPORT)
+		mmc->card_caps |= MMC_CAP_CMD23;
 
 	/* Version 1.0 doesn't support switching */
 	if (mmc->version == SD_VERSION_1_0)

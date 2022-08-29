@@ -138,4 +138,14 @@ int mmc_switch_part(struct mmc *mmc, unsigned int part_num);
  */
 int mmc_switch(struct mmc *mmc, u8 set, u8 index, u8 value);
 
+/*
+* mmc_cmd23_enabled - Check if cmd23 is supported by both host and card
+* @mmc: @mmc:	MMC device
+*
+ */
+static bool __maybe_unused mmc_cmd23_enabled(struct mmc *mmc) {
+	return ((mmc->host_caps & MMC_CAP_CMD23) &&
+			(IS_MMC(mmc) || (IS_SD(mmc) && mmc->card_caps & MMC_CAP_CMD23)));
+}
+
 #endif /* _MMC_PRIVATE_H_ */

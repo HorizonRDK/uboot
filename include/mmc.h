@@ -28,6 +28,7 @@ struct bd_info;
 /* SD/MMC version bits; 8 flags, 8 major, 8 minor, 8 change */
 #define SD_VERSION_SD	(1U << 31)
 #define MMC_VERSION_MMC	(1U << 30)
+#define SD_SCR_CMD23_SUPPORT (1U << 1)
 
 #define MAKE_SDMMC_VERSION(a, b, c)	\
 	((((u32)(a)) << 16) | ((u32)(b) << 8) | (u32)(c))
@@ -74,7 +75,7 @@ struct bd_info;
 #define MMC_CAP_NONREMOVABLE	BIT(14)
 #define MMC_CAP_NEEDS_POLL	BIT(15)
 #define MMC_CAP_CD_ACTIVE_HIGH  BIT(16)
-#define MMC_CAP_CMD23		(1 << 30)	/* CMD23 supported. */
+#define MMC_CAP_CMD23		(1 << 31)	/* CMD23 supported. */
 
 #define MMC_MODE_8BIT		BIT(30)
 #define MMC_MODE_4BIT		BIT(29)

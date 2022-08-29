@@ -147,7 +147,7 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 	} else if (blkcnt == 1) {
 		cmd.cmdidx = MMC_CMD_WRITE_SINGLE_BLOCK;
 	} else {
-		if (mmc->host_caps & MMC_CAP_CMD23) {
+		if (mmc_cmd23_enabled(mmc)) {
 			if (mmc_set_blockcount(mmc, blkcnt, false)) /*Send CMD23 set block count*/
 				pr_err("mmc fail to send set blkcnt cmd\n");
 		}
@@ -188,7 +188,7 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 	/* SPI multiblock writes terminate using a special
 	 * token, not a STOP_TRANSMISSION request.
 	 */
-	if (!mmc_host_is_spi(mmc) && blkcnt > 1 && !(mmc->host_caps & MMC_CAP_CMD23)) {
+	if (!mmc_host_is_spi(mmc) && blkcnt > 1 && !(mmc_cmd23_enabled(mmc))) {
 		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
 		cmd.cmdarg = 0;
 		cmd.resp_type = MMC_RSP_R1b;
@@ -252,7 +252,7 @@ static ulong mmc_write_blocks(struct mmc *mmc, lbaint_t start,
 	/* SPI multiblock writes terminate using a special
 	 * token, not a STOP_TRANSMISSION request.
 	 */
-	if (!mmc_host_is_spi(mmc) && blkcnt > 1 && !(mmc->host_caps & MMC_CAP_CMD23)) {
+	if (!mmc_host_is_spi(mmc) && blkcnt > 1 && !mmc_cmd23_enabled(mmc)) {
 		cmd.cmdidx = MMC_CMD_STOP_TRANSMISSION;
 		cmd.cmdarg = 0;
 		cmd.resp_type = MMC_RSP_R1b;
