@@ -50,6 +50,9 @@ DECLARE_GLOBAL_DATA_PTR;
 #define HOBOT_CLK_OP_RETRY       10
 #define HOBOT_CLK_OP_DELAY_US     10
 #define HOBOT_CLK_OP_TIMEOUT_US(x)		(x / HOBOT_CLK_OP_DELAY_US)
+/* Add the neccessary delay for clk enable and disable */
+#define HB_CLK_OP_DELAY udelay(100)
+
 struct hobot_mmc_plat {
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 	struct dtd_hobot_hb_dw_mshc dtplat;
@@ -223,6 +226,7 @@ static int hb_mmc_disable_clk(struct dwmci_host *host)
 			pr_debug("%s:%d reg_value:%x, off_sta_shift:%x\n",
 					 __func__, __LINE__, reg_value, clkoff_sta_shift);
 			if (reg_value & clkoff_sta_shift) {
+				HB_CLK_OP_DELAY;
 				return 0;
 			}
 			udelay(HOBOT_CLK_OP_DELAY_US);
@@ -264,6 +268,7 @@ static int hb_mmc_enable_clk(struct dwmci_host *host)
 			pr_debug("%s:%d reg_value:%x, off_sta_shift:%x\n",
 					 __func__, __LINE__, reg_value, clkoff_sta_shift);
 			if (!(reg_value & clkoff_sta_shift)) {
+				HB_CLK_OP_DELAY;
 				return 0;
 			}
 			udelay(HOBOT_CLK_OP_DELAY_US);
@@ -283,34 +288,30 @@ static uint hobot_dwmmc_get_mmc_clk(struct dwmci_host *host, uint freq)
 #if !defined(CONFIG_TARGET_X2_FPGA) && !defined(CONFIG_TARGET_X3_FPGA)
 	struct udevice *dev = host->priv;
 	struct hobot_dwmmc_priv *priv = dev_get_priv(dev);
-	unsigned int reg_val = 0, mmc_shift;
+	unsigned int reg_val = 0, cur_freq;
 	int tmp = 0;
 
-	/* decide which ctrl we are configuring */
-	mmc_shift = (priv->ctrl_id == 0 ? HOBOT_SD0_CLK_SHIFT :
-			   (priv->ctrl_id == 1 ? HOBOT_SD1_CLK_SHIFT :
-									 HOBOT_SD2_CLK_SHIFT));
-	/* Disable clk */
-	writel(mmc_shift, HOBOT_MMC_CLK_DIS);
-	udelay(500);
+	debug("%s: target freq: %u\n", host->name, freq);
+	hb_mmc_disable_clk(host);
 	/* Configure 1st div to 8 */
 	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
 	reg_val &= 0xFFFFFF00;
 	reg_val |= 0x70;
 	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
 	/* Configure 2nd div */
-	tmp = clk_get_rate(&priv->clk) / freq;
+	cur_freq = clk_get_rate(&priv->clk);
+	tmp = cur_freq / freq;
+	if (tmp != 0 && ((cur_freq % freq) == 0) )
+		tmp = 0;
 	reg_val = readl(HOBOT_MMC_CLK_REG(priv->ctrl_id));
 	reg_val |= (tmp & 0xF);
 	writel(reg_val, HOBOT_MMC_CLK_REG(priv->ctrl_id));
-	/* Enable clk */
-	writel(mmc_shift, HOBOT_MMC_CLK_EN);
-	udelay(500);
+	hb_mmc_enable_clk(host);
 	freq = clk_get_rate(&priv->clk);
 #else
 	freq = 50000000;
 #endif
-	pr_debug("%s: actual freq: %u\n", host->name, freq);
+	debug("%s: actual freq: %u\n", host->name, freq);
 	return freq;
 }
 
@@ -320,7 +321,7 @@ static int hb_mmc_set_sample_phase(struct hobot_dwmmc_priv *priv,
 {
 	u32 reg_value;
 	struct dwmci_host host = priv->host;
-	debug("current_sample_phase=%d,set to %d\n",
+	pr_debug("current_sample_phase=%d,set to %d\n",
 		  priv->current_sample_phase, degrees);
 	hb_mmc_disable_clk(&host);
 
@@ -507,7 +508,7 @@ static int hobot_dwmmc_ofdata_to_platdata(struct udevice *dev)
 	sdio_power(host->dev_index);
 
 	if (fdtdec_get_bool(gd->fdt_blob, dev_of_offset(dev), "mmc-hs200-1_8v"))
-		host->caps = MMC_CAP(MMC_HS_200);
+		host->caps |= MMC_CAP(MMC_HS_200);
 
 	host->name = dev->name;
 	host->ioaddr = (void *)devfdt_get_addr(dev);

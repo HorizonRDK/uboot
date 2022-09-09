@@ -505,8 +505,10 @@ static int dwmci_setup_bus(struct dwmci_host *host, u32 freq)
 		}
 	} while (status & DWMCI_CMD_START);
 
-	host->clock = freq;
-
+	if (div != 0)
+		host->clock = sclk / (2 * div);
+	else
+		host->clock = sclk;
 	pr_debug("%s: host->clock:%u, freq:%u, sclk: %lu, div: %u\n",
 			 host->name, host->clock, freq, sclk, div);
 	return 0;
@@ -715,9 +717,7 @@ void dwmci_setup_cfg(struct mmc_config *cfg, struct dwmci_host *host,
 		cfg->host_caps &= ~(MMC_MODE_8BIT | MMC_MODE_4BIT);
 	}
 	cfg->host_caps |= MMC_MODE_HS | MMC_MODE_HS_52MHz;
-#ifdef CONFIG_MMC_HS200_SUPPORT
-	cfg->host_caps |= MMC_MODE_HS200;
-#endif
+
 	cfg->host_caps |= MMC_CAP_CMD23;
 
 	cfg->b_max = CONFIG_SYS_MMC_MAX_BLK_COUNT;
