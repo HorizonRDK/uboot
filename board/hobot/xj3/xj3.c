@@ -198,10 +198,11 @@ void set_dfu_alt_info(char *interface, char *devstr)
 int hb_get_socuid(char *socuid)
 {
 	int read_flag = 0;
-	u32 val, word;
+	u32 val;
+	int32_t word;
     char tmp[10] = {0};
 
-	for (word = 0; word < 4; word++) {
+	for (word = 3; word >= 0; word--) {
         val = hb_unique_id.bank[word];
         if (val != 0) {
             read_flag = 1;

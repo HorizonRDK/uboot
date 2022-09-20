@@ -136,7 +136,8 @@ static int hb_set_socuid(int offset)
 		memcpy(node_data, ptmp, len);
 
 	memset(node_data, 0, sizeof(node_data));
-	ret = hb_get_socuid(node_data);
+	snprintf(node_data, sizeof(node_data), "0x");
+	ret = hb_get_socuid(node_data + strlen(node_data));
 	if(ret < 0) {
 		printf("get_socuid error\n");
 		return 1;
