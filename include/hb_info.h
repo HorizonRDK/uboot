@@ -74,6 +74,10 @@
 #define SOM_TYPE_J3		0x2
 #define SOM_TYPE_X3SDB		0x4
 
+/* chip type */
+#define CHIP_TYPE_X3    0x1
+#define CHIP_TYPE_J3    0x2
+
 /* ecc config */
 #define ECC_DEFAULT		0x0
 #define ECC_ALL			0x1
@@ -120,6 +124,8 @@
 #define PIN_2ND_NOR		    0x5
 #define PIN_2ND_USB_BURN    0x6
 
+#define CHIP_TYPE_EFUSE_SEL(x) ((x >> 13) & 0x7)
+#define BPU_CLK_EFUSE_SEL(x)  ((x >> 12) & 0x1)
 //#define HB_RESERVED_USER_SIZE	SZ_16K		/* reserved in top of TBL <= 24K */
 //#define HB_RESERVED_USER_ADDR	(HB_USABLE_RAM_TOP - HB_RESERVED_USER_SIZE)
 
@@ -288,5 +294,7 @@ int hb_get_socuid(char* socuid);
 int init_io_vol(void);
 int update_qos(void);
 void xj3_set_pin_info(void);
+uint32_t hb_efuse_chip_type(void);
+uint32_t is_bpu_clock_limit(void);
 
 #endif /* __HB_INFO_H__ */

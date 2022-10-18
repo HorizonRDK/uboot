@@ -225,6 +225,34 @@ int hb_get_socuid(char *socuid)
 	return read_flag;
 }
 
+
+uint32_t hb_efuse_chip_type(void)
+{
+	uint32_t value = 0;
+	uint32_t chip_type = 0;
+	uint32_t ret = 0;
+
+	/* get efuse value: bank28 */
+	value = scomp_read_sw_efuse_bnk(28);
+
+	/* using efuse som type */
+	chip_type = CHIP_TYPE_EFUSE_SEL(value);
+	if (chip_type > 0 && chip_type < 4) {
+		ret = CHIP_TYPE_X3;
+	} else {
+		ret = CHIP_TYPE_J3;
+	}
+	return ret;
+}
+
+uint32_t is_bpu_clock_limit(void)
+{
+		uint32_t value = 0;
+		/* get efuse value: bank28 */
+		value = scomp_read_sw_efuse_bnk(28);
+		return BPU_CLK_EFUSE_SEL(value);
+}
+
 void hb_set_serial_number(void)
 {
 	uint32_t serial_src = 0;

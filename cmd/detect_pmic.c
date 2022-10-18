@@ -85,11 +85,18 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     char *usb_path = "/soc/usb@0xB2000000/";
     char *usb_prop = "usb_0v8-supply";
 
-    if (hb_som_type_get() != SOM_TYPE_X3)
-         return 0;
-
     snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
     run_command(cmd, 0);
+    if (hb_efuse_chip_type() == CHIP_TYPE_J3) {
+        if (is_bpu_clock_limit() == 1) {
+            printf("change cnn opp table to lite version\n");
+            for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
+                switch_to_dc(cnn_path[i], "operating-points-v2",
+                        "operating-points-v2-lite");
+            }
+        }
+        return 0;
+    }
 
     /* read ax1506 i2c address from dtb */
     snprintf(cmd, sizeof(cmd), "fdt get value axp1506_addr %s reg", pathp);
@@ -108,7 +115,7 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     /* try to read register of axp1506 */
     if (dm_i2c_reg_read(dev, 0x0) >= 0) {
 	/*x3e cnn opptable is cnn_opp_table_lite*/
-	if (hb_get_cpu_num()) {
+	if (is_bpu_clock_limit() == 1) {
 		printf("change cnn opp table to lite version\n");
 		for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
 			switch_to_dc(cnn_path[i], "operating-points-v2",
@@ -151,7 +158,7 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
         switch_to_dc(cnn_path[i], "cnn-supply", "cnn-supply-dc");
 	/*x3e cnn opptable is cnn_opp_table_lite*/
-	if (hb_get_cpu_num()) {
+	if (is_bpu_clock_limit() == 1) {
 		switch_to_dc(cnn_path[i], "operating-points-v2",
 			"operating-points-v2-dc-lite");
 	} else {
