@@ -31,7 +31,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* using uboot partition */
 #if !defined(CONFIG_ENV_OFFSET)
-#define CONFIG_ENV_OFFSET 0x37CC00
+#define CONFIG_ENV_OFFSET 0x2F8000
 #endif
 
 /* size 32KB */
