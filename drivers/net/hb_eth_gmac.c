@@ -1457,7 +1457,7 @@ static int eqos_probe(struct udevice *dev)
 
         writel(reg_val, GPIO1_DIR);
         mdelay(500);
-    }else if (hb_som_type_get() == SOM_TYPE_X3PI) {
+    }else if (hb_som_type_get() == SOM_TYPE_X3PI || hb_som_type_get() == SOM_TYPE_X3PIV2) {
         // reset gpio 20
         reg_val = readl(PIN_MUX_BASE + (1*16 + 4)*4);
         reg_val |= 0x03;

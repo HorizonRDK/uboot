@@ -494,10 +494,11 @@ static bool hb_pf5024_device_id_getable(void)
 #endif
 
 /*
- *          BIFSD_CLK(20) BIFSD_DATA1(23)  som_type
- * SDBv3 :      0             1                 3
- * SDBv4 :      0             0                 4
- * X3 PI :      1             x                 5
+ *              BIFSD_CLK(20) BIFSD_DATA1(23) SD0_DATA2(57) som_type
+ * SDBv3      :      0             1              x          3
+ * SDBv4      :      0             0              x          4
+ * X3 PI_v1.1 :      1             x              1          5
+ * X3 PI_v2.0 :      1             x              0          6
  */
 static int hb_adjust_somid_by_gpios(void)
 {
@@ -544,7 +545,20 @@ static int hb_adjust_somid_by_gpios(void)
 	case 1:
 		return SOM_TYPE_X3SDB;
 	case 2:
-		return SOM_TYPE_X3PI;
+	{
+		addr = HB_IO_OUT_CTL_REG(57);
+		reg = readl(addr);
+		reg &= ~((uint64_t)(0x1) << (16 + 57 % 16));
+		writel(reg, addr);
+		udelay(15*1000);
+		addr = HB_IO_IN_VAL_REG(57);
+		reg = readl(addr);
+		pin_val = reg & ((uint64_t)(0x1) << (57 % 16));
+		if (pin_val == 1)
+			return SOM_TYPE_X3PI;
+		else
+			return SOM_TYPE_X3PIV2;
+	}
 	default:
 		return SOM_TYPE_X3SDB;
 	}
@@ -570,6 +584,7 @@ uint32_t hb_som_type_get(void)
 			break;
 		case SOM_TYPE_X3SDBV4:
 		case SOM_TYPE_X3PI:
+		case SOM_TYPE_X3PIV2:
 		case SOM_TYPE_X3E:
 		default:
 			break;
@@ -2102,6 +2117,9 @@ static char * get_dtb_name(void)
 		dtb_name = "hobot-x3-sdb_v4.dtb";
 		break;
 	case SOM_TYPE_X3PI:
+		dtb_name = "hobot-x3-pi.dtb";
+		break;
+	case SOM_TYPE_X3PIV2:
 		dtb_name = "hobot-x3-pi.dtb";
 		break;
 	case SOM_TYPE_X3E:

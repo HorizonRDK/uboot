@@ -536,7 +536,7 @@ int init_io_vol(void)
 	} else if (som_type == SOM_TYPE_X3SDBV4) {
 		writel(0xF0F, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);
-	} else if (som_type == SOM_TYPE_X3PI) {
+	} else if (som_type == SOM_TYPE_X3PI || som_type == SOM_TYPE_X3PIV2) {
 		writel(0xC00, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);
 		/* Power down and up vdd_sd of sdio2
