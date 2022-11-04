@@ -546,6 +546,11 @@ static int hb_adjust_somid_by_gpios(void)
 		return SOM_TYPE_X3SDB;
 	case 2:
 	{
+		addr = HB_PIN_FUNC_CFG_REG(57);
+		reg = readl(addr);
+		reg |= 0x83;
+		reg &= ~(1 << 8);
+		writel(reg, addr);
 		addr = HB_IO_OUT_CTL_REG(57);
 		reg = readl(addr);
 		reg &= ~((uint64_t)(0x1) << (16 + 57 % 16));
@@ -554,7 +559,7 @@ static int hb_adjust_somid_by_gpios(void)
 		addr = HB_IO_IN_VAL_REG(57);
 		reg = readl(addr);
 		pin_val = reg & ((uint64_t)(0x1) << (57 % 16));
-		if (pin_val == 1)
+		if (pin_val)
 			return SOM_TYPE_X3PI;
 		else
 			return SOM_TYPE_X3PIV2;
