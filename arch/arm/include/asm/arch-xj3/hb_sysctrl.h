@@ -46,7 +46,9 @@
 
 #define HB_DDRSYS_CLK_DIV_SEL		(SYSCTRL_BASE + 0x230)
 #define HB_DDRSYS_CLK_STA			(SYSCTRL_BASE + 0x238)
-
+#define HB_VIOSYS_CLK_DIV_SEL1   	(SYSCTRL_BASE + 0x240)
+#define HB_VIOSYS_CLK_DIV_SEL2      (SYSCTRL_BASE + 0x244)
+#define HB_VIOSYS_CLK_DIV_SEL3      (SYSCTRL_BASE + 0x24C)
 #define HB_PERISYS_CLK_DIV_SEL		(SYSCTRL_BASE + 0x250)
 
 #define HB_PLLCLK_SEL				(SYSCTRL_BASE + 0x300)
@@ -61,6 +63,9 @@
 #define HB_SYSC_PERISYS_SW_RSTEN	(SYSCTRL_BASE + 0x450)
 
 #define HB_CPU_FLAG			(PMU_SYS_BASE + 0x214)
+
+#define MASK(n)         ((1 << (n)) - 1)
+#define REFCLK_DIV(n)   ((n) - 1)
 
 /* DDRPLL_FREQ_CTRL */
 #define FBDIV_BITS(x)		((x & 0xFFF) << 0)
@@ -93,8 +98,41 @@
 #define CNNCLK_SEL_BIT		(1 << 8)
 #define DDRCLK_SEL_BIT		(1 << 12)
 #define VIOCLK_SEL_BIT		(1 << 16)
+#define VIOCLK2_SEL_BIT		(1 << 17)
 #define PERICLK_SEL_BIT		(1 << 20)
 #define SYSCLK_SEL_BIT		(1 << 24)
+
+/* SYSCTRL VIOSYS_CLK_DIV_SEL1 */
+#define IAR_PIX_CLK_SRC_SEL(x)          (((x) & MASK(1)) << 31)
+#define SENSOR3_MCLK_2ND_DIV_SEL(x)     (((x) & MASK(3)) << 28)
+#define SENSOR2_MCLK_2ND_DIV_SEL(x)     (((x) & MASK(3)) << 24)
+#define IAR_PIX_CLK_2ND_DIV_SEL(x)      (((x) & MASK(3)) << 21)
+#define IAR_PIX_CLK_1ST_DIV_SEL(x)      (((x) & MASK(5)) << 16)
+#define SIF_MCLK_DIV_SEL(x)             (((x) & MASK(4)) << 12)
+#define SENSOR_DIV_CLK_SRC_SEL(x)       (((x) & MASK(1)) << 11)
+#define SENSOR1_MCLK_2ND_DIV_SEL(x)     (((x) & MASK(3)) << 8)
+#define SENSOR0_MCLK_2ND_DIV_SEL(x)     (((x) & MASK(3)) << 5)
+#define SENSOR_MCLK_1ST_DIV_SEL(x)      (((x) & MASK(5)) << 0)
+
+/* SYSCTRL VIOSYS_CLK_DIV_SEL2 */
+#define MIPI_TX_IPI_CLK_2ND_DIV_SEL(x)  (((x) & MASK(3)) << 29)
+#define MIPI_TX_IPI_CLK_1ST_DIV_SEL(x)  (((x) & MASK(5)) << 24)
+#define MIPI_CFG_CLK_2ND_DIV_SEL(x)     (((x) & MASK(4)) << 20)
+#define MIPI_CFG_CLK_1ST_DIV_SEL(x)     (((x) & MASK(5)) << 15)
+#define PYM_MCLK_SRC_SEL(x)             (((x) & MASK(2)) << 12)
+#define PYM_MCLK_DIV_SEL(x)             (((x) & MASK(4)) << 8)
+#define MIPI_PHY_REFCLK_2ND_DIV_SEL(x)  (((x) & MASK(3)) << 5)
+#define MIPI_PHY_REFCLK_1ST_DIV_SEL(x)  (((x) & MASK(5)) << 0)
+
+/* SYSCTRL VIOSYS_CLK_DIV_SEL3 */
+#define MIPI_RX3_IPI_CLK_2ND_DIV_SEL(x) (((x) & MASK(3)) << 29)
+#define MIPI_RX3_IPI_CLK_1ST_DIV_SEL(x) (((x) & MASK(5)) << 24)
+#define MIPI_RX2_IPI_CLK_2ND_DIV_SEL(x) (((x) & MASK(3)) << 21)
+#define MIPI_RX2_IPI_CLK_1ST_DIV_SEL(x) (((x) & MASK(5)) << 16)
+#define MIPI_RX1_IPI_CLK_2ND_DIV_SEL(x) (((x) & MASK(3)) << 13)
+#define MIPI_RX1_IPI_CLK_1ST_DIV_SEL(x) (((x) & MASK(5)) << 8)
+#define MIPI_RX0_IPI_CLK_2ND_DIV_SEL(x) (((x) & MASK(3)) << 5)
+#define MIPI_RX0_IPI_CLK_1ST_DIV_SEL(x) (((x) & MASK(5)) << 0)
 
 static inline unsigned int hb_get_peripll_clk(void)
 {

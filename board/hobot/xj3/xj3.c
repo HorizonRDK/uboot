@@ -521,6 +521,129 @@ int init_io_vol(void)
 	return 0;
 }
 
+void vio_pll_init(void)
+{
+	unsigned int value;
+	unsigned int try_num = 5;
+
+	 /* VIOPLL2: Disable */
+	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
+			HB_VIOPLL2_PD_CTRL);
+
+	/* VIOPLL2 Freq: 24MHz*99/1/1/1 */
+	writel(FBDIV_BITS(99) | REFDIV_BITS(1) | POSTDIV1_BITS(1) | POSTDIV2_BITS(1),
+			HB_VIOPLL2_FREQ_CTRL);
+
+	/* VIOPLL2: Enable */
+	value = readl(HB_VIOPLL2_PD_CTRL);
+	value &= ~(PD_BIT | FOUTPOST_DIV_BIT);
+	writel(value, HB_VIOPLL2_PD_CTRL);
+
+	/* To reconfig VIOPLL should switch MUX to 24MHz becuase the PLL is using */
+	value = readl(HB_PLLCLK_SEL);
+	value &= ~VIOCLK_SEL_BIT;
+	writel(value, HB_PLLCLK_SEL);
+
+	/* VIOPLL: Disable */
+	writel(PD_BIT | DSMPD_BIT | FOUTPOST_DIV_BIT | FOUTVCO_BIT,
+			HB_VIOPLL_PD_CTRL);
+
+	/* VIOPLL Freq: 24MHz*68/1/1/1 */
+	writel(FBDIV_BITS(68) | REFDIV_BITS(1) | POSTDIV1_BITS(1) | POSTDIV2_BITS(1),
+			HB_VIOPLL_FREQ_CTRL);
+
+	/* VIOPLL: Enable */
+	value = readl(HB_VIOPLL_PD_CTRL);
+	value &= ~(PD_BIT | FOUTPOST_DIV_BIT);
+	writel(value, HB_VIOPLL_PD_CTRL);
+
+	/* VIOPLL/VIOPLL2 Locked */
+	while (!(readl(HB_VIOPLL_STATUS) & LOCK_BIT) ||
+		   !(readl(HB_VIOPLL2_STATUS) & LOCK_BIT)) {
+		if (try_num <= 0)
+			break;
+
+		udelay(100);
+		try_num--;
+	}
+	udelay(500);
+	value = readl(HB_PLLCLK_SEL);
+	value |= (VIOCLK_SEL_BIT | VIOCLK2_SEL_BIT);
+	writel(value, HB_PLLCLK_SEL);
+
+	writel(IAR_PIX_CLK_SRC_SEL(0)                  |
+		   SENSOR3_MCLK_2ND_DIV_SEL(REFCLK_DIV(4)) |
+		   SENSOR2_MCLK_2ND_DIV_SEL(REFCLK_DIV(4)) |
+		   IAR_PIX_CLK_2ND_DIV_SEL(REFCLK_DIV(1))  |
+		   IAR_PIX_CLK_1ST_DIV_SEL(REFCLK_DIV(10)) |
+		   SIF_MCLK_DIV_SEL(REFCLK_DIV(3))         |
+		   SENSOR_DIV_CLK_SRC_SEL(1)               |
+		   SENSOR1_MCLK_2ND_DIV_SEL(REFCLK_DIV(4)) |
+		   SENSOR0_MCLK_2ND_DIV_SEL(REFCLK_DIV(4)) |
+		   SENSOR_MCLK_1ST_DIV_SEL(REFCLK_DIV(16)) ,
+		   HB_VIOSYS_CLK_DIV_SEL1);
+
+	writel(MIPI_TX_IPI_CLK_2ND_DIV_SEL(REFCLK_DIV(3)) |
+		   MIPI_TX_IPI_CLK_1ST_DIV_SEL(REFCLK_DIV(1)) |
+		   MIPI_CFG_CLK_2ND_DIV_SEL(REFCLK_DIV(4))    |
+		   MIPI_CFG_CLK_1ST_DIV_SEL(REFCLK_DIV(4))    |
+		   PYM_MCLK_SRC_SEL(1)                        |
+		   PYM_MCLK_DIV_SEL(REFCLK_DIV(2))            |
+		   MIPI_PHY_REFCLK_2ND_DIV_SEL(REFCLK_DIV(4)) |
+		   MIPI_PHY_REFCLK_1ST_DIV_SEL(REFCLK_DIV(17)),
+		   HB_VIOSYS_CLK_DIV_SEL2);
+
+	writel(MIPI_RX3_IPI_CLK_2ND_DIV_SEL(REFCLK_DIV(3)) |
+		   MIPI_RX3_IPI_CLK_1ST_DIV_SEL(REFCLK_DIV(1)) |
+		   MIPI_RX2_IPI_CLK_2ND_DIV_SEL(REFCLK_DIV(3)) |
+		   MIPI_RX2_IPI_CLK_1ST_DIV_SEL(REFCLK_DIV(1)) |
+		   MIPI_RX1_IPI_CLK_2ND_DIV_SEL(REFCLK_DIV(3)) |
+		   MIPI_RX1_IPI_CLK_1ST_DIV_SEL(REFCLK_DIV(1)) |
+		   MIPI_RX0_IPI_CLK_2ND_DIV_SEL(REFCLK_DIV(3)) |
+		   MIPI_RX0_IPI_CLK_1ST_DIV_SEL(REFCLK_DIV(1)) ,
+		   HB_VIOSYS_CLK_DIV_SEL3);
+
+	/* X2_VIOSYS_CLKEN_SET default on */
+
+#define IPS_CLK_CTRL		 0xA400000C
+#define IPS_CLK_CTRL_SIF     (1 << 0)
+#define IPS_CLK_CTRL_ISP0    (1 << 1)
+#define IPS_CLK_CTRL_DEW0    (1 << 3)
+#define IPS_CLK_CTRL_DEW1    (1 << 4)
+#define IPS_CLK_CTRL_GDC0    (1 << 5)
+#define IPS_CLK_CTRL_GDC1    (1 << 6)
+#define IPS_CLK_CTRL_LDC0    (1 << 9)
+#define IPS_CLK_CTRL_LDC1    (1 << 10)
+#define IPS_CLK_CTRL_IPU0    (1 << 11)
+#define IPS_CLK_CTRL_PYM_UV  (1 << 13)
+#define IPS_CLK_CTRL_PYM_US  (1 << 14)
+#define IPS_CLK_CTRL_PYM_DDR (1 << 15)
+#define IPS_CLK_CTRL_PYM_ISP (1 << 16)
+#define IPS_CLK_CTRL_MD      (1 << 17)
+#define IPS_CLK_CTRL_IRAM    (1 << 18)
+
+	/* IPS Clock Enable */
+	value = readl(IPS_CLK_CTRL);
+	value = value                |
+			IPS_CLK_CTRL_SIF     |
+			IPS_CLK_CTRL_ISP0    |
+			IPS_CLK_CTRL_DEW0    |
+			IPS_CLK_CTRL_DEW1    |
+			IPS_CLK_CTRL_GDC0    |
+			IPS_CLK_CTRL_GDC1    |
+			IPS_CLK_CTRL_LDC0    |
+			IPS_CLK_CTRL_LDC1    |
+			IPS_CLK_CTRL_IPU0    |
+			IPS_CLK_CTRL_PYM_UV  |
+			IPS_CLK_CTRL_PYM_US  |
+			IPS_CLK_CTRL_PYM_DDR |
+			IPS_CLK_CTRL_PYM_ISP |
+			IPS_CLK_CTRL_MD      |
+			IPS_CLK_CTRL_IRAM;
+
+	writel(value, IPS_CLK_CTRL);
+}
+
 #ifdef SET_QOS_IN_UBOOT
 int update_qos(void)
 {

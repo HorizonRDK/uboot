@@ -1978,6 +1978,7 @@ int board_early_init_f(void)
 	update_qos();
 #endif // SET_QOS_IN_UBOOT
 	init_io_vol();
+	vio_pll_init();
 #endif
 	bif_change_reset2gpio();
 #ifdef ENABLE_BIFSPI

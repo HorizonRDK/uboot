@@ -296,5 +296,5 @@ int update_qos(void);
 void xj3_set_pin_info(void);
 uint32_t hb_efuse_chip_type(void);
 uint32_t is_bpu_clock_limit(void);
-
+void vio_pll_init(void);
 #endif /* __HB_INFO_H__ */
