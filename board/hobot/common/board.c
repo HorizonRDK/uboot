@@ -573,6 +573,9 @@ static int hb_adjust_somid_by_gpios(void)
 uint32_t hb_som_type_get(void)
 {
 	uint32_t som_id;
+#ifdef HR_SOM_TYPE
+	return HR_SOM_TYPE;
+#endif
 
 	if (hb_som_type < 0) {
 		som_id = SOM_TYPE_SEL(hb_board_id);
