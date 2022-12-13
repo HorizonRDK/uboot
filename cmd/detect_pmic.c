@@ -91,11 +91,11 @@ static int axp15060_detect() {
     /* try to read register of axp1506 */
     ret = dm_i2c_reg_read(dev_axp15060, 0x0);
     if ( ret >= 0) {
-      printf("axp15060 is valid\n");
+      printf("axp15060 is valid, enable it\n");
       snprintf(cmd, sizeof(cmd), "fdt set %s status okay", pathp_axp15060);
       run_command(cmd, 0);
     } else {
-      printf("axp15060 is invalid, Disable it and delete usb_0v8-supply node\n");
+      printf("axp15060 is invalid, disable it\n");
       /* diable axp1506 if read register failed */
       snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", pathp_axp15060);
       run_command(cmd, 0);
@@ -103,17 +103,17 @@ static int axp15060_detect() {
     return ret;
 }
 
-static int hpu3501_detect()
+static int hpu3501_detect(char *node_path, int i2c_bus)
 {
     int ret, i = 0;
     char cmd[128];
     ulong hpu3501_addr;
-    struct udevice *dev_hpu3501;
-    char *pathp_hpu3501  = "/soc/i2c@0xA500A000/hpu3501@1e";
+    struct udevice *dev_hpu3501 = NULL;
 
     /* check hpu3501 available */
     /* read hpu3501 i2c address from dtb */
-    snprintf(cmd, sizeof(cmd), "fdt get value hpu3501_addr %s reg", pathp_hpu3501);
+    memset(cmd, 0, sizeof(cmd));
+    snprintf(cmd, sizeof(cmd), "fdt get value hpu3501_addr %s reg", node_path);
     ret = run_command(cmd, 0);
     if (ret) {
         printf("fdt get value hpu3501_addr failed\n");
@@ -123,18 +123,20 @@ static int hpu3501_detect()
     hpu3501_addr = env_get_ulong("hpu3501_addr", 16, DEFAULT_PMIC_ADDR);
 
     /* get udevice of hpu3501 */
-    i2c_get_chip_for_busnum(1, (int)hpu3501_addr, 1, &dev_hpu3501);
+    i2c_get_chip_for_busnum(i2c_bus, (int)hpu3501_addr, 1, &dev_hpu3501);
 
-    /* try to read register of axp1506 */
+    /* try to read register of hpu3501 */
     ret = dm_i2c_reg_read(dev_hpu3501, 0x0);
     if ( ret >= 0) {
-      printf("hpu3501 is valid\n");
-      snprintf(cmd, sizeof(cmd), "fdt set %s status okay", pathp_hpu3501);
+      printf("hpu3501 is valid, enable it\n");
+      memset(cmd, 0, sizeof(cmd));
+      snprintf(cmd, sizeof(cmd), "fdt set %s status okay", node_path);
       run_command(cmd, 0);
     } else {
-      printf("hpu3501 is invalid, Disable it and delete usb_0v8-supply node\n");
-      /* diable axp1506 if read register failed */
-      snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", pathp_hpu3501);
+      printf("hpu3501 is invalid, disable it\n");
+      /* diable hpu3501 if read register failed */
+      memset(cmd, 0, sizeof(cmd));
+      snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", node_path);
       run_command(cmd, 0);
     }
     return ret;
@@ -192,7 +194,8 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
         return 0;
     }
 
-    if (hpu3501_detect() >= 0) {
+    if (hpu3501_detect("/soc/i2c@0xA5009000/hpu3501@1e", 0) >= 0
+        || hpu3501_detect("/soc/i2c@0xA500A000/hpu3501@1e", 1) >= 0) {
         if (hb_get_cpu_num()) {
             printf("change cnn opp table to lite version\n");
             for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {
