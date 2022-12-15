@@ -32,6 +32,23 @@ static void rm_pmic(void)
     run_command(cmd, 0);
 }
 
+static void add_pmic(void)
+{
+    char *pathp  = DTS_POWER_MANAGEMENT_PATH;
+    char cmd[128] = { 0 };
+
+    snprintf(cmd, sizeof(cmd), "fdt addr ${fdt_addr}");
+    run_command(cmd, 0);
+
+    memset(cmd, 0, sizeof(cmd));
+    snprintf(cmd, sizeof(cmd), "fdt resize");
+    run_command(cmd, 0);
+
+    memset(cmd, 0, sizeof(cmd));
+    snprintf(cmd, sizeof(cmd), "fdt set %s %s", pathp, "pmic");
+    run_command(cmd, 0);
+}
+
 static int switch_to_dc(const char *pathp, const char *set_prop,
                 const char *get_prop)
 {
@@ -128,12 +145,12 @@ static int hpu3501_detect(char *node_path, int i2c_bus)
     /* try to read register of hpu3501 */
     ret = dm_i2c_reg_read(dev_hpu3501, 0x0);
     if ( ret >= 0) {
-      printf("hpu3501 is valid, enable it\n");
+      printf("hpu3501 is valid at i2c bus(%d), enable it\n", i2c_bus);
       memset(cmd, 0, sizeof(cmd));
       snprintf(cmd, sizeof(cmd), "fdt set %s status okay", node_path);
       run_command(cmd, 0);
     } else {
-      printf("hpu3501 is invalid, disable it\n");
+      printf("hpu3501 is invalid at i2c bus(%d), disable it\n", i2c_bus);
       /* diable hpu3501 if read register failed */
       memset(cmd, 0, sizeof(cmd));
       snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", node_path);
@@ -163,6 +180,8 @@ static int switch_to_hpu3501(void) {
   char *usb_path = "/soc/usb@0xB2000000/";
   char *usb_prop = "usb_0v8-supply";
   switch_to_dc(usb_path, "usb_0v8-supply", "usb_0v8-supply_hobot");
+
+  add_pmic();
 }
 
 static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
@@ -215,6 +234,7 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
                   "operating-points-v2-lite");
             }
         }
+        add_pmic();
         return 0;
     } else {
         // switch to dc-dc
@@ -227,6 +247,7 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     memset(cmd, 0, sizeof(cmd));
     snprintf(cmd, sizeof(cmd), "fdt rm %s %s", usb_path, usb_prop);
     run_command(cmd, 0);
+
     /* enable dc-dc regulator dts */
     for (i = 0; i < ARRAY_SIZE(cpu_regu_path); ++i) {
         snprintf(cmd, sizeof(cmd), "fdt set %s status okay",
