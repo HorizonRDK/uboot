@@ -66,6 +66,38 @@ int get_pin_input_value(char pin)
 	return value;
 }
 
+int set_pin_output_value(char pin, unsigned int val)
+{
+	unsigned int reg = 0;
+	unsigned int offset = 0;
+	unsigned int value = 0;
+
+	if (pin <= 0 || pin > HB_PIN_MAX_NUMS) {
+		printf("set pin is error\n");
+		return 0;
+	}
+
+	/* set pin to gpio*/
+	offset = pin * 4;
+	reg = reg32_read(X2A_PIN_SW_BASE + offset);
+	reg |= 3;
+	reg32_write(X2A_PIN_SW_BASE + offset, reg);
+
+	/* set pin to output and value*/
+	offset = (pin / 16) * 0x10 + 0x08;
+	reg = reg32_read(X2_GPIO_BASE + offset);
+	reg |= (1 << ((pin % 16) + 16));
+	if (val == 1) {
+		reg |= (1 << (pin % 16));
+	} else {
+		reg &= (~(1 << (pin % 16)));
+	}
+
+	reg32_write(X2_GPIO_BASE + offset, reg);
+
+	return 0;
+}
+
 /* Update Peri PLL */
 void switch_sys_pll(ulong pll_val)
 {
@@ -543,20 +575,21 @@ int init_io_vol(void)
 		 * make sd card run in super speed mode
 		 */
 		/* Control gpio21 to power down VDD_SD */
-		addr = (PIN_MUX_BASE + (21) * 0x4);
-		reg = readl(addr);
-		reg |= 0x03;
-		writel(reg, addr);
-
-		addr = (GPIO_BASE + ((21) / 16) * 0x10 + 0x8);
-		reg = readl(addr);
-		reg |= ((uint64_t)(0x1) << (16 + 5));
-		reg &= ~((uint64_t)(0x1) << (5));
-		writel(reg, addr);
+		set_pin_output_value(21, 0);
 		mdelay(10);
-		reg |= ((uint64_t)(0x1) << (5));
-		writel(reg, addr);
-		pr_err("X3 PI reset VDD_SD done\n");
+		set_pin_output_value(21, 1);
+		pr_err("X3 Pi Reset VDD_SD done\n");
+	} else if (som_type == SOM_TYPE_X3CM) {
+		writel(0xC00, GPIO_BASE + 0x174);
+		writel(0x7, GPIO_BASE + 0x170);
+		/* Power down and up vdd_sd of sdio2
+		 * make sd card run in super speed mode
+		 */
+		/* Control gpio21 to power down VDD_SD */
+		set_pin_output_value(21, 1);
+		mdelay(10);
+		set_pin_output_value(21, 0);
+		pr_err("X3 CM Reset VDD_SD done\n");
 	} else if (som_type == SOM_TYPE_X3E) {
 		writel(0xF0F, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);

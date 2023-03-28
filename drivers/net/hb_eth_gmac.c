@@ -69,8 +69,9 @@
 #define	 GPIO_RGMII_TXD2 (PIN_MUX_BASE +0xC8)
 #define GPIO_RGMII_TXD3 (PIN_MUX_BASE +0xCC)
 #define GPIO_RGMII_TX_EN (PIN_MUX_BASE +0xD0)
-#define GPIO1_DIR (X2_GPIO_BASE + 0x18)
-#define GPIO7_DIR (X2_GPIO_BASE + 0x78)
+#define X3_GPIO_BASE (0xA6003000)
+#define GPIO1_DIR (X3_GPIO_BASE + 0x18)
+#define GPIO7_DIR (X3_GPIO_BASE + 0x78)
 #define ETH0_MODE_CTRL  (0xA1000000 + 0x384)
 #define ETH0_MODE_CTRL_RMII_MODE         BIT(0)
 #define ETH0_MODE_CTRL_SEL_CLK_RMII_IN   BIT(4)
@@ -1382,6 +1383,30 @@ static int eqos_ofdata_to_platdata(struct udevice *dev)
     return 0;
 }
 
+static void hb_reset_phy(int rst_pin, int rst_pin_act, int intb_pin)
+{
+    unsigned int reg_val;
+    unsigned int offset = 0;
+
+    set_pin_output_value(rst_pin, rst_pin_act);
+
+    mdelay(100);
+
+    // set reset gpio 
+    set_pin_output_value(rst_pin, rst_pin_act ^ 1);
+
+    // set intb gpio as gpio function
+    reg_val = readl(PIN_MUX_BASE + intb_pin*4);
+    reg_val |= 0x03;
+    writel(reg_val, PIN_MUX_BASE + intb_pin*4);
+
+    /* set intb to input */
+    offset = (intb_pin / 16) * 16 + 0x08;
+    reg_val = readl(X3_GPIO_BASE + offset);
+    reg_val &= (~(1 << ((intb_pin % 16) + 16)));
+    writel(reg_val, X3_GPIO_BASE + offset);
+}
+
 static int eqos_probe(struct udevice *dev)
 {
     struct eqos_priv *eqos = dev_get_priv(dev);
@@ -1412,81 +1437,34 @@ static int eqos_probe(struct udevice *dev)
 	writel(reg_val, GPIO4_DIR);
     }
 #elif defined(CONFIG_TARGET_XJ3)
-	/* GPIO_EPHY_CLK as reset gpio, oths as eth pin */
-	reg_val = readl(GPIO_EPHY_CLK);
-	reg_val |= 0x03;
-	writel(reg_val, GPIO_EPHY_CLK);
-	for (reg_addr = GPIO_MDCK; reg_addr <= GPIO_RGMII_TX_EN; reg_addr += 4) {
-		reg_val = readl(reg_addr);
-		reg_val &= ~(0x03);
-		writel(reg_val, reg_addr);
-	}
-
+    // set eth pin function
+    for (reg_addr = GPIO_MDCK; reg_addr <= GPIO_RGMII_TX_EN; reg_addr += 4) {
+        reg_val = readl(reg_addr);
+        reg_val &= ~(0x03);
+        writel(reg_val, reg_addr);
+    }
     if (hb_som_type_get() == SOM_TYPE_X3SDB
-		|| hb_som_type_get() == SOM_TYPE_X3SDBV4
-		|| hb_som_type_get() == SOM_TYPE_X3E) {
-        // reset
-        reg_val = readl(PIN_MUX_BASE + (1*16 + 8)*4);
-        reg_val |= 0x03;
-        writel(reg_val, PIN_MUX_BASE + (1*16 + 8)*4);
-
-        // intb
-        reg_val = readl(PIN_MUX_BASE + (1*16 + 9)*4);
-        reg_val |= 0x03;
-        writel(reg_val, PIN_MUX_BASE + (1*16 + 9)*4);
-
-        //reg_val = readl(GPIO1_CFG);
-        //reg_val |= 0x00030000;
-        //writel(reg_val, GPIO1_CFG);
-
-        reg_val = readl(GPIO1_DIR);
-        reg_val |= 0x01000000;
-        reg_val &= 0xfdfffeff; // 1.8 output, 1.9 input
-        writel(reg_val, GPIO1_DIR);
-
-        mdelay(100);
-
-        reg_val |= 0x01000100;
-
-        writel(reg_val, GPIO1_DIR);
-        mdelay(200);
-        reg_val = readl(GPIO1_DIR);
-
-        reg_val |= 0x01000000;
-        reg_val &= 0xfffffeff;
-
-        writel(reg_val, GPIO1_DIR);
-        mdelay(500);
+        || hb_som_type_get() == SOM_TYPE_X3SDBV4
+        || hb_som_type_get() == SOM_TYPE_X3E) {
+        // reset gpio 20
+        // intb gpio 21
+        hb_reset_phy(20, 0, 21);
+        pr_err("x3 sdb reset eth phy done\n");
     }else if (hb_som_type_get() == SOM_TYPE_X3PI || hb_som_type_get() == SOM_TYPE_X3PIV2) {
         // reset gpio 20
-        reg_val = readl(PIN_MUX_BASE + (1*16 + 4)*4);
-        reg_val |= 0x03;
-        writel(reg_val, PIN_MUX_BASE + (1*16 + 4)*4);
-
         // intb gpio 120
-        reg_val = readl(PIN_MUX_BASE + (7*16 + 8)*4);
-        reg_val |= 0x03;
-        writel(reg_val, PIN_MUX_BASE + (7*16 + 8)*4);
-
-        // set gpio20 to output 0
-        reg_val = readl(GPIO1_DIR);
-        reg_val |= 0x00100000;
-        reg_val &= 0xffffffef; // 1.8 output, 1.9 input
-        writel(reg_val, GPIO1_DIR);
-
-        // set gpio120 to input
-        reg_val = readl(GPIO7_DIR);
-        reg_val &= 0xfeffffff; // 1.8 output, 1.9 input
-        writel(reg_val, GPIO7_DIR);
-
-        mdelay(100);
-
-        // set gpio20 to output 1
-        reg_val |= 0x00000010;
-        writel(reg_val, GPIO1_DIR);
-        mdelay(200);
-        pr_err("x3 sdb reset eth phy done\n");
+        hb_reset_phy(20, 0, 120);
+        pr_err("x3pi reset eth phy done\n");
+    } else if (hb_som_type_get() == SOM_TYPE_X3CM) {
+        // reset gpio 38(EPHY_CLK)
+        // intb gpio 120(QSPI_CSN1)
+        hb_reset_phy(38, 1, 120);
+        pr_err("x3cm reset eth phy done\n");
     } else {
+        /* GPIO_EPHY_CLK as reset gpio*/
+        reg_val = readl(GPIO_EPHY_CLK);
+        reg_val |= 0x03;
+        writel(reg_val, GPIO_EPHY_CLK);
         /* reset phy: GPIO_EPHY_CLK(GPIO2[6]) */
         reg_val = readl(GPIO_BASE + 0x28);
         reg_val |= (1<<22);
@@ -1496,15 +1474,6 @@ static int eqos_probe(struct udevice *dev)
         reg_val |= (1<<6);
         writel(reg_val, GPIO_BASE + 0x28);
     }
-
-#if 0
-    /*modify pin voltage to 1.8v*/
-    reg_val = 0;
-    reg_val = readl(IO_MODE_CTRL);
-    reg_val |= (3 << 10);
-    writel(reg_val, IO_MODE_CTRL);
-    printf("%s, reg_val:0x%x, io_mode_ctrl:0x%lx\n", __func__, reg_val, readl(IO_MODE_CTRL));
-#endif
 
 #else
 	reg_val = readl(GPIO_EPHY_CLK);

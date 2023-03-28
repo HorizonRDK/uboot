@@ -41,7 +41,7 @@ static void add_pmic(void)
     run_command(cmd, 0);
 
     memset(cmd, 0, sizeof(cmd));
-    snprintf(cmd, sizeof(cmd), "fdt resize");
+    snprintf(cmd, sizeof(cmd), "fdt resize 0x100000");
     run_command(cmd, 0);
 
     memset(cmd, 0, sizeof(cmd));
@@ -133,7 +133,8 @@ static int hpu3501_detect(char *node_path, int i2c_bus)
     snprintf(cmd, sizeof(cmd), "fdt get value hpu3501_addr %s reg", node_path);
     ret = run_command(cmd, 0);
     if (ret) {
-        printf("fdt get value hpu3501_addr failed\n");
+        printf("fdt get value hpu3501_addr at i2c bus(%d) failed\n", i2c_bus);
+        return -1;
     }
 
     /* get hpu3501_addr from environment variable */
@@ -214,7 +215,8 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
     }
 
     if (hpu3501_detect("/soc/i2c@0xA5009000/hpu3501@1e", 0) >= 0
-        || hpu3501_detect("/soc/i2c@0xA500A000/hpu3501@1e", 1) >= 0) {
+        || hpu3501_detect("/soc/i2c@0xA500A000/hpu3501@1e", 1) >= 0
+        || hpu3501_detect("/soc/i2c@0xA5017000/hpu3501@1e", 5) >= 0) {
         if (hb_get_cpu_num()) {
             printf("change cnn opp table to lite version\n");
             for (i = 0; i < ARRAY_SIZE(cnn_path); ++i) {

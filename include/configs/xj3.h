@@ -288,4 +288,7 @@
 #define DTS_POWER_MANAGEMENT_PATH   \
     "/soc/syscon@0xA6000000/power-management"
 #define EFUSE_VERIFY_FALID_FLAG 0x4645 //"EF" efuse verify failed
+
+#define PHY_ANEG_TIMEOUT 8000    /* PHY needs a longer aneg time */
+
 #endif /* __X3_H__ */

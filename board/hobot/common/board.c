@@ -66,6 +66,7 @@ static int stored_dumptype;
 
 extern unsigned int hb_gpio_get(void);
 extern unsigned int hb_gpio_to_board_id(unsigned int gpio_id);
+extern int get_pin_input_value(char pin);
 extern unsigned int detect_baud(void);
 
 #ifdef CONFIG_TARGET_XJ3
@@ -504,9 +505,37 @@ static int hb_adjust_somid_by_gpios(void)
 {
 	int16_t i = 0;
 	uint32_t pin_val = 0;
+	uint32_t channel, pvt_val = 0;
 	uint32_t pin_no[] = {23, 20};
 	uint64_t addr = 0, reg = 0;
 	uint16_t pin_nums = ARRAY_LEN(pin_no);
+
+
+	hobot_vm_read_raw(0, &pvt_val);
+	udelay(1000);
+
+	// Read it twice to avoid inaccuracies the first time
+	hobot_vm_read_raw(0, &pvt_val);
+
+	// Take an integer of 100mv
+	// Fluctuate up and down 50mv
+	if (pvt_val % 100000 > 50000) {
+		pvt_val = (pvt_val / 100000) + 1;
+	} else {
+		pvt_val = pvt_val / 100000;
+	}
+
+	printf("%s pvt_val=%d\n", __func__, pvt_val);
+
+	switch (pvt_val)
+	{
+	case 1:
+		break;
+	case 5:
+		return SOM_TYPE_X3CM;
+	default:
+		break;
+	}
 
 	/* set pin func to GPIO*/
 	/* setting PD */
@@ -594,6 +623,7 @@ uint32_t hb_som_type_get(void)
 		case SOM_TYPE_X3PI:
 		case SOM_TYPE_X3PIV2:
 		case SOM_TYPE_X3E:
+		case SOM_TYPE_X3CM:
 		default:
 			break;
 		}
@@ -1153,8 +1183,14 @@ static int do_change_model_reserved_size(cmd_tbl_t *cmdtp, int flag,
 		fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
 		fdt = map_sysmem(fdt_paddr, 0);
 	} else {
-		printf("Can't get fdt_addr !!!");
-		return 0;
+		s = env_get("fdt_addr_r");
+		if (s) {
+			fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
+			fdt = map_sysmem(fdt_paddr, 0);
+		} else {
+			printf("Can't get fdt_addr !!!\n");
+			return 0;
+		}
 	}
 
 	rsv_mem_path = "/reserved-memory";
@@ -1307,8 +1343,14 @@ static int do_change_ion_size(cmd_tbl_t *cmdtp, int flag, int argc, char * const
 		fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
 		fdt = map_sysmem(fdt_paddr, 0);
 	} else {
-		printf("Can't get fdt_addr !!!");
-		return 0;
+		s = env_get("fdt_addr_r");
+		if (s) {
+			fdt_paddr = (phys_addr_t)simple_strtoull(s, NULL, 16);
+			fdt = map_sysmem(fdt_paddr, 0);
+		} else {
+			printf("Can't get fdt_addr !!!");
+			return 0;
+		}
 	}
 
 	change_ion_cma_status(fdt, ion_type);
@@ -1474,6 +1516,48 @@ U_BOOT_CMD(
 	fdt_enable,	1 + 8 * 2,	0,	do_fdt_enable,
 	"Enable/disable the node specified at <path>",
 	"-fdt_enable enable/disable <path>"
+);
+
+
+static int do_check_flash_mode(cmd_tbl_t *cmdtp, int flag, int argc,
+						 char * const argv[])
+{
+	int  ret;
+	char cmd[128];
+	int val;
+
+	if (hb_som_type_get() != SOM_TYPE_X3CM)
+		return 0;
+
+	val = get_pin_input_value(16);
+
+	printf("Get boot pin: 16, active: 0, value: %d\n", val);
+
+	if (val == 0) {
+		memset(cmd, 0, sizeof(cmd));
+		snprintf(cmd, sizeof(cmd), "watchdog off");
+		ret = run_command(cmd, 0);
+		if (ret != 0) {
+			printf("disable watchdog failed:%d\n", ret);
+			return CMD_RET_FAILURE;
+		}
+
+		memset(cmd, 0, sizeof(cmd));
+		snprintf(cmd, sizeof(cmd), "fastboot -t emmc 0");
+		ret = run_command(cmd, 0);
+		if (ret != 0) {
+			printf("fastboot -t emmc 0 failed:%d\n", ret);
+			return CMD_RET_FAILURE;
+		}
+	}
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	check_flash_mode,	1,	0,	do_check_flash_mode,
+	"Check whether you need to enter the fastboot flashing mode",
+	""
 );
 
 #ifndef CONFIG_HB_QUICK_BOOT
@@ -2079,6 +2163,7 @@ int board_early_init_f(void)
 #if defined(CONFIG_SYSRESET)
 	print_resetinfo();
 #endif
+
 	return 0;
 }
 
@@ -2097,7 +2182,7 @@ static void base_board_gpio_test(void)
 		DEBUG_LOG("base board type: CVB\n");
 		break;
 	case BASE_BOARD_X3_SDB:
-		DEBUG_LOG("base board type: X3 SDB\n");
+		DEBUG_LOG("base board type: X3 SDB(for ddr dqmap)\n");
 		break;
 	default:
 		DEBUG_LOG("base board type not support\n");
@@ -2129,6 +2214,9 @@ static char * get_dtb_name(void)
 		break;
 	case SOM_TYPE_X3PIV2:
 		dtb_name = "hobot-x3-pi.dtb";
+		break;
+	case SOM_TYPE_X3CM:
+		dtb_name = "hobot-x3-cm.dtb";
 		break;
 	case SOM_TYPE_X3E:
 		dtb_name = "hobot-x3-sdb.dtb";
@@ -2258,5 +2346,8 @@ int last_stage_init(void)
 		change_sys_pclk_250M();
 #endif
 	}
+	/* If it is x3 CM hardware, check whether you need to enter the fastboot flashing mode */
+	do_check_flash_mode(NULL, 0, 0, NULL);
+
 	return 0;
 }

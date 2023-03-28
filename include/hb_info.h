@@ -76,6 +76,7 @@
 #define SOM_TYPE_X3SDBV4	0x4
 #define SOM_TYPE_X3PI		0x5
 #define SOM_TYPE_X3PIV2		0x6
+#define SOM_TYPE_X3CM		0xB
 #define SOM_TYPE_X3E		0xF
 
 /* chip type */
