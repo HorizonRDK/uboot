@@ -214,7 +214,7 @@ err:
 void cli_loop(void)
 {
 #if defined(CONFIG_HB_WATCHDOG) && \
-    !(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT))
+    !(defined(CONFIG_HB_AP_BOOT) || defined(CONFIG_HB_YMODEM_BOOT) || defined(CONFIG_DISTRO_DEFAULTS))
 	char *cmd = "watchdog off";
 	run_command(cmd, 0);
 #endif
