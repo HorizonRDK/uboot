@@ -1455,6 +1455,11 @@ static int eqos_probe(struct udevice *dev)
         // intb gpio 120
         hb_reset_phy(20, 0, 120);
         pr_err("x3pi reset eth phy done\n");
+    }else if (hb_som_type_get() == SOM_TYPE_X3PIV2_1) {
+        // reset gpio 20
+        // intb gpio 120
+        hb_reset_phy(61, 0, 120);
+        pr_err("x3pi reset eth phy done\n");
     } else if (hb_som_type_get() == SOM_TYPE_X3CM) {
         // reset gpio 38(EPHY_CLK)
         // intb gpio 120(QSPI_CSN1)

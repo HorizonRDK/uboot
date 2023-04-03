@@ -568,7 +568,7 @@ int init_io_vol(void)
 	} else if (som_type == SOM_TYPE_X3SDBV4) {
 		writel(0xF0F, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);
-	} else if (som_type == SOM_TYPE_X3PI || som_type == SOM_TYPE_X3PIV2) {
+	} else if (som_type == SOM_TYPE_X3PI || som_type == SOM_TYPE_X3PIV2 || som_type == SOM_TYPE_X3PIV2_1) {
 		writel(0xC00, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);
 		/* Power down and up vdd_sd of sdio2
@@ -577,9 +577,11 @@ int init_io_vol(void)
 		/* Control gpio21 to power down VDD_SD */
 		set_pin_output_value(21, 0);
 		mdelay(10);
+		set_pin_output_value(24, 1);
+		mdelay(5);
 		set_pin_output_value(21, 1);
 		pr_err("X3 Pi Reset VDD_SD done\n");
-	} else if (som_type == SOM_TYPE_X3CM) {
+		} else if (som_type == SOM_TYPE_X3CM) {
 		writel(0xC00, GPIO_BASE + 0x174);
 		writel(0x7, GPIO_BASE + 0x170);
 		/* Power down and up vdd_sd of sdio2
@@ -588,6 +590,8 @@ int init_io_vol(void)
 		/* Control gpio21 to power down VDD_SD */
 		set_pin_output_value(21, 1);
 		mdelay(10);
+		set_pin_output_value(24, 1);
+		mdelay(5);
 		set_pin_output_value(21, 0);
 		pr_err("X3 CM Reset VDD_SD done\n");
 	} else if (som_type == SOM_TYPE_X3E) {

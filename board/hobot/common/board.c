@@ -531,6 +531,8 @@ static int hb_adjust_somid_by_gpios(void)
 	{
 	case 1:
 		break;
+	case 3:
+		return SOM_TYPE_X3PIV2_1;
 	case 5:
 		return SOM_TYPE_X3CM;
 	default:
@@ -622,6 +624,7 @@ uint32_t hb_som_type_get(void)
 		case SOM_TYPE_X3SDBV4:
 		case SOM_TYPE_X3PI:
 		case SOM_TYPE_X3PIV2:
+		case SOM_TYPE_X3PIV2_1:
 		case SOM_TYPE_X3E:
 		case SOM_TYPE_X3CM:
 		default:
@@ -2214,6 +2217,9 @@ static char * get_dtb_name(void)
 		break;
 	case SOM_TYPE_X3PIV2:
 		dtb_name = "hobot-x3-pi.dtb";
+		break;
+	case SOM_TYPE_X3PIV2_1:
+		dtb_name = "hobot-x3-pi_v2_1.dtb";
 		break;
 	case SOM_TYPE_X3CM:
 		dtb_name = "hobot-x3-cm.dtb";
