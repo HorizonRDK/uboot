@@ -144,8 +144,8 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	size_t buf_size = 0;
 	fb_flash_type flash_type;
 
-	flash_type = get_boot_flash_type();	/* use boot flash type as default */
-
+	//flash_type = get_boot_flash_type();	/* use boot flash type as default */
+	flash_type = FLASH_TYPE_EMMC;
 	if (argc < 2)
 		return CMD_RET_USAGE;
 
@@ -177,12 +177,13 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 				} else if (!strcmp(argv[0], "nand")) {
 					printf("fastboot user select nand\n");
 					flash_type = FLASH_TYPE_NAND;
-				} else if (!strcmp(argv[0], "spinand")) {
-					printf("fastboot user select spinand\n");
-					flash_type = FLASH_TYPE_SPINAND;
-				} else {
+				}else if (!strcmp(argv[0], "spinand")) {
+					//printf("fastboot user select spinand\n");
+					printf("Currently does not support flashing image into spinand, switch to emmc mode\n");
+					flash_type = FLASH_TYPE_EMMC;
+				}else {
 					pr_err("Error: Incorrect flash type, "
-						"please choose emmc, nand or spinand\n");
+						"please choose emmc, nand\n");
 					return CMD_RET_USAGE;
 				}
 				goto NXTARG;
@@ -223,7 +224,7 @@ static char fastboot_help_text[] =
 	__stringify(CONFIG_FASTBOOT_BUF_ADDR) ")\n"
 	"\tsize - size of buffer used during data transfers ("
 	__stringify(CONFIG_FASTBOOT_BUF_SIZE) ")\n"
-	"\tflash_type - choose target flash type (emmc/nand/spinand)\n"
+	"\tflash_type - choose target flash type (emmc/nand)\n"
 	;
 #endif
 
