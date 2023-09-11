@@ -303,7 +303,6 @@ static int hb_i2c_write(struct hb_i2c_bus *priv, struct i2c_msg *msg)
 			}
 
 			if (get_timer(start) > I2C_TIMEOUT_MS) {
-				printf("%s, hb i2c write data timeout\n", __func__);
 				err = -ETIMEDOUT;
 				goto i2c_exit;
 			}
@@ -345,7 +344,6 @@ static int hb_i2c_xfer(struct udevice *bus, struct i2c_msg *msg, int nmsgs)
 
 
 		if (ret) {
-			printf("%s, error...\n", __func__);
 			return -EREMOTEIO;
 		}
 	}
