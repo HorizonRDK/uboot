@@ -28,7 +28,10 @@
 #define BOOTENV_SHARED_BLKDEV_BODY(devtypel) \
 		"if " #devtypel " dev ${devnum}; then " \
 			"setenv devtype " #devtypel "; " \
+			"echo eMMC or SD Card detected on mmchost ${devnum};" \
 			"run scan_dev_for_boot_part; " \
+			"else " \
+			"echo eMMC or SD Card not detected on mmchost ${devnum}; " \
 		"fi\0"
 
 #define BOOTENV_SHARED_BLKDEV(devtypel) \
@@ -377,7 +380,8 @@
 				"echo Found U-Boot script "               \
 					"${prefix}${script}; "            \
 				"run boot_a_script; "                     \
-				"echo SCRIPT FAILED: continuing...; "     \
+				"echo SCRIPT(${prefix}${script}) "        \
+				"FAILED: continuing...; "                 \
 			"fi; "                                            \
 		"done\0"                                                  \
 	\
@@ -398,7 +402,11 @@
 			"if fstype ${devtype} "                           \
 					"${devnum}:${distro_bootpart} "   \
 					"bootfstype; then "               \
-				"run scan_dev_for_boot; "                 \
+				"if test ${bootfstype} = \"ext4\"; then " \
+					"run scan_dev_for_boot; "         \
+					"else echo The file system "      \
+					"format is not ext4; "            \
+				"fi; "                                    \
 			"fi; "                                            \
 		"done\0"                                                  \
 	\

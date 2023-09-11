@@ -169,7 +169,9 @@
 	func(MMC, mmc, 1) \
 	func(MMC, mmc, 2)
 
-#define CONFIG_BOOTCOMMAND HB_SET_WDT "run distro_bootcmd"
+#define CONFIG_BOOTCOMMAND HB_SET_WDT "if sd_detect; then run distro_bootcmd; " \
+	"else echo SD card not detected; fi; " \
+	"echo Boot from eMMC or SD Card failed"
 #else
 #define CONFIG_BOOTCOMMAND HB_SET_WDT "part size mmc 0 %s bootimagesize;"\
 	"part start mmc 0 %s bootimageblk;mmc read "__stringify(BOOTIMG_ADDR) \
