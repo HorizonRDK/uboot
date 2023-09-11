@@ -178,7 +178,7 @@ int veeprom_init(void)
 			return -1;
 		}
 		mtd_probe_devices();
-#elif defined CONFIG_HB_BOOT_FROM_NAND
+#elif defined CONFIG_HB_BOOT_FROM_NAND && !defined(CONFIG_DISTRO_DEFAULTS)
 		start_sector = NOR_VEEPROM_START_SECTOR;
 		end_sector = NOR_VEEPROM_END_SECTOR;
 		mtd_probe_devices();
