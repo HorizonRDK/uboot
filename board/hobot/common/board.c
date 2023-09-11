@@ -600,6 +600,20 @@ static int hb_adjust_somid_by_gpios(void)
 	}
 }
 
+static char hb_board_names[][20] = {
+	"",
+	"",
+	"",
+	"X3SDB",
+	"X3SDBv4",
+	"RDKX3 v1.0/1.1",
+	"RDKX3 v1.2",
+	"",
+	"RDKX3 v2.1",
+	"",
+	"",
+	"RDKX3 Module",
+};
 
 uint32_t hb_som_type_get(void)
 {
@@ -631,7 +645,7 @@ uint32_t hb_som_type_get(void)
 			break;
 		}
 		hb_som_type = som_id;
-		DEBUG_LOG("hb som type: %d\n", hb_som_type);
+		DEBUG_LOG("Board name: %s(%d)\n", hb_board_names[hb_som_type], hb_som_type);
 	} else {
 		return hb_som_type;
 	}
@@ -1560,6 +1574,26 @@ static int do_check_flash_mode(cmd_tbl_t *cmdtp, int flag, int argc,
 U_BOOT_CMD(
 	check_flash_mode,	1,	0,	do_check_flash_mode,
 	"Check whether you need to enter the fastboot flashing mode",
+	""
+);
+
+static int do_sd_detect(cmd_tbl_t *cmdtp, int flag, int argc,
+						 char * const argv[])
+{
+	uint32_t som_type = 0;
+	som_type = hb_som_type_get();
+	if (som_type == SOM_TYPE_X3CM)
+		return 0;
+
+	if (som_type == SOM_TYPE_X3PI || som_type == SOM_TYPE_X3PIV2 || som_type == SOM_TYPE_X3PIV2_1)
+		return get_pin_input_value(116);
+
+	return 0;
+}
+
+U_BOOT_CMD(
+	sd_detect,	1,	0,	do_sd_detect,
+	"Check if the sd card is inserted",
 	""
 );
 
