@@ -84,8 +84,8 @@ static int switch_to_dc(const char *pathp, const char *set_prop,
     return 0;
 }
 
-static int axp15060_detect() {
-    int ret, i = 0;
+static int axp15060_detect(void) {
+    int ret;
     char cmd[128];
     ulong axp1506_addr;
     struct udevice *dev_axp15060;
@@ -96,7 +96,8 @@ static int axp15060_detect() {
     snprintf(cmd, sizeof(cmd), "fdt get value axp1506_addr %s reg", pathp_axp15060);
     ret = run_command(cmd, 0);
     if (ret) {
-        printf("fdt get value axp1506_addr failed\n");
+        printf("axp1506_addr not found on bus(0)\n");
+        return -1;
     }
 
     /* get axp1506_addr from environment variable */
@@ -108,11 +109,11 @@ static int axp15060_detect() {
     /* try to read register of axp1506 */
     ret = dm_i2c_reg_read(dev_axp15060, 0x0);
     if ( ret >= 0) {
-      printf("axp15060 is valid, enable it\n");
+      printf("axp15060 is valid at i2c bus(0), enable it\n");
       snprintf(cmd, sizeof(cmd), "fdt set %s status okay", pathp_axp15060);
       run_command(cmd, 0);
     } else {
-      printf("axp15060 is invalid, disable it\n");
+      printf("axp15060 not detected on i2c bus(0), disable it\n");
       /* diable axp1506 if read register failed */
       snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", pathp_axp15060);
       run_command(cmd, 0);
@@ -122,7 +123,7 @@ static int axp15060_detect() {
 
 static int hpu3501_detect(char *node_path, int i2c_bus)
 {
-    int ret, i = 0;
+    int ret;
     char cmd[128];
     ulong hpu3501_addr;
     struct udevice *dev_hpu3501 = NULL;
@@ -133,7 +134,7 @@ static int hpu3501_detect(char *node_path, int i2c_bus)
     snprintf(cmd, sizeof(cmd), "fdt get value hpu3501_addr %s reg", node_path);
     ret = run_command(cmd, 0);
     if (ret) {
-        printf("fdt get value hpu3501_addr at i2c bus(%d) failed\n", i2c_bus);
+        printf("hpu3501_addr not found on i2c bus(%d), continuing...\n", i2c_bus);
         return -1;
     }
 
@@ -151,7 +152,7 @@ static int hpu3501_detect(char *node_path, int i2c_bus)
       snprintf(cmd, sizeof(cmd), "fdt set %s status okay", node_path);
       run_command(cmd, 0);
     } else {
-      printf("hpu3501 is invalid at i2c bus(%d), disable it\n", i2c_bus);
+      printf("hpu3501 not detected on i2c bus(%d), disable it\n", i2c_bus);
       /* diable hpu3501 if read register failed */
       memset(cmd, 0, sizeof(cmd));
       snprintf(cmd, sizeof(cmd), "fdt set %s status disabled", node_path);
@@ -162,7 +163,6 @@ static int hpu3501_detect(char *node_path, int i2c_bus)
 
 static int switch_to_hpu3501(void) {
   int i;
-  char cmd[128];
 
   char cnn_path[][DTB_PATH_MAX_LEN] =
     {"/soc/cnn@0xA3000000", "/soc/cnn@0xA3001000"};
@@ -179,16 +179,16 @@ static int switch_to_hpu3501(void) {
   }
 
   char *usb_path = "/soc/usb@0xB2000000/";
-  char *usb_prop = "usb_0v8-supply";
   switch_to_dc(usb_path, "usb_0v8-supply", "usb_0v8-supply_hobot");
 
   add_pmic();
+  return 0;
 }
 
 static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
 		int argc, char *const argv[])
 {
-    int ret, i = 0;
+    int i = 0;
     char cmd[128];
     char cpu_path[][DTB_PATH_MAX_LEN] =
         {"/cpus/cpu@0", "/cpus/cpu@1", "/cpus/cpu@2", "/cpus/cpu@3"};
@@ -213,6 +213,8 @@ static int do_auto_detect_pmic(cmd_tbl_t *cmdtp, int flag,
         }
         return 0;
     }
+
+    printf("Detect the pmic used on the board, and modify the device tree to enable it\n");
 
     if (hpu3501_detect("/soc/i2c@0xA5009000/hpu3501@1e", 0) >= 0
         || hpu3501_detect("/soc/i2c@0xA500A000/hpu3501@1e", 1) >= 0
