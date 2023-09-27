@@ -718,6 +718,7 @@ libs-y += drivers/usb/ulpi/
 libs-y += cmd/
 libs-y += common/
 libs-y += env/
+libs-y += dtoverlay/
 libs-$(CONFIG_API) += api/
 libs-$(CONFIG_HAS_POST) += post/
 libs-y += test/
