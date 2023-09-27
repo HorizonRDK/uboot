@@ -93,11 +93,11 @@ static uint32_t overlay_get_target_phandle(const void *fdto, int fragment)
  * @pathp: pointer which receives the path of the target (or NULL)
  *
  * overlay_get_target() retrieves the target offset in the base
- * device tree of a fragment, no matter how the actual targetting is
+ * device tree of a fragment, no matter how the actual targeting is
  * done (through a phandle or a path)
  *
  * returns:
- *      the targetted node offset in the base device tree
+ *      the targeted node offset in the base device tree
  *      Negative error code on error
  */
 static int overlay_get_target(const void *fdt, const void *fdto,
@@ -754,7 +754,6 @@ static int overlay_symbol_update(void *fdt, void *fdto)
 	/* if no overlay symbols exist no problem */
 	if (ov_sym < 0)
 		return 0;
-
 	root_sym = fdt_subnode_offset(fdt, 0, "__symbols__");
 
 	/* it no root symbols exist we should create them */
@@ -785,19 +784,31 @@ static int overlay_symbol_update(void *fdt, void *fdto)
 
 		/* get fragment name first */
 		s = strchr(path + 1, '/');
-		if (!s)
-			return -FDT_ERR_BADOVERLAY;
+		if (!s) {
+			/* Symbol refers to something that won't end
+			 * up in the target tree */
+			continue;
+		}
 
 		frag_name = path + 1;
 		frag_name_len = s - path - 1;
 
 		/* verify format; safe since "s" lies in \0 terminated prop */
 		len = sizeof("/__overlay__/") - 1;
-		if ((e - s) < len || memcmp(s, "/__overlay__/", len))
-			return -FDT_ERR_BADOVERLAY;
-
-		rel_path = s + len;
-		rel_path_len = e - rel_path;
+		if ((e - s) > len && (memcmp(s, "/__overlay__/", len) == 0)) {
+			/* /<fragment-name>/__overlay__/<relative-subnode-path> */
+			rel_path = s + len;
+			rel_path_len = e - rel_path;
+		} else if ((e - s) == len
+			   && (memcmp(s, "/__overlay__", len - 1) == 0)) {
+			/* /<fragment-name>/__overlay__ */
+			rel_path = "";
+			rel_path_len = 1; /* Include NUL character */
+		} else {
+			/* Symbol refers to something that won't end
+			 * up in the target tree */
+			continue;
+		}
 
 		/* find the fragment index in which the symbol lies */
 		ret = fdt_subnode_offset_namelen(fdto, 0, frag_name,
@@ -829,7 +840,7 @@ static int overlay_symbol_update(void *fdt, void *fdto)
 		}
 
 		ret = fdt_setprop_placeholder(fdt, root_sym, name,
-				len + (len > 1) + rel_path_len + 1, &p);
+				len + (len > 1) + rel_path_len, &p);
 		if (ret < 0)
 			return ret;
 
@@ -855,7 +866,6 @@ static int overlay_symbol_update(void *fdt, void *fdto)
 
 		buf[len] = '/';
 		memcpy(buf + len + 1, rel_path, rel_path_len);
-		buf[len + 1 + rel_path_len] = '\0';
 	}
 
 	return 0;
@@ -872,7 +882,6 @@ int fdt_overlay_apply(void *fdt, void *fdto)
 	ret = overlay_adjust_local_phandles(fdto, delta);
 	if (ret)
 		goto err;
-
 	ret = overlay_update_local_references(fdto, delta);
 	if (ret)
 		goto err;
@@ -882,6 +891,15 @@ int fdt_overlay_apply(void *fdt, void *fdto)
 		goto err;
 
 	ret = overlay_merge(fdt, fdto);
+	if (ret)
+		goto err;
+
+	/*
+	 * FIXME: After overlay_merge, the target property phandle in base dtb
+	 * will be updated, so you need to fixup the property phandle in
+	 * overlay dtbo again.
+	 */
+	ret = overlay_fixup_phandles(fdt, fdto);
 	if (ret)
 		goto err;
 
