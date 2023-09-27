@@ -646,6 +646,8 @@ uint32_t hb_som_type_get(void)
 		}
 		hb_som_type = som_id;
 		DEBUG_LOG("Board name: %s(%d)\n", hb_board_names[hb_som_type], hb_som_type);
+		env_set_ulong("somtype", hb_som_type);
+		env_set("boardname", hb_board_names[hb_som_type]);
 	} else {
 		return hb_som_type;
 	}
