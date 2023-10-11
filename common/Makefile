@@ -19,6 +19,7 @@ endif
 
 # cipher
 obj-y += hb_crypt.o
+obj-$(CONFIG_TARGET_XJ3) += hb_utils.o
 
 # # boards
 obj-y += board_f.o
@@ -129,3 +130,4 @@ obj-$(CONFIG_DFU_OVER_USB) += dfu.o
 obj-$(CONFIG_$(SPL_)LOG) += log.o
 obj-$(CONFIG_$(SPL_)LOG_CONSOLE) += log_console.o
 obj-$(CONFIG_HB_QUICK_BOOT) += image-fdt-quickboot.o
+
