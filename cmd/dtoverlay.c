@@ -14,25 +14,7 @@
 #include <fs.h>
 #include <mmc.h>
 
-static int mem_getline(char str[], int lim, char **mem_ptr) {
-    char c;
-    int i;
-    for (i = 0; i < lim - 1 && ((c = *(*mem_ptr)) != '\0' && c != '\n'); ++i) {
-        str[i] = c;
-        (*mem_ptr)++;
-    }
-    if (c == '\0') {
-        str[i] = '\0';
-        return -1;
-    }
-    if (c == '\n') {
-        str[i] = c;
-        (*mem_ptr)++;
-        i++;
-    }
-    str[i] = '\0';
-    return i;
-}
+#include <hb_utils.h>
 
 static int do_dtoverlay(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const argv[])
 {
@@ -60,7 +42,7 @@ static int do_dtoverlay(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const
 
     ptr = map_sysmem(file_addr, 0);
 
-    if(dt_ext4_load(cfg_file, file_addr, &size) != 0)
+    if(hb_ext4_load(cfg_file, file_addr, &size) != 0)
     {
         dtoverlay_error("can't load config file(%s)\n", cfg_file);
         return 0;
@@ -78,7 +60,7 @@ static int do_dtoverlay(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const
 
     fdt_shrink_to_minimum((void *)dt_addr, 0x1000);
 
-    while ((length = mem_getline(line, sizeof(line), &dp)) > 0) {
+    while ((length = hb_getline(line, sizeof(line), &dp)) > 0) {
         dtoverlay_debug("Line length: %d, Read line: %s\n", length, line);
 
         if (length == -1) {

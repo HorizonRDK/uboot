@@ -35,6 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <part.h>
 #include <fs.h>
 
+#include <hb_utils.h>
+
 typedef enum
 {
    FIXUP_ABSOLUTE,
@@ -1103,17 +1105,16 @@ const char *dtoverlay_find_override(DTBLOB_T *dtb, const char *override_name,
    const char *data;
    int len;
 
-   dtoverlay_debug("[%s][%d]\n", __func__, __LINE__);
    // Find the table of overrides
    overrides_off = fdt_path_offset(dtb->fdt, "/__overrides__");
-dtoverlay_debug("[%s][%d]overrides_off=%d\n", __func__, __LINE__, overrides_off);
+   dtoverlay_debug("[%s][%d]overrides_off=%d\n", __func__, __LINE__, overrides_off);
    if (overrides_off < 0)
    {
       dtoverlay_debug("/__overrides__ node not found");
       *data_len = overrides_off;
       return NULL;
    }
-dtoverlay_debug("[%s][%d] overrides_off=%d, override_name=%s\n", __func__, __LINE__, overrides_off, override_name);
+   dtoverlay_debug("[%s][%d] overrides_off=%d, override_name=%s\n", __func__, __LINE__, overrides_off, override_name);
    // Locate the property
    data = fdt_getprop(dtb->fdt, overrides_off, override_name, &len);
    *data_len = len;
@@ -1121,54 +1122,8 @@ dtoverlay_debug("[%s][%d] overrides_off=%d, override_name=%s\n", __func__, __LIN
       dtoverlay_debug("Found override %s", override_name);
    else
       dtoverlay_debug("/__overrides__ has no %s property", override_name);
-dtoverlay_debug("[%s][%d] len=%d\n", __func__, __LINE__, len);
    return data;
 }
-
-#define false 0
-#define true 1
-
-char valid=true;
-
-int atoi(const char * str)
-{
-    char minus=false;
-    long long result=0;
-    valid=false;
-    if(str==NULL)
-        return 0;
-    while(*str==' ')
-        str++;
-    if(*str=='-')
-    {
-        minus=true;
-        str++;
-    }
-    else if(*str=='+')
-        str++;
-    if(*str<'0'||*str>'9')
-        return 0;
-
-    valid=true;
-    while(*str>='0' && *str<='9')
-    {
-        result=result*10+*str-'0';
-        if((minus && result>INT_MAX + 1LL) || (!minus && result>INT_MAX))
-        {
-            valid=false;
-            return 0;
-        }
-
-        str++;
-    }
-
-    if(minus)
-        result*=-1;
-    return (int)result;
-}
-
-
-
 
 typedef unsigned long long ullong_type;
 #ifndef ULLONG_MAX
@@ -1739,37 +1694,6 @@ error_exit:
 
 }
 
-int dt_ext4_load(char *filename, unsigned long addr, loff_t *len_read)
-{
-      int ret;
-      char dev_part_str[16];
-      char *devtype, *devnum, *devplist;
-
-      devtype = env_get("devtype");
-      if (!devtype) {
-         return 1;
-      }
-
-      devnum = env_get("devnum");
-      if (!devnum) {
-         return 1;
-      }
-
-      devplist = env_get("devplist");
-      if (!devplist) {
-         return 1;
-      }
-
-      sprintf(dev_part_str, "%s:%s", devnum, devplist);
-      if (fs_set_blk_dev(devtype, dev_part_str, FS_TYPE_EXT))
-         return 1;
-      ret = fs_read(filename, addr, 0, 0, len_read);
-      if (ret < 0)
-         return 1;
-
-      return 0;
-}
-
 DTBLOB_T *dtoverlay_load_dtb(ulong fdt, char* dt_file,int max_size)
 {
    DTBLOB_T *dtb = NULL;
@@ -1784,7 +1708,7 @@ DTBLOB_T *dtoverlay_load_dtb(ulong fdt, char* dt_file,int max_size)
    {
       sprintf(overlay_dt_file, "/boot/overlays/%s.dtbo", dt_file);
       dtoverlay_debug("loading overlay: %s\n", overlay_dt_file);
-      if(dt_ext4_load(overlay_dt_file, fdt, &bytes_read) != 0)
+      if(hb_ext4_load(overlay_dt_file, fdt, &bytes_read) != 0)
       {
          dtoverlay_debug("** %s read error\n", overlay_dt_file);
          return NULL;
@@ -2119,7 +2043,7 @@ void do_dtparam(ulong fdt, char* dt_file, DTPARAM_T *param, int num)
    int override_len;
    int err;
    int i;
-   overlay_dtb = dtoverlay_load_dtb(fdt,dt_file,0x60000);
+   overlay_dtb = dtoverlay_load_dtb(fdt, dt_file, 0x60000);
 
    if (!overlay_dtb)
    {
