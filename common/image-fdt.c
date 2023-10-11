@@ -328,9 +328,10 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 
 		hb_dts_node_modify();
 #ifdef CONFIG_TARGET_XJ3
-		/* dump_pin_info(); */
+		// dump_pin_info();
 		xj3_set_pin_info();
-		/* dump_pin_info(); */
+		xj3_set_pin_by_config("/boot/config.txt", 0x3E00000);
+		// dump_pin_info();
 #endif // CONFIG_TARGET_XJ3
 	}
 
