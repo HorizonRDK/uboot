@@ -1,8 +1,17 @@
 /*
  *   Copyright 2020 Horizon Robotics, Inc.
  */
+#include <stdio.h>
+#include <stdlib.h>
 #include <common.h>
+#include <command.h>
 #include <sata.h>
+#include <stdarg.h>
+#include <linux/ctype.h>
+#include <linux/types.h>
+#include <linux/string.h>
+#include <malloc.h>
+#include <mapmem.h>
 #include <asm/io.h>
 #include <asm/arch-xj3/hb_reg.h>
 #include <asm/arch-xj3/hb_pinmux.h>
@@ -10,6 +19,7 @@
 #include <hb_info.h>
 #include <asm/arch-x2/ddr.h>
 #include "xj3_set_pin.h"
+#include <hb_utils.h>
 
 extern struct pin_info pin_info_array[];
 extern uint32_t pin_info_len;
@@ -55,15 +65,52 @@ static uint8_t xj3_pin_type(uint32_t pin)
 	return xj3_all_pin_type[pin];
 }
 
-static void xj3_set_pin_dir(char pin)
+static void xj3_set_pin_func(char pin, unsigned int val)
+{
+	uint32_t reg = 0;
+	uint32_t offset = 0;
+	uint32_t mask = 3;
+
+	offset = pin * 4;
+	reg = reg32_read(X2A_PIN_SW_BASE + offset);
+	reg = (reg & ~mask) | (val & mask);
+	reg32_write(X2A_PIN_SW_BASE + offset, reg);
+}
+
+static void xj3_set_pin_dir(char pin, int dir)
 {
 	uint32_t reg = 0;
 	uint32_t offset = 0;
 
-	/* set pin to input */
+	if (dir) {
+		/* set pin to ouput */
+		offset = (pin / 16) * 0x10 + 0x08;
+		reg = reg32_read(X2_GPIO_BASE + offset);
+		reg |= (1 << ((pin % 16) + 16));
+		reg32_write(X2_GPIO_BASE + offset, reg);
+	} else {
+		/* set pin to input */
+		offset = (pin / 16) * 0x10 + 0x08;
+		reg = reg32_read(X2_GPIO_BASE + offset);
+		reg &= (~(1 << ((pin % 16) + 16)));
+		reg32_write(X2_GPIO_BASE + offset, reg);
+	}
+}
+
+static void xj3_set_pin_value(char pin, unsigned int val)
+{
+	uint32_t reg = 0;
+	uint32_t offset = 0;
+
+	/* set pin output value*/
 	offset = (pin / 16) * 0x10 + 0x08;
 	reg = reg32_read(X2_GPIO_BASE + offset);
-	reg &= (~(1 << ((pin % 16) + 16)));
+	if (val == 1) {
+		reg |= (1 << (pin % 16));
+	} else {
+		reg &= (~(1 << (pin % 16)));
+	}
+
 	reg32_write(X2_GPIO_BASE + offset, reg);
 }
 
@@ -139,9 +186,152 @@ void xj3_set_pin_info(void)
 			printf("%s:pin[%d] is invalid\n", __func__, pin_info_array[i].pin_index);
 			continue;
 		}
-		xj3_set_pin_dir(pin_info_array[i].pin_index);
+		xj3_set_pin_dir(pin_info_array[i].pin_index, 0);
 		xj3_set_gpio_pull(pin_info_array[i].pin_index,
 				 pin_info_array[i].state,
 				 pin_type);
 		}
 }
+
+void xj3_set_pin(int pin, char *cmd)
+{
+	uint32_t pin_type = 0;
+	if (strcmp(cmd, "f0") == 0) {
+		xj3_set_pin_func(pin, 0);
+	} else if (strcmp(cmd, "f1") == 0) {
+		xj3_set_pin_func(pin, 1);
+	} else if (strcmp(cmd, "f2") == 0) {
+		xj3_set_pin_func(pin, 2);
+	} else if (strcmp(cmd, "f3") == 0) {
+		xj3_set_pin_func(pin, 3);
+	} else if (strcmp(cmd, "ip") == 0) {
+		xj3_set_pin_dir(pin, 0);
+	} else if (strcmp(cmd, "op") == 0) {
+		xj3_set_pin_dir(pin, 1);
+	} else if (strcmp(cmd, "dh") == 0) {
+		xj3_set_pin_value(pin, 1);
+	} else if (strcmp(cmd, "dl") == 0) {
+		xj3_set_pin_value(pin, 0);
+	} else if (strcmp(cmd, "pu") == 0) {
+		pin_type = xj3_pin_type(pin);
+		xj3_set_gpio_pull(pin, PULL_UP, pin_type);
+	} else if (strcmp(cmd, "pd") == 0) {
+		pin_type = xj3_pin_type(pin);
+		xj3_set_gpio_pull(pin, PULL_DOWN, pin_type);
+	} else if (strcmp(cmd, "pn") == 0 || strcmp(cmd, "np") == 0) {
+		pin_type = xj3_pin_type(pin);
+		xj3_set_gpio_pull(pin, NO_PULL, pin_type);
+	}
+}
+
+int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
+{
+	char *data, *dp, *lp, *ptr;
+	loff_t size = 0;
+	char line[128];
+	int length;
+	int pin, start_pin, end_pin;
+
+	// read gpio info from /boot/config.txt
+	ptr = map_sysmem(file_addr, 0);
+	if(hb_ext4_load(cfg_file, file_addr, &size) != 0)
+	{
+		printf("can't load config file(%s)\n", cfg_file);
+		return 0;
+	}
+	if ((data = malloc(size + 1)) == NULL)
+	{
+		printf("can't malloc %lu bytes\n", (ulong)size + 1);
+		return 0;
+	}
+
+	memcpy(data, ptr, size);
+	data[size] = '\0';
+	dp = data;
+
+	// parse gpio info
+	while ((length = hb_getline(line, sizeof(line), &dp)) > 0) {
+		printf("Line length: %d, Read line: %s\n", length, line);
+
+		if (length == -1) {
+			break;
+		}
+
+		lp = line;
+
+		/* skip leading white space */
+		while (isblank(*lp))
+			++lp;
+
+		/* skip comment lines */
+		if (*lp == '#' || *lp == '\0')
+			continue;
+
+		if (strncmp(lp, "gpio=", 5) == 0)
+		{
+			lp += strlen("gpio=");
+			char *str = strdup(lp);
+			char *token;
+
+			// Split by '=' to get key and value
+			token = strtok(str, "=");
+			if (token) {
+				char *key = token;
+				char *value = strtok(NULL, "=");
+
+				printf("Key: %s Value: %s\n", key, value);
+
+				char *dash = strchr(key, '-');
+				if (dash) {
+					// Handle ranges
+					start_pin = atoi(key);
+					end_pin = atoi(dash + 1);
+				}
+				else {
+					start_pin = end_pin = atoi(key);
+				}
+				printf("Range Start: %d, Range End: %d\n", start_pin, end_pin);
+
+				char *rangeToken = strtok(value, ",");
+				while (rangeToken) {
+					printf("Option Value: %s\n", strim(rangeToken));
+					// set pin
+					for (pin = start_pin; pin <= end_pin; pin++) {
+						xj3_set_pin(pin, strim(rangeToken));
+					}
+					rangeToken = strtok(NULL, ",");
+				}
+			}
+
+			free(str);
+		}
+	}
+
+	free(data);
+	return 0;
+}
+
+
+static int do_set_pin_by_config(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const argv[])
+{
+    char *cfg_file;
+    ulong file_addr;
+
+    if (argc < 2)
+        return CMD_RET_USAGE;
+
+    printf("param no:%d %s %s  \n", argc, argv[1], argv[2]);
+
+    cfg_file = argv[1];
+
+    file_addr = simple_strtoul(argv[2], NULL, 16);
+
+    return xj3_set_pin_by_config(cfg_file, file_addr);
+}
+
+static char set_pin_help_text[] =
+    "setpin <config file> <config addr>  - set pin stat by /boot/config.txt\n";
+
+U_BOOT_CMD(
+    setpin, 255, 0, do_set_pin_by_config,
+    "set pin by config", set_pin_help_text);
