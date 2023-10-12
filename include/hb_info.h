@@ -301,6 +301,7 @@ int init_io_vol(void);
 int update_qos(void);
 void xj3_set_pin_info(void);
 int xj3_set_pin_by_config(char *cfg_file, ulong file_addr);
+int xj3_set_pin_voltage_domain(char *cfg_file, ulong file_addr);
 uint32_t hb_efuse_chip_type(void);
 uint32_t is_bpu_clock_limit(void);
 void vio_pll_init(void);

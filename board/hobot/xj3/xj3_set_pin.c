@@ -228,9 +228,10 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 {
 	char *data, *dp, *lp, *ptr;
 	loff_t size = 0;
-	char line[128];
+	char line[128], filter_name[32];
 	int length;
 	int pin, start_pin, end_pin;
+	int som_type = 0;
 
 	// read gpio info from /boot/config.txt
 	ptr = map_sysmem(file_addr, 0);
@@ -251,7 +252,6 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 
 	// parse gpio info
 	while ((length = hb_getline(line, sizeof(line), &dp)) > 0) {
-		printf("Line length: %d, Read line: %s\n", length, line);
 
 		if (length == -1) {
 			break;
@@ -267,6 +267,10 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 		if (*lp == '#' || *lp == '\0')
 			continue;
 
+		/* Skip items that do not match the filter */
+		if (som_type != 0 && som_type != hb_som_type_get())
+			continue;
+
 		if (strncmp(lp, "gpio=", 5) == 0)
 		{
 			lp += strlen("gpio=");
@@ -279,8 +283,6 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 				char *key = token;
 				char *value = strtok(NULL, "=");
 
-				printf("Key: %s Value: %s\n", key, value);
-
 				char *dash = strchr(key, '-');
 				if (dash) {
 					// Handle ranges
@@ -290,11 +292,9 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 				else {
 					start_pin = end_pin = atoi(key);
 				}
-				printf("Range Start: %d, Range End: %d\n", start_pin, end_pin);
 
 				char *rangeToken = strtok(value, ",");
 				while (rangeToken) {
-					printf("Option Value: %s\n", strim(rangeToken));
 					// set pin
 					for (pin = start_pin; pin <= end_pin; pin++) {
 						xj3_set_pin(pin, strim(rangeToken));
@@ -305,6 +305,16 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 
 			free(str);
 		}
+		else if (strncmp(lp, "[", 1) == 0)
+		{
+			hb_extract_filter_name(lp, filter_name);
+			som_type = hb_get_som_type_by_filter_name(filter_name);
+			if (som_type == -1)
+			{
+				printf("Filter '%s' not found\n", filter_name);
+				som_type = 0;
+			}
+		}
 	}
 
 	free(data);
@@ -314,24 +324,131 @@ int xj3_set_pin_by_config(char *cfg_file, ulong file_addr)
 
 static int do_set_pin_by_config(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const argv[])
 {
-    char *cfg_file;
-    ulong file_addr;
+	char *cfg_file;
+	ulong file_addr;
 
-    if (argc < 2)
-        return CMD_RET_USAGE;
+	if (argc < 2)
+		return CMD_RET_USAGE;
 
-    printf("param no:%d %s %s  \n", argc, argv[1], argv[2]);
+	cfg_file = argv[1];
 
-    cfg_file = argv[1];
+	file_addr = simple_strtoul(argv[2], NULL, 16);
 
-    file_addr = simple_strtoul(argv[2], NULL, 16);
-
-    return xj3_set_pin_by_config(cfg_file, file_addr);
+	return xj3_set_pin_by_config(cfg_file, file_addr);
 }
 
 static char set_pin_help_text[] =
-    "setpin <config file> <config addr>  - set pin stat by /boot/config.txt\n";
+	"setpin <config file> <config addr>  - set pin stat by /boot/config.txt\n";
 
 U_BOOT_CMD(
-    setpin, 255, 0, do_set_pin_by_config,
-    "set pin by config", set_pin_help_text);
+	setpin, 255, 0, do_set_pin_by_config,
+	"set pin by config", set_pin_help_text);
+
+int xj3_set_pin_voltage_domain(char *cfg_file, ulong file_addr)
+{
+	char *data, *dp, *lp, *ptr;
+	loff_t size = 0;
+	char line[128], filter_name[32];
+	int length;
+	int som_type = 0;
+
+	ptr = map_sysmem(file_addr, 0);
+	if(hb_ext4_load(cfg_file, file_addr, &size) != 0)
+	{
+		printf("can't load config file(%s)\n", cfg_file);
+		return 0;
+	}
+	if ((data = malloc(size + 1)) == NULL)
+	{
+		printf("can't malloc %lu bytes\n", (ulong)size + 1);
+		return 0;
+	}
+
+	memcpy(data, ptr, size);
+	data[size] = '\0';
+	dp = data;
+
+	while ((length = hb_getline(line, sizeof(line), &dp)) > 0) {
+		if (length == -1) {
+			break;
+		}
+
+		lp = line;
+
+		/* skip leading white space */
+		while (isblank(*lp))
+			++lp;
+
+		/* skip comment lines */
+		if (*lp == '#' || *lp == '\0')
+			continue;
+
+		/* Skip items that do not match the filter */
+		if (som_type != 0 && som_type != hb_som_type_get()) {
+			continue;
+		}
+
+		if (strncmp(lp, "voltage_domain=", strlen("voltage_domain=")) == 0)
+		{
+			lp += strlen("voltage_domain=");
+
+			/*
+			* 1'b0=3.3v mode;  1'b1=1.8v mode
+			* 0x170 bit[3]       sd2
+			*       bit[2]       sd1
+			*       bit[1:0]     sd0
+			*
+			* 0x174 bit[11:10]   rgmii
+			*       bit[9]       i2c2
+			*       bit[8]       i2c0
+			*       bit[7]       reserved
+			*       bit[6:4]     bt1120
+			*       bit[3:2]     bifsd
+			*       bit[1]       bifspi
+			*       bit[0]       jtag
+			*/
+			printf("Set the voltage domain of 40pin to %s\n", lp);
+			if (strncasecmp(lp, "3.3v", 4) == 0)
+			{
+				writel(0xC00, GPIO_BASE + 0x174);
+			}
+			else if (strncasecmp(lp, "1.8v", 4) == 0)
+			{
+				writel(0xF0F, GPIO_BASE + 0x174);
+			}
+		}
+		else if (strncmp(lp, "[", 1) == 0)
+		{
+			hb_extract_filter_name(lp, filter_name);
+			som_type = hb_get_som_type_by_filter_name(filter_name);
+			if (som_type == -1)
+			{
+				printf("Filter '%s' not found\n", filter_name);
+				som_type = 0;
+			}
+		}
+	}
+
+	free(data);
+	return 0;
+}
+
+static int do_set_voltage_domain(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const argv[])
+{
+	char *cfg_file;
+	ulong file_addr;
+
+	if (argc < 2)
+		return CMD_RET_USAGE;
+
+	cfg_file = argv[1];
+
+	file_addr = simple_strtoul(argv[2], NULL, 16);
+
+	return xj3_set_pin_voltage_domain(cfg_file, file_addr);
+}
+
+U_BOOT_CMD(
+	setvol, 255, 0, do_set_voltage_domain,
+	"set pin voltage_domain",
+	"setpin <config file> <config addr>  - set pin voltage_domain by /boot/config.txt");
