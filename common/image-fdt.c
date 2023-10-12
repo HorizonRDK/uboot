@@ -332,6 +332,7 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 		xj3_set_pin_info();
 		xj3_set_pin_by_config("/boot/config.txt", 0x3E00000);
 		// dump_pin_info();
+		xj3_set_pin_voltage_domain("/boot/config.txt", 0x3E00000);
 #endif // CONFIG_TARGET_XJ3
 	}
 

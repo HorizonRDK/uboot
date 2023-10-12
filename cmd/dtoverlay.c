@@ -23,9 +23,10 @@ static int do_dtoverlay(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const
     loff_t size = 0;
     int param_num = 0;
     DTPARAM_T dtparam[16];
-    char line[128];
+    char line[128], filter_name[32];
     int length;
     char *comma, *token, *equal_sign;
+    int som_type = 0;
 
     if (argc < 5)
         return CMD_RET_USAGE;
@@ -75,6 +76,10 @@ static int do_dtoverlay(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const
 
         /* skip comment lines */
         if (*lp == '#' || *lp == '\0')
+            continue;
+
+        /* Skip items that do not match the filter */
+        if (som_type != 0 && som_type != hb_som_type_get())
             continue;
 
         if (strncmp(lp, "dtparam=", 8) == 0)
@@ -159,6 +164,16 @@ static int do_dtoverlay(struct cmd_tbl_s *cmdtp, int flag, int argc, char *const
                 dtoverlay_enable_debug(0);
             else
                 dtoverlay_enable_debug(1);
+        }
+        else if (strncmp(lp, "[", 1) == 0)
+        {
+            hb_extract_filter_name(lp, filter_name);
+            som_type = hb_get_som_type_by_filter_name(filter_name);
+            if (som_type == -1)
+            {
+                dtoverlay_error("Filter '%s' not found\n", filter_name);
+                som_type = 0;
+            }
         }
     }
 

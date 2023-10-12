@@ -16,6 +16,63 @@
 #include <part.h>
 #include <fs.h>
 
+char hb_filter_names[][20] = {
+    "all",
+    "",
+    "",
+    "",
+    "",
+    "rdkv1",
+    "rdkv1.2",
+    "",
+    "rdkv2",
+    "",
+    "",
+    "rdkmd",
+    "",
+};
+
+int hb_get_som_type_by_filter_name(char *filter_name)
+{
+    if (filter_name == NULL || strlen(filter_name) < 3) {
+        return -1;
+    }
+
+    int num_filters = sizeof(hb_filter_names) / sizeof(hb_filter_names[0]);
+
+    for (int i = 0; i < num_filters; i++) {
+        if (strcmp(hb_filter_names[i], filter_name) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int hb_extract_filter_name(const char* line, char* filter_name)
+{
+    int len = strlen(line);
+
+    // Remove leading whitespace characters and newlines
+    int start = 0;
+    while (start < len && isspace(line[start])) {
+        start++;
+    }
+
+    // Remove trailing whitespace characters and newline characters
+    int end = len - 1;
+    while (end >= start && isspace(line[end])) {
+        end--;
+    }
+
+    if (end >= (start+3) && line[start] == '[' && line[end] == ']') {
+        strncpy(filter_name, line + start + 1, end - start - 1);
+        filter_name[end - start - 1] = '\0';
+        return 1;
+    }
+    return 0;
+}
+
 int hb_ext4_load(char *filename, unsigned long addr, loff_t *len_read)
 {
       int ret;
