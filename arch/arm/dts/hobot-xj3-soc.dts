@@ -37,6 +37,15 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
+	framebuffer: framebuffer@0x2E000000 {
+		compatible = "simple-framebuffer";
+		reg = <0 0 0 0x2E000000>;
+		width = <1920>;
+		height = <1080>;
+		stride = <(1920 * 4)>;
+		format = "a8b8g8r8";
+	};
+
 	gpio: gpio@a6003000 {
 		compatible = "hobot,x2-gpio-1.0";
 		status = "okay";

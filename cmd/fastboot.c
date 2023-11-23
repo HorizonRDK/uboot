@@ -144,6 +144,25 @@ static int do_fastboot(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
 	size_t buf_size = 0;
 	fb_flash_type flash_type;
 
+#ifdef CONFIG_USB_KEYBOARD
+	//For usb keyboard
+	/**
+	 * FIXME:
+	 * If the USB keyboard is enabled, that is, when USB is used as host, calling fastboot will cause an error. 
+	 * The reason needs to be determined. Currently, the USB host function should be stopped before fastboot is started.
+	 *  Note that a timeout error will also occur when starting in the connected devices mode, it will fail to start
+	 */
+	int  ret;
+	char cmd[128];
+	memset(cmd, 0, sizeof(cmd));
+	snprintf(cmd, sizeof(cmd), "usb stop");
+	ret = run_command(cmd, 0);
+	if (ret != 0) {
+		printf("usb stop failed:%d\n", ret);
+		return CMD_RET_FAILURE;
+	}
+#endif
+
 	flash_type = get_boot_flash_type();	/* use boot flash type as default */
 
 	if (argc < 2)

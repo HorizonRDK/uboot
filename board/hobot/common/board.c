@@ -2182,7 +2182,38 @@ int board_early_init_r(void)
 #endif
 	return 0;
 }
+extern int set_pin_output_value(char pin, unsigned int val);
+#define msleep(a) udelay(a * 1000)
+void reset_lt8618(void)
+{
+	uint32_t som_type = hb_som_type_get();
+	char reset_pin = 0;
+	bool reverse = false;
+	switch (som_type)
+	{
+	case SOM_TYPE_X3PI:
+	{
+		reset_pin = 117;
+		reverse = true;
+		break;
+	}
+	// case SOM_TYPE_X3PIV2:
 
+	// 	break;
+	case SOM_TYPE_X3PIV2_1:
+		reset_pin = 60;
+		break;
+	case SOM_TYPE_X3CM:
+		reset_pin = 115;
+		break;
+	default:
+		printf("%s :There is nothing to do,return!", __func__);
+		break;
+	}
+	set_pin_output_value(reset_pin, 1);
+	msleep(100);
+	set_pin_output_value(reset_pin, 0);
+}
 int board_early_init_f(void)
 {
 #ifdef CONFIG_TARGET_XJ3
@@ -2201,6 +2232,9 @@ int board_early_init_f(void)
 #endif
 #if defined(CONFIG_SYSRESET)
 	print_resetinfo();
+#endif
+#ifdef CONFIG_VIDEO_HOBOT_XJ3
+	reset_lt8618();
 #endif
 
 	return 0;

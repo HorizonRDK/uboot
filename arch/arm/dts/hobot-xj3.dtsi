@@ -164,4 +164,12 @@
 			status = "okay";
 			};
 		};
+		iar: iar@0 {
+			u-boot,dm-pre-reloc;
+			compatible = "hobot,hobot-iar";
+			reg = <0 0 0 0>;
+			clocks = <&iar_pix_clk>;
+			status = "okay";
+		};
+		
 	};
