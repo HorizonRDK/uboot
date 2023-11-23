@@ -793,6 +793,19 @@ int console_init_r(void)
 	gd->jt->puts  = serial_puts;
 	gd->jt->printf = serial_printf;
 
+	/**
+	 * FIXME: 
+	 * Normally we should look for input and output devices from environment variables. 
+	 * Currently we fix the input and output devices. If we later find a method that can 
+	 * initialize the input and output devices before console_init_r, remove the following statement
+	 */
+
+	/*START*/
+	env_set("stdout","serial,vidconsole");
+	env_set("stderr","serial,vidconsole");
+	env_set("stdin","serial,usbkbd");
+	/*END*/
+
 	/* stdin stdout and stderr are in environment */
 	/* scan for it */
 	stdinname  = env_get("stdin");

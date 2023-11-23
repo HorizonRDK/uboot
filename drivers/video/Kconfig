@@ -488,6 +488,7 @@ config VIDEO_FSL_DCU_MAX_FB_SIZE_MB
 	 Controller Unit (DCU4).
 
 source "drivers/video/rockchip/Kconfig"
+source "drivers/video/hobot/Kconfig"
 
 config VIDEO_SANDBOX_SDL
 	bool "Enable sandbox video console using SDL"

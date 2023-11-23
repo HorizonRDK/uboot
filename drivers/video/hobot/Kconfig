@@ -1,0 +1,17 @@
+menuconfig VIDEO_HOBOT
+	bool "Enable HOBOT video support"
+	depends on DM_VIDEO
+	help
+	  This chapter configures the display functions on the XJ3 platform.
+
+config VIDEO_HOBOT_XJ3
+	bool "HOBOT XJ3 Display Support"
+	depends on VIDEO_HOBOT
+	help
+	  This enables hobot xj3 display support on uboot.
+
+config XJ3_DISPLAY_DEBUG
+    bool "Enable XJ3 Display Debug"
+	depends on VIDEO_HOBOT && VIDEO_HOBOT_XJ3
+	help
+	  This enables display debug message.

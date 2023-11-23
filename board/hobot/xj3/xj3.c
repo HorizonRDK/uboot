@@ -8,6 +8,8 @@
 #include <mmc.h>
 #include <malloc.h>
 #include <asm/io.h>
+#include <stdio_dev.h>
+#include <iomux.h>
 
 #include <asm/armv8/mmu.h>
 #include <asm/arch-xj3/hb_reg.h>
@@ -478,6 +480,27 @@ int timer_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_USB_KEYBOARD
+static int board_usbkbd_scan(void)
+{
+	int flag;
+	struct stdio_dev *dev;
+	dev = NULL;
+	flag = DEV_FLAGS_INPUT;
+	if (!run_command("usb start", -1)) {
+		dev = search_device(flag, "usbkbd");
+			if (dev)
+					return 0;
+			else {
+					printf("No usbkbd dev found\n");
+					return -ENODEV;
+			}
+	} else
+		return -ENODEV;
+       
+}
+#endif
+
 int board_late_init(void)
 {
 #if 0
@@ -502,7 +525,12 @@ int board_late_init(void)
 #ifdef CONFIG_USB_ETHER
 	usb_ether_init();
 #endif
-
+#ifdef CONFIG_VIDEO_HOBOT_XJ3
+#endif
+#ifdef CONFIG_USB_KEYBOARD
+    board_usbkbd_scan();
+	env_set("stdin","serial,usbkbd");
+#endif
 	return 0;
 }
 
