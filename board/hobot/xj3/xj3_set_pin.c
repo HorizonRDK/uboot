@@ -176,12 +176,46 @@ void dump_pin_info(void)
 	}
 }
 
+
+#ifdef CONFIG_VIDEO_HOBOT_XJ3
+uint8_t get_lt8618_rst(void)
+{
+	uint32_t som_type = hb_som_type_get();
+	uint8_t reset_pin = -1;
+	switch (som_type)
+	{
+	case SOM_TYPE_X3PI:
+		reset_pin = 117;
+		break;
+	case SOM_TYPE_X3PIV2_1:
+		reset_pin = 60;
+		break;
+	case SOM_TYPE_X3CM:
+		reset_pin = 115;
+		break;
+	default:
+		printf("%s :There is nothing to do,return!", __func__);
+		break;
+	}
+	return reset_pin;
+}
+#endif
+
 void xj3_set_pin_info(void)
 {
 	int32_t i = 0;
 	uint32_t pin_type = 0;
+#ifdef CONFIG_VIDEO_HOBOT_XJ3
+	uint8_t hdmi_rst = get_lt8618_rst();
+	if(hdmi_rst == -1)
+		printf("get lt8618 rst pin failed!\n");
+#endif
 	for (i = 0; i < pin_info_len; i++) {
 		pin_type = xj3_pin_type(pin_info_array[i].pin_index);
+#ifdef CONFIG_VIDEO_HOBOT_XJ3
+		if(pin_info_array[i].pin_index == hdmi_rst)
+			continue;
+#endif
 		if (pin_type == PIN_INVALID) {
 			printf("%s:pin[%d] is invalid\n", __func__, pin_info_array[i].pin_index);
 			continue;

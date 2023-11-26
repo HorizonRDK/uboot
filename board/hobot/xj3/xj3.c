@@ -485,19 +485,71 @@ static int board_usbkbd_scan(void)
 {
 	int flag;
 	struct stdio_dev *dev;
+	uint32_t som_type = hb_som_type_get();
+	uint32_t vbus_pin = 0;
+	uint32_t vbus_value = 0;
+	//NOTE: At Pi,PiV2,CM,id-gpio alway 65;
+	uint32_t id_gpio_pin = 65;
+	uint32_t id_gpio_value = 0;
+	uint32_t host_rest = 0;
+	uint32_t host_exreset = 0;
 	dev = NULL;
 	flag = DEV_FLAGS_INPUT;
-	if (!run_command("usb start", -1)) {
-		dev = search_device(flag, "usbkbd");
+
+	switch (som_type)
+	{
+	case SOM_TYPE_X3PI:
+	{
+		vbus_pin = 22;
+		host_rest = 23;
+		host_exreset=38;
+		break;
+	}
+	case SOM_TYPE_X3PIV2_1:
+	{
+		vbus_pin = 62;
+		//same as above
+		host_rest = 23;
+		host_exreset=38;
+	}
+		break;
+	case SOM_TYPE_X3CM:
+		vbus_pin = 64;
+		break;
+	default:
+		printf("%s :There is nothing to do,return!", __func__);
+		break;
+	}
+	if(vbus_pin != 0){
+		vbus_value = get_pin_input_value(vbus_pin);
+	}
+	udelay(10);
+	id_gpio_value = get_pin_input_value(id_gpio_pin);
+
+	if(som_type != SOM_TYPE_X3CM){
+		if(!id_gpio_value){
+			set_pin_output_value(host_rest,1);
+			set_pin_output_value(host_exreset,1);
+		}else{
+			set_pin_output_value(host_rest,0);
+			set_pin_output_value(host_exreset,0);
+		}
+	}
+	
+	if(vbus_value == 1){
+		if (!run_command("usb start", -1)) {
+			dev = search_device(flag, "usbkbd");
 			if (dev)
 					return 0;
 			else {
 					printf("No usbkbd dev found\n");
 					return -ENODEV;
 			}
-	} else
-		return -ENODEV;
-       
+		} else
+			return -ENODEV;
+	}
+	else
+		return -ENODEV; 
 }
 #endif
 
