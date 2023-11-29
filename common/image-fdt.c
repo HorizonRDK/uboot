@@ -318,7 +318,7 @@ int boot_relocate_fdt(struct lmb *lmb, char **of_flat_tree, ulong *of_size)
 
 		err = fdt_open_into(fdt_blob, of_start, of_len);
 		if (err != 0) {
-			fdt_error("fdt move failed");
+			printf("fdt move failed(%d)\n", err);
 			goto error;
 		}
 
