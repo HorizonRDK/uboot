@@ -327,7 +327,7 @@ static void xj3_bt1120_pinmux_switch(void)
 
         // write back
         writel(reg_value, bt1120_addr);
-        // xj3_display_debug("BT1120 [reg]: %x,[val]: %x\n", bt1120_addr, reg_value);
+        printf("BT1120 [reg]: %x,[val]: %x\n", bt1120_addr, reg_value);
     }
 }
 
