@@ -803,7 +803,7 @@ int console_init_r(void)
 	/*START*/
 	env_set("stdout","serial,vidconsole");
 	env_set("stderr","serial,vidconsole");
-	env_set("stdin","serial,usbkbd");
+	env_set("stdin","serial");
 	/*END*/
 
 	/* stdin stdout and stderr are in environment */
