@@ -2210,9 +2210,9 @@ void reset_lt8618(void)
 		printf("%s :There is nothing to do,return!", __func__);
 		break;
 	}
-	set_pin_output_value(reset_pin, 1);
+	set_pin_output_value(reset_pin, reverse?0:1);
 	msleep(100);
-	set_pin_output_value(reset_pin, 0);
+	set_pin_output_value(reset_pin,  reverse?1:0);
 }
 int board_early_init_f(void)
 {
