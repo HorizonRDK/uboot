@@ -2192,6 +2192,7 @@ void reset_lt8618(void)
 	switch (som_type)
 	{
 	case SOM_TYPE_X3PI:
+	case SOM_TYPE_X3PIV2:
 	{
 		reset_pin = 117;
 		reverse = true;
@@ -2207,12 +2208,14 @@ void reset_lt8618(void)
 		reset_pin = 115;
 		break;
 	default:
-		printf("%s :There is nothing to do,return!", __func__);
+		printf("%s :There is nothing to do,return!\n", __func__);
 		break;
 	}
-	set_pin_output_value(reset_pin, reverse?0:1);
-	msleep(100);
-	set_pin_output_value(reset_pin,  reverse?1:0);
+	if(reset_pin != 0){
+		set_pin_output_value(reset_pin, reverse?0:1);
+		msleep(100);
+		set_pin_output_value(reset_pin,  reverse?1:0);
+	}
 }
 int board_early_init_f(void)
 {
