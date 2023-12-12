@@ -181,10 +181,11 @@ void dump_pin_info(void)
 uint8_t get_lt8618_rst(void)
 {
 	uint32_t som_type = hb_som_type_get();
-	uint8_t reset_pin = -1;
+	uint8_t reset_pin = 0;
 	switch (som_type)
 	{
 	case SOM_TYPE_X3PI:
+	case SOM_TYPE_X3PIV2:
 		reset_pin = 117;
 		break;
 	case SOM_TYPE_X3PIV2_1:
@@ -194,7 +195,7 @@ uint8_t get_lt8618_rst(void)
 		reset_pin = 115;
 		break;
 	default:
-		printf("%s :There is nothing to do,return!", __func__);
+		printf("%s :There is nothing to do,return!\n", __func__);
 		break;
 	}
 	return reset_pin;

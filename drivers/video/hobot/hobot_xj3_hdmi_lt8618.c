@@ -1344,6 +1344,7 @@ static int lt8618_detect(void)
 	switch (som_type)
 	{
 	case SOM_TYPE_X3PI:
+	case SOM_TYPE_X3PIV2:
 	case SOM_TYPE_X3PIV2_1:
 		i2c_bus = 1;
 		break;
@@ -1351,7 +1352,7 @@ static int lt8618_detect(void)
 		i2c_bus = 5;
 		break;
 	default:
-		printf("%s :There is nothing to do,return!", __func__);
+		printf("%s :There is nothing to do,return!\n", __func__);
 		break;
 	}
 	return i2c_bus;

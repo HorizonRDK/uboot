@@ -517,7 +517,7 @@ static int board_usbkbd_scan(void)
 		vbus_pin = 64;
 		break;
 	default:
-		printf("%s :There is nothing to do,return!", __func__);
+		printf("%s :There is nothing to do,return!\n", __func__);
 		break;
 	}
 	if(vbus_pin != 0){
