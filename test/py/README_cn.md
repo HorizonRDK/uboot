@@ -1,4 +1,4 @@
-English| [简体中文](./README_cn.md)
+[English](./README.md) | 简体中文
 
 # U-Boot pytest suite
 
@@ -49,7 +49,8 @@ The test script supports either:
 Older distributions (e.g. Ubuntu 10.04) may not provide all the required
 packages, or may provide versions that are too old to run the test suite. One
 can use the Python `virtualenv` script to locally install more up-to-date
-versions of the required packages without interfering with the OS installation.For example:
+versions of the required packages without interfering with the OS installation.
+For example:
 
 ```bash
 $ cd /path/to/u-boot
@@ -98,7 +99,7 @@ option `--gdbserver COMM`. This causes two things to happens:
 A usage example is:
 
 Window 1:
-```shell```
+```shell
 ./test/py/test.py --bd sandbox --gdbserver localhost:1234
 ```
 
@@ -149,7 +150,7 @@ processing.
 
 - `-k` selects which tests to run. The default is to run all known tests. This
   option takes a single argument which is used to filter test names. Simple
-```logical operators are supported. For example:
+  logical operators are supported. For example:
   - `'ums'` runs only tests with "ums" in their name.
   - `'ut_dm'` runs only tests with "ut_dm" in their name. Note that in this
     case, "ut_dm" is a parameter to a test rather than the test name. The full
@@ -198,7 +199,8 @@ This script may be implemented e.g. by exec()ing `cu`, `kermit`, `conmux`, etc.
 If you are able to run U-Boot under a hardware simulator such as qemu, then
 you would likely spawn that simulator from this script. However, note that
 `u-boot-test-reset` may be called multiple times per test script run, and must
-cause U-Boot to start execution from scratch each time. Hopefully yoursimulator includes a virtual reset button! If not, you can launch the
+cause U-Boot to start execution from scratch each time. Hopefully your
+simulator includes a virtual reset button! If not, you can launch the
 simulator from `u-boot-test-reset` instead, while arranging for this console
 process to always communicate with the current simulator instance.
 
@@ -247,7 +249,8 @@ start running from scratch. If the U-Boot binary to be tested has been written
 to flash, pulsing the board's reset signal is likely all this script need do.
 However, in some scenarios, this script may perform other actions. For
 example, it may call out to some SoC- or board-specific vendor utility in order
-to download the U-Boot binary directly into RAM and execute it.avoid the need for `u-boot-test-flash` to actually write U-Boot to flash, thus
+to download the U-Boot binary directly into RAM and execute it. This would
+avoid the need for `u-boot-test-flash` to actually write U-Boot to flash, thus
 saving wear on the flash chip(s).
 
 #### Examples
@@ -296,7 +299,8 @@ module:
 ### U-Boot `.config` feature usage
 
 The test scripts rely on various U-Boot `.config` features, either directly in
-order to test those features, or indirectly in order to query information fromthe running U-Boot instance in order to test other features.
+order to test those features, or indirectly in order to query information from
+the running U-Boot instance in order to test other features.
 
 One example is that testing of the `md` command requires knowledge of a RAM
 address to use for the test. This data is parsed from the output of the
@@ -345,8 +349,17 @@ environment configuration information.
 The function `u_boot_console.run_command()` executes a shell command on the
 U-Boot console, and returns all output from that command. This allows
 validation or interpretation of the command output. This function validates
-that certain strings are not seen on the U-Boot console. These include shell错误消息和 U-Boot 登录消息（以便检测意外的板复位）。查看 `u_boot_console_base.py` 源代码，获取完整的“坏”字符串列表。一些测试场景预计会触发这些字符串。使用 `u_boot_console.disable_check()` 来临时禁用特定字符串的检查。查看 `test_unknown_cmd.py` 获取示例。
+that certain strings are not seen on the U-Boot console. These include shell
+error messages and the U-Boot sign-on message (in order to detect unexpected
+board resets). See the source of `u_boot_console_base.py` for a complete list of
+"bad" strings. Some test scenarios are expected to trigger these strings. Use
+`u_boot_console.disable_check()` to temporarily disable checking for specific
+strings. See `test_unknown_cmd.py` for an example.
 
-可以作为 `u_boot_console.config` 对象的子字段访问板和板环境配置值，例如 `u_boot_console.config.ram_base`。
+Board- and board-environment configuration values may be accessed as sub-fields
+of the `u_boot_console.config` object, for example
+`u_boot_console.config.ram_base`.
 
-可以通过字典 `u_boot_console.config.buildconfig` 访问构建配置值（来自`.config`），键等于 Kconfig 变量名称。
+Build configuration values (from `.config`) may be accessed via the dictionary
+`u_boot_console.config.buildconfig`, with keys equal to the Kconfig variable
+names.
